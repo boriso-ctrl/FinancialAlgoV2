@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "financial-algorithms"
+version = "0.1.0"
+description = "Vectorized backtesting, signal blending, and indicator research toolkit"
+readme = "README.md"
+keywords = ["quant", "trading", "backtest", "signals"]
+requires-python = ">=3.11"
+authors = [
+  { name = "Financial Algorithms" }
+]
+dependencies = [
+  "numpy>=1.25",
+  "pandas>=2.0",
+  "yfinance>=0.2",
+  "simfin>=0.8",
+  "ta>=0.11",
+  "matplotlib>=3.7",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2",
+  "ruff>=0.5.0",
+  "black>=24.4",
+  "mypy>=1.8",
+]
+sampling = [
+  "scipy>=1.11",
+]
+
+[project.scripts]
+fa-backtest = "financial_algorithms.cli.backtest:main"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = [
+  "E",
+  "F",
+  "B",
+  "I",
+  "UP",
+]
+
+[tool.ruff.isort]
+known-first-party = ["financial_algorithms"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+warn_return_any = true
+follow_imports = "silent"
+ignore_missing_imports = true
+mypy_path = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-q"
+testpaths = ["tests"]
