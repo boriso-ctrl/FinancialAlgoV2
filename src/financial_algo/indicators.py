@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import math
 from typing import Sequence
+
+import numpy as np
+import pandas as pd
 
 
 def moving_average(prices: Sequence[float], window: int) -> list[float]:
@@ -104,8 +108,6 @@ def bollinger_bands(
         A three-element tuple ``(upper_band, middle_band, lower_band)``.
         The first ``window - 1`` elements in each band are ``float('nan')``.
     """
-    import math
-
     if window < 2:
         raise ValueError(f"window must be >= 2, got {window}")
 
@@ -127,3 +129,117 @@ def bollinger_bands(
             lower.append(mean - num_std * std)
 
     return upper, middle, lower
+
+
+# ---------------------------------------------------------------------------
+# Pandas-based indicators (used by strategy & regime layers)
+# ---------------------------------------------------------------------------
+
+
+def realized_vol(prices: pd.Series, window: int = 20) -> pd.Series:
+    """Annualised realised volatility from log returns.
+
+    Parameters
+    ----------
+    prices:
+        Price series (DatetimeIndex).
+    window:
+        Rolling window in trading days.
+
+    Returns
+    -------
+    pd.Series
+        Annualised volatility (assumes 252 trading days/year).
+    """
+    log_ret = np.log(prices / prices.shift(1))
+    return log_ret.rolling(window).std() * np.sqrt(252)
+
+
+def ema(prices: pd.Series, span: int) -> pd.Series:
+    """Exponential moving average.
+
+    Parameters
+    ----------
+    prices:
+        Price series.
+    span:
+        EMA span (number of periods).
+    """
+    return prices.ewm(span=span, adjust=False).mean()
+
+
+def zscore(series: pd.Series, window: int) -> pd.Series:
+    """Rolling z-score: ``(x - mean) / std``.
+
+    Parameters
+    ----------
+    series:
+        Any numeric Series.
+    window:
+        Rolling look-back window.
+    """
+    roll = series.rolling(window)
+    return (series - roll.mean()) / roll.std()
+
+
+def atr(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    period: int = 14,
+) -> pd.Series:
+    """Average True Range.
+
+    Parameters
+    ----------
+    high, low, close:
+        OHLC price series (aligned index).
+    period:
+        Smoothing period.
+    """
+    prev_close = close.shift(1)
+    tr = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()],
+        axis=1,
+    ).max(axis=1)
+    return tr.rolling(period).mean()
+
+
+def breadth_count(
+    prices: pd.DataFrame,
+    lookback: int = 50,
+) -> pd.Series:
+    """Fraction of columns whose price is above its own SMA.
+
+    Parameters
+    ----------
+    prices:
+        DataFrame of prices, one column per ticker.
+    lookback:
+        SMA window.
+
+    Returns
+    -------
+    pd.Series
+        Value in ``[0, 1]`` — fraction of tickers above their SMA.
+    """
+    sma = prices.rolling(lookback).mean()
+    above = (prices > sma).astype(float)
+    return above.mean(axis=1)
+
+
+def drawdown(equity: pd.Series) -> pd.Series:
+    """Running drawdown from peak.
+
+    Parameters
+    ----------
+    equity:
+        Equity / NAV series.
+
+    Returns
+    -------
+    pd.Series
+        Drawdown as a negative fraction (e.g. -0.10 = −10 %).
+    """
+    peak = equity.cummax()
+    return (equity - peak) / peak

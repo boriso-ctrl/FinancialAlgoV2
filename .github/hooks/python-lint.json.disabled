@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "event": "PostToolUse",
+        "description": "Run linting and basic checks on edited Python files after save",
+        "matchers": ["edit_file", "create_file", "replace_string_in_file", "multi_replace_string_in_file"],
+        "windows": "powershell -NoProfile -Command \"$file = $args[0]; if ($file -match '\\.py$') { & .venv\\Scripts\\python.exe -m py_compile $file; if ($LASTEXITCODE -ne 0) { Write-Error 'Syntax error detected'; exit 2 } }\"",
+        "linux": "bash -c 'file=\"$1\"; if [[ \"$file\" == *.py ]]; then .venv/bin/python -m py_compile \"$file\" || exit 2; fi'",
+        "timeout": 10
+      }
+    ]
+  }
+}

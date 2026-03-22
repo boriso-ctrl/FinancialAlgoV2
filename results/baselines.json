@@ -1,0 +1,2909 @@
+{
+  "BuyHold-SPY": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.9,
+      "cagr": 0.1641,
+      "max_drawdown": -0.3299,
+      "sortino": 1.27,
+      "calmar": 0.5
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.2,
+      "cagr": 0.2467,
+      "max_drawdown": -0.2211,
+      "sortino": 1.68,
+      "calmar": 1.12
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.12,
+      "cagr": 0.0033,
+      "max_drawdown": -0.2037,
+      "sortino": 0.16,
+      "calmar": 0.02
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.1,
+      "cagr": -0.0365,
+      "max_drawdown": -0.245,
+      "sortino": -0.13,
+      "calmar": -0.15
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.18,
+      "cagr": -0.0527,
+      "max_drawdown": -0.2256,
+      "sortino": -0.24,
+      "calmar": -0.23
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.44,
+      "cagr": -0.2113,
+      "max_drawdown": -0.3079,
+      "sortino": -1.81,
+      "calmar": -0.69
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.29,
+      "cagr": 0.2633,
+      "max_drawdown": -0.2168,
+      "sortino": 1.88,
+      "calmar": 1.21
+    }
+  },
+  "B1-OilMomentumSurge": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.34,
+      "cagr": 0.0279,
+      "max_drawdown": -0.2244,
+      "sortino": 0.51,
+      "calmar": 0.12
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.22,
+      "cagr": -0.0389,
+      "max_drawdown": -0.2352,
+      "sortino": -0.35,
+      "calmar": -0.17
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.21,
+      "cagr": -0.052,
+      "max_drawdown": -0.1338,
+      "sortino": -0.3,
+      "calmar": -0.39
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -1.1,
+      "cagr": -0.0911,
+      "max_drawdown": -0.2329,
+      "sortino": -1.28,
+      "calmar": -0.39
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.55,
+      "cagr": -0.11,
+      "max_drawdown": -0.2047,
+      "sortino": -0.75,
+      "calmar": -0.54
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.42,
+      "cagr": 0.0657,
+      "max_drawdown": -0.1984,
+      "sortino": 0.62,
+      "calmar": 0.33
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.1,
+      "cagr": -0.0318,
+      "max_drawdown": -0.2479,
+      "sortino": -0.14,
+      "calmar": -0.13
+    }
+  },
+  "B2-OilShockHedge": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.2,
+      "cagr": -0.0109,
+      "max_drawdown": -0.2459,
+      "sortino": -0.26,
+      "calmar": -0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -1.65,
+      "cagr": -0.183,
+      "max_drawdown": -0.2778,
+      "sortino": -1.85,
+      "calmar": -0.66
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.41,
+      "cagr": -0.068,
+      "max_drawdown": -0.1413,
+      "sortino": -0.52,
+      "calmar": -0.48
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.76,
+      "cagr": -0.0832,
+      "max_drawdown": -0.246,
+      "sortino": -0.97,
+      "calmar": -0.34
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.15,
+      "cagr": -0.0231,
+      "max_drawdown": -0.1346,
+      "sortino": -0.19,
+      "calmar": -0.17
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.72,
+      "cagr": 0.1032,
+      "max_drawdown": -0.1094,
+      "sortino": 1.11,
+      "calmar": 0.94
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.13,
+      "cagr": 0.0086,
+      "max_drawdown": -0.2448,
+      "sortino": 0.18,
+      "calmar": 0.04
+    }
+  },
+  "B3-OilMeanReversion": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.19,
+      "cagr": 0.0106,
+      "max_drawdown": -0.2475,
+      "sortino": 0.28,
+      "calmar": 0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.4,
+      "cagr": -0.0847,
+      "max_drawdown": -0.2525,
+      "sortino": -0.56,
+      "calmar": -0.34
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.68,
+      "cagr": 0.1085,
+      "max_drawdown": -0.1669,
+      "sortino": 1.05,
+      "calmar": 0.65
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -1.36,
+      "cagr": -0.0983,
+      "max_drawdown": -0.2495,
+      "sortino": -1.47,
+      "calmar": -0.39
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -1.0,
+      "cagr": -0.1585,
+      "max_drawdown": -0.2305,
+      "sortino": -1.26,
+      "calmar": -0.69
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.26,
+      "cagr": 0.0326,
+      "max_drawdown": -0.2307,
+      "sortino": 0.37,
+      "calmar": 0.14
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.09,
+      "cagr": 0.0002,
+      "max_drawdown": -0.259,
+      "sortino": 0.12,
+      "calmar": 0.0
+    }
+  },
+  "B4-EnergyPairs": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.12,
+      "cagr": -0.0073,
+      "max_drawdown": -0.3051,
+      "sortino": -0.17,
+      "calmar": -0.02
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -1.36,
+      "cagr": -0.1371,
+      "max_drawdown": -0.2395,
+      "sortino": -1.48,
+      "calmar": -0.57
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.22,
+      "cagr": 0.0239,
+      "max_drawdown": -0.1906,
+      "sortino": 0.32,
+      "calmar": 0.13
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -1.36,
+      "cagr": -0.0924,
+      "max_drawdown": -0.2497,
+      "sortino": -1.48,
+      "calmar": -0.37
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.4,
+      "cagr": -0.0947,
+      "max_drawdown": -0.2352,
+      "sortino": -0.54,
+      "calmar": -0.4
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.92,
+      "cagr": -0.1791,
+      "max_drawdown": -0.2492,
+      "sortino": -1.19,
+      "calmar": -0.72
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.78,
+      "cagr": -0.0638,
+      "max_drawdown": -0.2489,
+      "sortino": -0.93,
+      "calmar": -0.26
+    }
+  },
+  "C1-DefenseRotation": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.41,
+      "cagr": 0.0494,
+      "max_drawdown": -0.2501,
+      "sortino": 0.58,
+      "calmar": 0.2
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.24,
+      "cagr": -0.063,
+      "max_drawdown": -0.1913,
+      "sortino": -0.34,
+      "calmar": -0.33
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.32,
+      "cagr": 0.0441,
+      "max_drawdown": -0.1872,
+      "sortino": 0.46,
+      "calmar": 0.24
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.04,
+      "cagr": -0.004,
+      "max_drawdown": -0.2368,
+      "sortino": 0.05,
+      "calmar": -0.02
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.66,
+      "cagr": -0.1147,
+      "max_drawdown": -0.2374,
+      "sortino": -0.85,
+      "calmar": -0.48
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.2,
+      "cagr": -0.0377,
+      "max_drawdown": -0.2458,
+      "sortino": -0.28,
+      "calmar": -0.15
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.33,
+      "cagr": 0.0378,
+      "max_drawdown": -0.2058,
+      "sortino": 0.47,
+      "calmar": 0.18
+    }
+  },
+  "C2-SafeHavenFlight": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.26,
+      "cagr": -0.0114,
+      "max_drawdown": -0.2428,
+      "sortino": -0.34,
+      "calmar": -0.05
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.36,
+      "cagr": -0.0714,
+      "max_drawdown": -0.2398,
+      "sortino": -0.51,
+      "calmar": -0.3
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -1.18,
+      "cagr": -0.2074,
+      "max_drawdown": -0.2383,
+      "sortino": -1.56,
+      "calmar": -0.87
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.76,
+      "cagr": -0.0857,
+      "max_drawdown": -0.2728,
+      "sortino": -1.05,
+      "calmar": -0.31
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.03,
+      "cagr": -0.006,
+      "max_drawdown": -0.1679,
+      "sortino": 0.05,
+      "calmar": -0.04
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.08,
+      "cagr": -0.0345,
+      "max_drawdown": -0.163,
+      "sortino": -0.12,
+      "calmar": -0.21
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.56,
+      "cagr": -0.0519,
+      "max_drawdown": -0.2403,
+      "sortino": -0.71,
+      "calmar": -0.22
+    }
+  },
+  "C3-PostWarRecovery": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.09,
+      "cagr": 0.0038,
+      "max_drawdown": -0.2491,
+      "sortino": 0.13,
+      "calmar": 0.02
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.16,
+      "cagr": 0.0717,
+      "max_drawdown": -0.0211,
+      "sortino": 4.0,
+      "calmar": 3.4
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.81,
+      "cagr": -0.0727,
+      "max_drawdown": -0.1058,
+      "sortino": -0.94,
+      "calmar": -0.69
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.18,
+      "cagr": -0.0171,
+      "max_drawdown": -0.1976,
+      "sortino": -0.24,
+      "calmar": -0.09
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.53,
+      "cagr": -0.0326,
+      "max_drawdown": -0.0578,
+      "sortino": -0.6,
+      "calmar": -0.56
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.89,
+      "cagr": 0.079,
+      "max_drawdown": -0.0555,
+      "sortino": 1.59,
+      "calmar": 1.42
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.75,
+      "cagr": 0.0477,
+      "max_drawdown": -0.0781,
+      "sortino": 1.33,
+      "calmar": 0.61
+    }
+  },
+  "C4-ArmsRaceMomentum": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.21,
+      "cagr": 0.0181,
+      "max_drawdown": -0.2499,
+      "sortino": 0.31,
+      "calmar": 0.07
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.43,
+      "cagr": -0.0511,
+      "max_drawdown": -0.2352,
+      "sortino": -0.6,
+      "calmar": -0.22
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.63,
+      "cagr": -0.0814,
+      "max_drawdown": -0.1104,
+      "sortino": -0.83,
+      "calmar": -0.74
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.25,
+      "cagr": 0.0241,
+      "max_drawdown": -0.1635,
+      "sortino": 0.37,
+      "calmar": 0.15
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.41,
+      "cagr": 0.0392,
+      "max_drawdown": -0.1228,
+      "sortino": 0.61,
+      "calmar": 0.32
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.27,
+      "cagr": -0.0515,
+      "max_drawdown": -0.1691,
+      "sortino": -0.35,
+      "calmar": -0.3
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.21,
+      "cagr": 0.0208,
+      "max_drawdown": -0.2467,
+      "sortino": 0.3,
+      "calmar": 0.08
+    }
+  },
+  "D1-FourStateTactical": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.63,
+      "cagr": 0.1023,
+      "max_drawdown": -0.323,
+      "sortino": 0.89,
+      "calmar": 0.32
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.86,
+      "cagr": 0.1593,
+      "max_drawdown": -0.1437,
+      "sortino": 1.18,
+      "calmar": 1.11
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.45,
+      "cagr": -0.0968,
+      "max_drawdown": -0.174,
+      "sortino": -0.61,
+      "calmar": -0.56
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.02,
+      "cagr": -0.0174,
+      "max_drawdown": -0.323,
+      "sortino": -0.03,
+      "calmar": -0.05
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.28,
+      "cagr": -0.0736,
+      "max_drawdown": -0.2321,
+      "sortino": -0.37,
+      "calmar": -0.32
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.25,
+      "cagr": -0.1742,
+      "max_drawdown": -0.2495,
+      "sortino": -1.58,
+      "calmar": -0.7
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.99,
+      "cagr": 0.1949,
+      "max_drawdown": -0.2227,
+      "sortino": 1.44,
+      "calmar": 0.88
+    }
+  },
+  "D2-CrashHedgeQQQ": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.94,
+      "cagr": 0.1818,
+      "max_drawdown": -0.2482,
+      "sortino": 1.34,
+      "calmar": 0.73
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.12,
+      "cagr": 0.2314,
+      "max_drawdown": -0.1784,
+      "sortino": 1.52,
+      "calmar": 1.3
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.01,
+      "cagr": -0.0206,
+      "max_drawdown": -0.143,
+      "sortino": -0.01,
+      "calmar": -0.14
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.33,
+      "cagr": 0.0484,
+      "max_drawdown": -0.2482,
+      "sortino": 0.45,
+      "calmar": 0.19
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.25,
+      "cagr": 0.0305,
+      "max_drawdown": -0.205,
+      "sortino": 0.34,
+      "calmar": 0.15
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.14,
+      "cagr": -0.1475,
+      "max_drawdown": -0.2298,
+      "sortino": -1.44,
+      "calmar": -0.64
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.99,
+      "cagr": 0.1926,
+      "max_drawdown": -0.2391,
+      "sortino": 1.42,
+      "calmar": 0.81
+    }
+  },
+  "D3-VolCarry": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.89,
+      "cagr": 0.1603,
+      "max_drawdown": -0.3177,
+      "sortino": 1.28,
+      "calmar": 0.5
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.41,
+      "cagr": 0.3081,
+      "max_drawdown": -0.1607,
+      "sortino": 2.08,
+      "calmar": 1.92
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.49,
+      "cagr": 0.0813,
+      "max_drawdown": -0.1464,
+      "sortino": 0.68,
+      "calmar": 0.56
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.12,
+      "cagr": -0.0305,
+      "max_drawdown": -0.2453,
+      "sortino": -0.16,
+      "calmar": -0.12
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.62,
+      "cagr": -0.1299,
+      "max_drawdown": -0.2459,
+      "sortino": -0.8,
+      "calmar": -0.53
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.32,
+      "cagr": -0.181,
+      "max_drawdown": -0.2981,
+      "sortino": -1.63,
+      "calmar": -0.61
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.26,
+      "cagr": 0.2651,
+      "max_drawdown": -0.243,
+      "sortino": 1.85,
+      "calmar": 1.09
+    }
+  },
+  "E1-MultiPairPortfolio": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.3,
+      "cagr": -0.0161,
+      "max_drawdown": -0.3815,
+      "sortino": -0.41,
+      "calmar": -0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -1.09,
+      "cagr": -0.1572,
+      "max_drawdown": -0.2379,
+      "sortino": -1.37,
+      "calmar": -0.66
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.37,
+      "cagr": 0.047,
+      "max_drawdown": -0.1791,
+      "sortino": 0.52,
+      "calmar": 0.26
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -1.39,
+      "cagr": -0.085,
+      "max_drawdown": -0.2256,
+      "sortino": -1.68,
+      "calmar": -0.38
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.91,
+      "cagr": -0.1276,
+      "max_drawdown": -0.2387,
+      "sortino": -1.18,
+      "calmar": -0.53
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.34,
+      "cagr": -0.0746,
+      "max_drawdown": -0.1931,
+      "sortino": -0.48,
+      "calmar": -0.39
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.54,
+      "cagr": -0.0511,
+      "max_drawdown": -0.2409,
+      "sortino": -0.71,
+      "calmar": -0.21
+    }
+  },
+  "F1-CryptoFlightToQuality": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.85,
+      "cagr": -0.0138,
+      "max_drawdown": -0.253,
+      "sortino": -1.33,
+      "calmar": -0.05
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.44,
+      "cagr": -0.0816,
+      "max_drawdown": -0.2432,
+      "sortino": -0.61,
+      "calmar": -0.34
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -6.95,
+      "cagr": -0.101,
+      "max_drawdown": -0.101,
+      "sortino": -6.37,
+      "calmar": -1.0
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.19,
+      "cagr": -0.0313,
+      "max_drawdown": -0.1438,
+      "sortino": -0.26,
+      "calmar": -0.22
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.54,
+      "cagr": 0.0709,
+      "max_drawdown": -0.0923,
+      "sortino": 0.84,
+      "calmar": 0.77
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.07,
+      "cagr": -0.0031,
+      "max_drawdown": -0.2313,
+      "sortino": 0.11,
+      "calmar": -0.01
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.83,
+      "cagr": -0.0558,
+      "max_drawdown": -0.2207,
+      "sortino": -0.93,
+      "calmar": -0.25
+    }
+  },
+  "F2-CryptoRecoverySurge": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.14,
+      "cagr": 0.0078,
+      "max_drawdown": -0.2176,
+      "sortino": 0.2,
+      "calmar": 0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.94,
+      "cagr": 0.0521,
+      "max_drawdown": -0.0236,
+      "sortino": 2.68,
+      "calmar": 2.21
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -2.55,
+      "cagr": -0.029,
+      "max_drawdown": -0.029,
+      "sortino": -2.52,
+      "calmar": -1.0
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.49,
+      "cagr": 0.0496,
+      "max_drawdown": -0.1283,
+      "sortino": 0.85,
+      "calmar": 0.39
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 1.83,
+      "cagr": 0.1957,
+      "max_drawdown": -0.0227,
+      "sortino": 6.81,
+      "calmar": 8.63
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.58,
+      "cagr": 0.0505,
+      "max_drawdown": -0.0987,
+      "sortino": 0.87,
+      "calmar": 0.51
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.43,
+      "cagr": -0.0368,
+      "max_drawdown": -0.2176,
+      "sortino": -0.52,
+      "calmar": -0.17
+    }
+  },
+  "F3-CryptoGoldDivergence": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.04,
+      "cagr": 0.0007,
+      "max_drawdown": -0.2323,
+      "sortino": 0.05,
+      "calmar": 0.0
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -1.3,
+      "cagr": -0.1761,
+      "max_drawdown": -0.2468,
+      "sortino": -1.5,
+      "calmar": -0.71
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.18,
+      "cagr": 0.0112,
+      "max_drawdown": -0.0503,
+      "sortino": 0.28,
+      "calmar": 0.22
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.2,
+      "cagr": 0.0089,
+      "max_drawdown": -0.0776,
+      "sortino": 0.3,
+      "calmar": 0.11
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.0,
+      "cagr": 0.0,
+      "max_drawdown": 0.0,
+      "sortino": 0.0,
+      "calmar": 0.0
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.16,
+      "cagr": 0.0094,
+      "max_drawdown": -0.0607,
+      "sortino": 0.22,
+      "calmar": 0.15
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.16,
+      "cagr": -0.0154,
+      "max_drawdown": -0.1491,
+      "sortino": -0.22,
+      "calmar": -0.1
+    }
+  },
+  "G1-SentimentCrisisAlpha": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.45,
+      "cagr": 0.0594,
+      "max_drawdown": -0.3443,
+      "sortino": 0.63,
+      "calmar": 0.17
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.73,
+      "cagr": 0.1259,
+      "max_drawdown": -0.2119,
+      "sortino": 0.99,
+      "calmar": 0.59
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.09,
+      "cagr": -0.0013,
+      "max_drawdown": -0.1496,
+      "sortino": 0.12,
+      "calmar": -0.01
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.2,
+      "cagr": 0.0179,
+      "max_drawdown": -0.2223,
+      "sortino": 0.29,
+      "calmar": 0.08
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.73,
+      "cagr": -0.1236,
+      "max_drawdown": -0.2499,
+      "sortino": -0.89,
+      "calmar": -0.49
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.51,
+      "cagr": -0.1122,
+      "max_drawdown": -0.2046,
+      "sortino": -0.72,
+      "calmar": -0.55
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.79,
+      "cagr": 0.1149,
+      "max_drawdown": -0.2488,
+      "sortino": 1.09,
+      "calmar": 0.46
+    }
+  },
+  "G2-FearGreedContrarian": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.87,
+      "cagr": 0.1486,
+      "max_drawdown": -0.244,
+      "sortino": 1.22,
+      "calmar": 0.61
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.93,
+      "cagr": 0.1765,
+      "max_drawdown": -0.1846,
+      "sortino": 1.27,
+      "calmar": 0.96
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.47,
+      "cagr": 0.0756,
+      "max_drawdown": -0.1658,
+      "sortino": 0.66,
+      "calmar": 0.46
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.14,
+      "cagr": 0.0082,
+      "max_drawdown": -0.2318,
+      "sortino": 0.18,
+      "calmar": 0.04
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.17,
+      "cagr": -0.0484,
+      "max_drawdown": -0.244,
+      "sortino": -0.22,
+      "calmar": -0.2
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.58,
+      "cagr": -0.237,
+      "max_drawdown": -0.3426,
+      "sortino": -2.03,
+      "calmar": -0.69
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.38,
+      "cagr": 0.2691,
+      "max_drawdown": -0.1982,
+      "sortino": 2.06,
+      "calmar": 1.36
+    }
+  },
+  "G3-SentimentDivergence": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.36,
+      "cagr": -0.0122,
+      "max_drawdown": -0.2451,
+      "sortino": -0.42,
+      "calmar": -0.05
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.43,
+      "cagr": -0.0591,
+      "max_drawdown": -0.1676,
+      "sortino": -0.59,
+      "calmar": -0.35
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.49,
+      "cagr": -0.0754,
+      "max_drawdown": -0.1211,
+      "sortino": -0.64,
+      "calmar": -0.62
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.75,
+      "cagr": 0.1101,
+      "max_drawdown": -0.1792,
+      "sortino": 1.22,
+      "calmar": 0.61
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.82,
+      "cagr": -0.1207,
+      "max_drawdown": -0.2326,
+      "sortino": -1.03,
+      "calmar": -0.52
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.62,
+      "cagr": -0.0608,
+      "max_drawdown": -0.0871,
+      "sortino": -0.75,
+      "calmar": -0.7
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -1.13,
+      "cagr": -0.0597,
+      "max_drawdown": -0.2459,
+      "sortino": -1.28,
+      "calmar": -0.24
+    }
+  },
+  "G4-SentimentEnhancedRegime": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.39,
+      "cagr": 0.0552,
+      "max_drawdown": -0.4159,
+      "sortino": 0.56,
+      "calmar": 0.13
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.34,
+      "cagr": 0.2721,
+      "max_drawdown": -0.1278,
+      "sortino": 2.02,
+      "calmar": 2.13
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.48,
+      "cagr": -0.1026,
+      "max_drawdown": -0.1873,
+      "sortino": -0.64,
+      "calmar": -0.55
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.05,
+      "cagr": -0.0278,
+      "max_drawdown": -0.3621,
+      "sortino": -0.08,
+      "calmar": -0.08
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.67,
+      "cagr": -0.1275,
+      "max_drawdown": -0.3043,
+      "sortino": -0.87,
+      "calmar": -0.42
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.16,
+      "cagr": -0.1688,
+      "max_drawdown": -0.2471,
+      "sortino": -1.43,
+      "calmar": -0.68
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.97,
+      "cagr": 0.1898,
+      "max_drawdown": -0.1811,
+      "sortino": 1.42,
+      "calmar": 1.05
+    }
+  },
+  "H1-CommodityShockRider": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.19,
+      "cagr": 0.0162,
+      "max_drawdown": -0.3987,
+      "sortino": 0.27,
+      "calmar": 0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -1.32,
+      "cagr": -0.1451,
+      "max_drawdown": -0.2132,
+      "sortino": -1.49,
+      "calmar": -0.68
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.37,
+      "cagr": -0.0744,
+      "max_drawdown": -0.1267,
+      "sortino": -0.51,
+      "calmar": -0.59
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.11,
+      "cagr": 0.0059,
+      "max_drawdown": -0.1635,
+      "sortino": 0.16,
+      "calmar": 0.04
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.48,
+      "cagr": 0.0654,
+      "max_drawdown": -0.0791,
+      "sortino": 0.7,
+      "calmar": 0.83
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.25,
+      "cagr": -0.049,
+      "max_drawdown": -0.2407,
+      "sortino": -0.34,
+      "calmar": -0.2
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.69,
+      "cagr": 0.0961,
+      "max_drawdown": -0.2203,
+      "sortino": 1.03,
+      "calmar": 0.44
+    }
+  },
+  "H2-GoldFearRally": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.21,
+      "cagr": 0.0132,
+      "max_drawdown": -0.2395,
+      "sortino": 0.3,
+      "calmar": 0.06
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.82,
+      "cagr": 0.1254,
+      "max_drawdown": -0.1594,
+      "sortino": 1.16,
+      "calmar": 0.79
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.73,
+      "cagr": 0.1437,
+      "max_drawdown": -0.1391,
+      "sortino": 1.1,
+      "calmar": 1.03
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.44,
+      "cagr": -0.0834,
+      "max_drawdown": -0.2479,
+      "sortino": -0.58,
+      "calmar": -0.34
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -1.55,
+      "cagr": -0.1717,
+      "max_drawdown": -0.2393,
+      "sortino": -1.76,
+      "calmar": -0.72
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.83,
+      "cagr": -0.1309,
+      "max_drawdown": -0.2178,
+      "sortino": -1.08,
+      "calmar": -0.6
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.78,
+      "cagr": 0.1063,
+      "max_drawdown": -0.2378,
+      "sortino": 1.22,
+      "calmar": 0.45
+    }
+  },
+  "H3-DefenseSpikeBreakout": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.25,
+      "cagr": 0.0213,
+      "max_drawdown": -0.2875,
+      "sortino": 0.35,
+      "calmar": 0.07
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.23,
+      "cagr": -0.0537,
+      "max_drawdown": -0.2321,
+      "sortino": -0.33,
+      "calmar": -0.23
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.4,
+      "cagr": -0.0719,
+      "max_drawdown": -0.1882,
+      "sortino": -0.55,
+      "calmar": -0.38
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.62,
+      "cagr": -0.0469,
+      "max_drawdown": -0.162,
+      "sortino": -0.71,
+      "calmar": -0.29
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.13,
+      "cagr": 0.007,
+      "max_drawdown": -0.0556,
+      "sortino": 0.19,
+      "calmar": 0.13
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 1.66,
+      "cagr": 0.2544,
+      "max_drawdown": -0.0642,
+      "sortino": 3.62,
+      "calmar": 3.96
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.57,
+      "cagr": -0.0587,
+      "max_drawdown": -0.2367,
+      "sortino": -0.69,
+      "calmar": -0.25
+    }
+  },
+  "H4-MultiAssetCrisisLong": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.05,
+      "cagr": 0.0009,
+      "max_drawdown": -0.2305,
+      "sortino": 0.08,
+      "calmar": 0.0
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.66,
+      "cagr": -0.1234,
+      "max_drawdown": -0.2491,
+      "sortino": -0.91,
+      "calmar": -0.5
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.01,
+      "cagr": -0.017,
+      "max_drawdown": -0.2034,
+      "sortino": 0.01,
+      "calmar": -0.08
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.38,
+      "cagr": -0.0587,
+      "max_drawdown": -0.2418,
+      "sortino": -0.5,
+      "calmar": -0.24
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.99,
+      "cagr": -0.1436,
+      "max_drawdown": -0.2431,
+      "sortino": -1.27,
+      "calmar": -0.59
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.26,
+      "cagr": 0.0324,
+      "max_drawdown": -0.1906,
+      "sortino": 0.38,
+      "calmar": 0.17
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.29,
+      "cagr": -0.0442,
+      "max_drawdown": -0.2614,
+      "sortino": -0.39,
+      "calmar": -0.17
+    }
+  },
+  "H1-YieldCurveTrade": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.17,
+      "cagr": -0.0136,
+      "max_drawdown": -0.3217,
+      "sortino": -0.25,
+      "calmar": -0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.18,
+      "cagr": -0.027,
+      "max_drawdown": -0.1771,
+      "sortino": -0.27,
+      "calmar": -0.15
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 1.32,
+      "cagr": 0.1677,
+      "max_drawdown": -0.0768,
+      "sortino": 2.18,
+      "calmar": 2.18
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.29,
+      "cagr": -0.0274,
+      "max_drawdown": -0.1607,
+      "sortino": -0.41,
+      "calmar": -0.17
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.61,
+      "cagr": -0.0332,
+      "max_drawdown": -0.0654,
+      "sortino": -0.84,
+      "calmar": -0.51
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.13,
+      "cagr": 0.0082,
+      "max_drawdown": -0.1803,
+      "sortino": 0.18,
+      "calmar": 0.05
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.94,
+      "cagr": -0.0596,
+      "max_drawdown": -0.2467,
+      "sortino": -1.2,
+      "calmar": -0.24
+    }
+  },
+  "H2-CreditSpreadMeanRev": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.04,
+      "cagr": -0.0006,
+      "max_drawdown": -0.2381,
+      "sortino": 0.05,
+      "calmar": -0.0
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.07,
+      "cagr": 0.0014,
+      "max_drawdown": -0.0969,
+      "sortino": 0.1,
+      "calmar": 0.01
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.29,
+      "cagr": -0.0555,
+      "max_drawdown": -0.1574,
+      "sortino": -0.37,
+      "calmar": -0.35
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.04,
+      "cagr": -0.0034,
+      "max_drawdown": -0.1467,
+      "sortino": 0.05,
+      "calmar": -0.02
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.93,
+      "cagr": -0.0642,
+      "max_drawdown": -0.1179,
+      "sortino": -1.35,
+      "calmar": -0.54
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.39,
+      "cagr": -0.0568,
+      "max_drawdown": -0.1579,
+      "sortino": -0.55,
+      "calmar": -0.36
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.21,
+      "cagr": -0.0203,
+      "max_drawdown": -0.2372,
+      "sortino": -0.3,
+      "calmar": -0.09
+    }
+  },
+  "H3-DurationTiming": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.23,
+      "cagr": 0.0215,
+      "max_drawdown": -0.33,
+      "sortino": 0.32,
+      "calmar": 0.07
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.58,
+      "cagr": 0.0975,
+      "max_drawdown": -0.1961,
+      "sortino": 0.86,
+      "calmar": 0.5
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 1.79,
+      "cagr": 0.4156,
+      "max_drawdown": -0.0807,
+      "sortino": 2.76,
+      "calmar": 5.15
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.36,
+      "cagr": 0.0513,
+      "max_drawdown": -0.2374,
+      "sortino": 0.51,
+      "calmar": 0.22
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.05,
+      "cagr": -0.0225,
+      "max_drawdown": -0.243,
+      "sortino": -0.07,
+      "calmar": -0.09
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.62,
+      "cagr": -0.1679,
+      "max_drawdown": -0.2377,
+      "sortino": -1.99,
+      "calmar": -0.71
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.49,
+      "cagr": -0.0665,
+      "max_drawdown": -0.3451,
+      "sortino": -0.67,
+      "calmar": -0.19
+    }
+  },
+  "I1-TimeSeriesMomentum": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.07,
+      "cagr": -0.0003,
+      "max_drawdown": -0.4367,
+      "sortino": 0.1,
+      "calmar": -0.0
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.67,
+      "cagr": 0.0534,
+      "max_drawdown": -0.0589,
+      "sortino": 1.04,
+      "calmar": 0.91
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.0,
+      "cagr": 0.0,
+      "max_drawdown": 0.0,
+      "sortino": 0.0,
+      "calmar": 0.0
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.46,
+      "cagr": -0.0598,
+      "max_drawdown": -0.2378,
+      "sortino": -0.63,
+      "calmar": -0.25
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -1.19,
+      "cagr": -0.1131,
+      "max_drawdown": -0.1678,
+      "sortino": -1.43,
+      "calmar": -0.67
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.57,
+      "cagr": -0.0639,
+      "max_drawdown": -0.1399,
+      "sortino": -0.7,
+      "calmar": -0.46
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.71,
+      "cagr": 0.1007,
+      "max_drawdown": -0.2207,
+      "sortino": 1.01,
+      "calmar": 0.46
+    }
+  },
+  "I2-CrossSectionalMomentum": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.41,
+      "cagr": -0.0175,
+      "max_drawdown": -0.3105,
+      "sortino": -0.52,
+      "calmar": -0.06
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.23,
+      "cagr": -0.0491,
+      "max_drawdown": -0.1582,
+      "sortino": -0.3,
+      "calmar": -0.31
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 1.41,
+      "cagr": 0.2422,
+      "max_drawdown": -0.0955,
+      "sortino": 2.46,
+      "calmar": 2.54
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.66,
+      "cagr": -0.0865,
+      "max_drawdown": -0.3086,
+      "sortino": -0.9,
+      "calmar": -0.28
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.54,
+      "cagr": 0.0796,
+      "max_drawdown": -0.1862,
+      "sortino": 0.79,
+      "calmar": 0.43
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.47,
+      "cagr": -0.1775,
+      "max_drawdown": -0.2492,
+      "sortino": -1.86,
+      "calmar": -0.71
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.33,
+      "cagr": -0.0351,
+      "max_drawdown": -0.2474,
+      "sortino": -0.45,
+      "calmar": -0.14
+    }
+  },
+  "I3-DualMomentum": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.38,
+      "cagr": 0.0468,
+      "max_drawdown": -0.3966,
+      "sortino": 0.52,
+      "calmar": 0.12
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.19,
+      "cagr": 0.0161,
+      "max_drawdown": -0.1192,
+      "sortino": 0.26,
+      "calmar": 0.14
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.0,
+      "cagr": 0.0,
+      "max_drawdown": 0.0,
+      "sortino": 0.0,
+      "calmar": 0.0
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.41,
+      "cagr": -0.0467,
+      "max_drawdown": -0.2448,
+      "sortino": -0.56,
+      "calmar": -0.19
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -1.09,
+      "cagr": -0.1282,
+      "max_drawdown": -0.2433,
+      "sortino": -1.38,
+      "calmar": -0.53
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.82,
+      "cagr": -0.1094,
+      "max_drawdown": -0.2285,
+      "sortino": -1.08,
+      "calmar": -0.48
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.26,
+      "cagr": 0.0307,
+      "max_drawdown": -0.244,
+      "sortino": 0.36,
+      "calmar": 0.13
+    }
+  },
+  "I4-MomentumVolScaled": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.08,
+      "cagr": -0.0165,
+      "max_drawdown": -0.4012,
+      "sortino": -0.11,
+      "calmar": -0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.03,
+      "cagr": 0.1252,
+      "max_drawdown": -0.1097,
+      "sortino": 1.44,
+      "calmar": 1.14
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.5,
+      "cagr": -0.0675,
+      "max_drawdown": -0.1389,
+      "sortino": -0.71,
+      "calmar": -0.49
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.66,
+      "cagr": -0.0767,
+      "max_drawdown": -0.2478,
+      "sortino": -0.91,
+      "calmar": -0.31
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.24,
+      "cagr": 0.0213,
+      "max_drawdown": -0.1658,
+      "sortino": 0.33,
+      "calmar": 0.13
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.67,
+      "cagr": -0.0906,
+      "max_drawdown": -0.1886,
+      "sortino": -0.86,
+      "calmar": -0.48
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.1,
+      "cagr": 0.0051,
+      "max_drawdown": -0.2348,
+      "sortino": 0.14,
+      "calmar": 0.02
+    }
+  },
+  "J1-SectorMeanReversion": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.54,
+      "cagr": -0.0126,
+      "max_drawdown": -0.2491,
+      "sortino": -0.62,
+      "calmar": -0.05
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.71,
+      "cagr": 0.1267,
+      "max_drawdown": -0.2086,
+      "sortino": 1.12,
+      "calmar": 0.61
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -1.83,
+      "cagr": -0.2295,
+      "max_drawdown": -0.2382,
+      "sortino": -2.3,
+      "calmar": -0.96
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.84,
+      "cagr": -0.0821,
+      "max_drawdown": -0.2337,
+      "sortino": -1.06,
+      "calmar": -0.35
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -1.3,
+      "cagr": -0.1441,
+      "max_drawdown": -0.2357,
+      "sortino": -1.66,
+      "calmar": -0.61
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.46,
+      "cagr": -0.1039,
+      "max_drawdown": -0.2492,
+      "sortino": -0.65,
+      "calmar": -0.42
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.47,
+      "cagr": -0.0357,
+      "max_drawdown": -0.2276,
+      "sortino": -0.62,
+      "calmar": -0.16
+    }
+  },
+  "J2-OvernightGapFade": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.2,
+      "cagr": -0.0071,
+      "max_drawdown": -0.2323,
+      "sortino": -0.26,
+      "calmar": -0.03
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -1.13,
+      "cagr": -0.1287,
+      "max_drawdown": -0.1974,
+      "sortino": -1.34,
+      "calmar": -0.65
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -1.1,
+      "cagr": -0.0999,
+      "max_drawdown": -0.1478,
+      "sortino": -1.3,
+      "calmar": -0.68
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.11,
+      "cagr": -0.0179,
+      "max_drawdown": -0.1364,
+      "sortino": -0.16,
+      "calmar": -0.13
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.94,
+      "cagr": -0.1068,
+      "max_drawdown": -0.1639,
+      "sortino": -1.12,
+      "calmar": -0.65
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.64,
+      "cagr": -0.0848,
+      "max_drawdown": -0.2158,
+      "sortino": -0.88,
+      "calmar": -0.39
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.3,
+      "cagr": -0.0318,
+      "max_drawdown": -0.2188,
+      "sortino": -0.43,
+      "calmar": -0.15
+    }
+  },
+  "J3-RSIMeanReversion": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.14,
+      "cagr": -0.0086,
+      "max_drawdown": -0.249,
+      "sortino": -0.21,
+      "calmar": -0.03
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -1.24,
+      "cagr": -0.1596,
+      "max_drawdown": -0.2495,
+      "sortino": -1.65,
+      "calmar": -0.64
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.52,
+      "cagr": 0.0648,
+      "max_drawdown": -0.1349,
+      "sortino": 0.77,
+      "calmar": 0.48
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.49,
+      "cagr": -0.0812,
+      "max_drawdown": -0.2424,
+      "sortino": -0.69,
+      "calmar": -0.33
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.0,
+      "cagr": -0.0109,
+      "max_drawdown": -0.1869,
+      "sortino": 0.0,
+      "calmar": -0.06
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.19,
+      "cagr": 0.0189,
+      "max_drawdown": -0.1353,
+      "sortino": 0.3,
+      "calmar": 0.14
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.33,
+      "cagr": 0.0377,
+      "max_drawdown": -0.1706,
+      "sortino": 0.49,
+      "calmar": 0.22
+    }
+  },
+  "J4-CointegrationPairs": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.36,
+      "cagr": -0.013,
+      "max_drawdown": -0.243,
+      "sortino": -0.48,
+      "calmar": -0.05
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.08,
+      "cagr": 0.003,
+      "max_drawdown": -0.1572,
+      "sortino": 0.11,
+      "calmar": 0.02
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.71,
+      "cagr": -0.0835,
+      "max_drawdown": -0.1835,
+      "sortino": -0.93,
+      "calmar": -0.46
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.18,
+      "cagr": -0.0124,
+      "max_drawdown": -0.1239,
+      "sortino": -0.26,
+      "calmar": -0.1
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.09,
+      "cagr": -0.0053,
+      "max_drawdown": -0.0367,
+      "sortino": -0.14,
+      "calmar": -0.14
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.46,
+      "cagr": -0.0316,
+      "max_drawdown": -0.1107,
+      "sortino": -0.65,
+      "calmar": -0.28
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.33,
+      "cagr": -0.0252,
+      "max_drawdown": -0.1753,
+      "sortino": -0.45,
+      "calmar": -0.14
+    }
+  },
+  "K1-LowVolFactor": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.84,
+      "cagr": 0.16,
+      "max_drawdown": -0.2781,
+      "sortino": 1.2,
+      "calmar": 0.58
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.92,
+      "cagr": 0.1678,
+      "max_drawdown": -0.1791,
+      "sortino": 1.28,
+      "calmar": 0.94
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.61,
+      "cagr": 0.102,
+      "max_drawdown": -0.1693,
+      "sortino": 0.85,
+      "calmar": 0.6
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.09,
+      "cagr": -0.0336,
+      "max_drawdown": -0.2399,
+      "sortino": -0.12,
+      "calmar": -0.14
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.28,
+      "cagr": -0.0688,
+      "max_drawdown": -0.2215,
+      "sortino": -0.39,
+      "calmar": -0.31
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.01,
+      "cagr": -0.0205,
+      "max_drawdown": -0.188,
+      "sortino": -0.02,
+      "calmar": -0.11
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.05,
+      "cagr": -0.0266,
+      "max_drawdown": -0.354,
+      "sortino": -0.07,
+      "calmar": -0.08
+    }
+  },
+  "K2-MultiFactorComposite": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.05,
+      "cagr": -0.0,
+      "max_drawdown": -0.2899,
+      "sortino": 0.08,
+      "calmar": -0.0
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.63,
+      "cagr": 0.0955,
+      "max_drawdown": -0.1411,
+      "sortino": 0.87,
+      "calmar": 0.68
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 1.27,
+      "cagr": 0.2103,
+      "max_drawdown": -0.0862,
+      "sortino": 2.12,
+      "calmar": 2.44
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.47,
+      "cagr": -0.0928,
+      "max_drawdown": -0.3225,
+      "sortino": -0.64,
+      "calmar": -0.29
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.09,
+      "cagr": -0.0297,
+      "max_drawdown": -0.2178,
+      "sortino": -0.13,
+      "calmar": -0.14
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.16,
+      "cagr": -0.1357,
+      "max_drawdown": -0.2461,
+      "sortino": -1.51,
+      "calmar": -0.55
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.41,
+      "cagr": -0.0401,
+      "max_drawdown": -0.2416,
+      "sortino": -0.55,
+      "calmar": -0.17
+    }
+  },
+  "K3-SizeFactor": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.56,
+      "cagr": 0.0879,
+      "max_drawdown": -0.365,
+      "sortino": 0.79,
+      "calmar": 0.24
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.24,
+      "cagr": 0.263,
+      "max_drawdown": -0.2211,
+      "sortino": 1.73,
+      "calmar": 1.19
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.04,
+      "cagr": -0.0275,
+      "max_drawdown": -0.1966,
+      "sortino": -0.05,
+      "calmar": -0.14
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.05,
+      "cagr": -0.0089,
+      "max_drawdown": -0.2686,
+      "sortino": 0.06,
+      "calmar": -0.03
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.18,
+      "cagr": 0.0156,
+      "max_drawdown": -0.2464,
+      "sortino": 0.24,
+      "calmar": 0.06
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.49,
+      "cagr": -0.214,
+      "max_drawdown": -0.3047,
+      "sortino": -1.87,
+      "calmar": -0.7
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.26,
+      "cagr": 0.0326,
+      "max_drawdown": -0.2497,
+      "sortino": 0.37,
+      "calmar": 0.13
+    }
+  },
+  "K4-ValueFactor": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.26,
+      "cagr": -0.0107,
+      "max_drawdown": -0.2477,
+      "sortino": -0.34,
+      "calmar": -0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.42,
+      "cagr": -0.0831,
+      "max_drawdown": -0.2558,
+      "sortino": -0.58,
+      "calmar": -0.32
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -1.68,
+      "cagr": -0.2245,
+      "max_drawdown": -0.2468,
+      "sortino": -2.09,
+      "calmar": -0.91
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -1.01,
+      "cagr": -0.0956,
+      "max_drawdown": -0.2433,
+      "sortino": -1.32,
+      "calmar": -0.39
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.74,
+      "cagr": 0.1113,
+      "max_drawdown": -0.148,
+      "sortino": 1.27,
+      "calmar": 0.75
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.69,
+      "cagr": -0.1259,
+      "max_drawdown": -0.2302,
+      "sortino": -0.96,
+      "calmar": -0.55
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.9,
+      "cagr": -0.0761,
+      "max_drawdown": -0.3086,
+      "sortino": -1.1,
+      "calmar": -0.25
+    }
+  },
+  "L1-VolRiskPremium": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.92,
+      "cagr": 0.1752,
+      "max_drawdown": -0.3708,
+      "sortino": 1.31,
+      "calmar": 0.47
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.09,
+      "cagr": 0.2236,
+      "max_drawdown": -0.233,
+      "sortino": 1.51,
+      "calmar": 0.96
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.15,
+      "cagr": 0.01,
+      "max_drawdown": -0.1989,
+      "sortino": 0.2,
+      "calmar": 0.05
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.05,
+      "cagr": -0.0281,
+      "max_drawdown": -0.2469,
+      "sortino": -0.07,
+      "calmar": -0.11
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.22,
+      "cagr": -0.062,
+      "max_drawdown": -0.2291,
+      "sortino": -0.29,
+      "calmar": -0.27
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.55,
+      "cagr": -0.1232,
+      "max_drawdown": -0.2156,
+      "sortino": -0.76,
+      "calmar": -0.57
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.29,
+      "cagr": 0.2711,
+      "max_drawdown": -0.224,
+      "sortino": 1.9,
+      "calmar": 1.21
+    }
+  },
+  "L2-VolSpreadHarvest": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.14,
+      "cagr": 0.0102,
+      "max_drawdown": -0.4352,
+      "sortino": 0.2,
+      "calmar": 0.02
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.65,
+      "cagr": 0.3183,
+      "max_drawdown": -0.1434,
+      "sortino": 2.59,
+      "calmar": 2.22
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.75,
+      "cagr": 0.1237,
+      "max_drawdown": -0.126,
+      "sortino": 1.2,
+      "calmar": 0.98
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.58,
+      "cagr": -0.0631,
+      "max_drawdown": -0.231,
+      "sortino": -0.72,
+      "calmar": -0.27
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -1.37,
+      "cagr": -0.1564,
+      "max_drawdown": -0.2367,
+      "sortino": -1.63,
+      "calmar": -0.66
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.88,
+      "cagr": -0.1395,
+      "max_drawdown": -0.2394,
+      "sortino": -1.24,
+      "calmar": -0.58
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.04,
+      "cagr": -0.0168,
+      "max_drawdown": -0.3394,
+      "sortino": -0.05,
+      "calmar": -0.05
+    }
+  },
+  "L4-VolOfVolRegime": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.63,
+      "cagr": 0.1047,
+      "max_drawdown": -0.3174,
+      "sortino": 0.89,
+      "calmar": 0.33
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.45,
+      "cagr": 0.0677,
+      "max_drawdown": -0.2118,
+      "sortino": 0.63,
+      "calmar": 0.32
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.71,
+      "cagr": -0.1353,
+      "max_drawdown": -0.2201,
+      "sortino": -0.88,
+      "calmar": -0.61
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.07,
+      "cagr": -0.005,
+      "max_drawdown": -0.2507,
+      "sortino": 0.09,
+      "calmar": -0.02
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.38,
+      "cagr": -0.084,
+      "max_drawdown": -0.2497,
+      "sortino": -0.48,
+      "calmar": -0.34
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.05,
+      "cagr": -0.0243,
+      "max_drawdown": -0.1748,
+      "sortino": -0.07,
+      "calmar": -0.14
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.26,
+      "cagr": 0.2526,
+      "max_drawdown": -0.2125,
+      "sortino": 1.85,
+      "calmar": 1.19
+    }
+  },
+  "M1-DollarCarry": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.7,
+      "cagr": 0.1027,
+      "max_drawdown": -0.307,
+      "sortino": 1.01,
+      "calmar": 0.33
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 2.42,
+      "cagr": 0.5909,
+      "max_drawdown": -0.1193,
+      "sortino": 3.92,
+      "calmar": 4.95
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.45,
+      "cagr": -0.1056,
+      "max_drawdown": -0.2006,
+      "sortino": -0.6,
+      "calmar": -0.53
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.98,
+      "cagr": 0.1767,
+      "max_drawdown": -0.217,
+      "sortino": 1.42,
+      "calmar": 0.81
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.36,
+      "cagr": -0.0551,
+      "max_drawdown": -0.1908,
+      "sortino": -0.51,
+      "calmar": -0.29
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.55,
+      "cagr": -0.179,
+      "max_drawdown": -0.2493,
+      "sortino": -1.94,
+      "calmar": -0.72
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.54,
+      "cagr": 0.0817,
+      "max_drawdown": -0.2415,
+      "sortino": 0.76,
+      "calmar": 0.34
+    }
+  },
+  "M2-GoldDollarInverse": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.68,
+      "cagr": 0.112,
+      "max_drawdown": -0.3383,
+      "sortino": 1.01,
+      "calmar": 0.33
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.18,
+      "cagr": 0.2457,
+      "max_drawdown": -0.2225,
+      "sortino": 1.7,
+      "calmar": 1.1
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.33,
+      "cagr": 0.0495,
+      "max_drawdown": -0.1701,
+      "sortino": 0.47,
+      "calmar": 0.29
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.6,
+      "cagr": 0.1009,
+      "max_drawdown": -0.2448,
+      "sortino": 0.91,
+      "calmar": 0.41
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.57,
+      "cagr": -0.1211,
+      "max_drawdown": -0.2302,
+      "sortino": -0.79,
+      "calmar": -0.53
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 1.68,
+      "cagr": 0.3747,
+      "max_drawdown": -0.0865,
+      "sortino": 2.69,
+      "calmar": 4.33
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.39,
+      "cagr": 0.3002,
+      "max_drawdown": -0.2095,
+      "sortino": 2.16,
+      "calmar": 1.43
+    }
+  },
+  "M3-EMRiskPremium": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.01,
+      "cagr": -0.0048,
+      "max_drawdown": -0.3571,
+      "sortino": -0.01,
+      "calmar": -0.01
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.32,
+      "cagr": 0.2784,
+      "max_drawdown": -0.1603,
+      "sortino": 1.98,
+      "calmar": 1.74
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.48,
+      "cagr": 0.0812,
+      "max_drawdown": -0.1365,
+      "sortino": 0.68,
+      "calmar": 0.59
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.13,
+      "cagr": 0.0087,
+      "max_drawdown": -0.2483,
+      "sortino": 0.18,
+      "calmar": 0.03
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -1.19,
+      "cagr": -0.167,
+      "max_drawdown": -0.2424,
+      "sortino": -1.57,
+      "calmar": -0.69
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.08,
+      "cagr": -0.1739,
+      "max_drawdown": -0.2467,
+      "sortino": -1.41,
+      "calmar": -0.7
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.45,
+      "cagr": -0.0583,
+      "max_drawdown": -0.3309,
+      "sortino": -0.6,
+      "calmar": -0.18
+    }
+  },
+  "M4-CommodityMomentum": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.1,
+      "cagr": -0.0154,
+      "max_drawdown": -0.3779,
+      "sortino": -0.13,
+      "calmar": -0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.14,
+      "cagr": 0.009,
+      "max_drawdown": -0.1535,
+      "sortino": 0.2,
+      "calmar": 0.06
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.53,
+      "cagr": -0.1153,
+      "max_drawdown": -0.2201,
+      "sortino": -0.66,
+      "calmar": -0.52
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -1.32,
+      "cagr": -0.0941,
+      "max_drawdown": -0.2437,
+      "sortino": -1.41,
+      "calmar": -0.39
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.6,
+      "cagr": 0.1012,
+      "max_drawdown": -0.1694,
+      "sortino": 0.89,
+      "calmar": 0.6
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.34,
+      "cagr": -0.0681,
+      "max_drawdown": -0.2468,
+      "sortino": -0.45,
+      "calmar": -0.28
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.1,
+      "cagr": -0.0302,
+      "max_drawdown": -0.2817,
+      "sortino": -0.13,
+      "calmar": -0.11
+    }
+  },
+  "N1-SeasonalStrategy": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.82,
+      "cagr": 0.1269,
+      "max_drawdown": -0.2851,
+      "sortino": 1.2,
+      "calmar": 0.45
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.67,
+      "cagr": 0.1113,
+      "max_drawdown": -0.186,
+      "sortino": 1.0,
+      "calmar": 0.6
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 2.01,
+      "cagr": 0.4593,
+      "max_drawdown": -0.0823,
+      "sortino": 3.1,
+      "calmar": 5.58
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.35,
+      "cagr": 0.0483,
+      "max_drawdown": -0.2236,
+      "sortino": 0.49,
+      "calmar": 0.22
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.47,
+      "cagr": -0.0879,
+      "max_drawdown": -0.2388,
+      "sortino": -0.63,
+      "calmar": -0.37
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.32,
+      "cagr": -0.1629,
+      "max_drawdown": -0.2336,
+      "sortino": -1.64,
+      "calmar": -0.7
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.24,
+      "cagr": 0.027,
+      "max_drawdown": -0.249,
+      "sortino": 0.33,
+      "calmar": 0.11
+    }
+  },
+  "N2-TurnOfMonth": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.19,
+      "cagr": 0.0151,
+      "max_drawdown": -0.2754,
+      "sortino": 0.27,
+      "calmar": 0.05
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.66,
+      "cagr": 0.3847,
+      "max_drawdown": -0.1192,
+      "sortino": 2.94,
+      "calmar": 3.23
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.77,
+      "cagr": -0.1426,
+      "max_drawdown": -0.2491,
+      "sortino": -0.94,
+      "calmar": -0.57
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.43,
+      "cagr": -0.0621,
+      "max_drawdown": -0.2422,
+      "sortino": -0.57,
+      "calmar": -0.26
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.72,
+      "cagr": -0.0968,
+      "max_drawdown": -0.2308,
+      "sortino": -0.89,
+      "calmar": -0.42
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.71,
+      "cagr": -0.1033,
+      "max_drawdown": -0.2328,
+      "sortino": -0.88,
+      "calmar": -0.44
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.02,
+      "cagr": -0.0177,
+      "max_drawdown": -0.2753,
+      "sortino": -0.03,
+      "calmar": -0.06
+    }
+  },
+  "N3-PreHolidayDrift": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.13,
+      "cagr": 0.0071,
+      "max_drawdown": -0.2756,
+      "sortino": 0.2,
+      "calmar": 0.03
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.85,
+      "cagr": 0.1803,
+      "max_drawdown": -0.0197,
+      "sortino": 9.98,
+      "calmar": 9.13
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.02,
+      "cagr": -0.0111,
+      "max_drawdown": -0.1293,
+      "sortino": -0.02,
+      "calmar": -0.09
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -1.11,
+      "cagr": -0.0851,
+      "max_drawdown": -0.2475,
+      "sortino": -1.22,
+      "calmar": -0.34
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.21,
+      "cagr": -0.0176,
+      "max_drawdown": -0.0597,
+      "sortino": -0.29,
+      "calmar": -0.29
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.5,
+      "cagr": -0.0508,
+      "max_drawdown": -0.1243,
+      "sortino": -0.64,
+      "calmar": -0.41
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.63,
+      "cagr": 0.0406,
+      "max_drawdown": -0.0579,
+      "sortino": 1.51,
+      "calmar": 0.7
+    }
+  },
+  "O1-TailRiskParity": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.9,
+      "cagr": 0.1626,
+      "max_drawdown": -0.3291,
+      "sortino": 1.28,
+      "calmar": 0.49
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 2.22,
+      "cagr": 0.4878,
+      "max_drawdown": -0.1363,
+      "sortino": 3.43,
+      "calmar": 3.58
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.05,
+      "cagr": -0.0079,
+      "max_drawdown": -0.1547,
+      "sortino": 0.06,
+      "calmar": -0.05
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.38,
+      "cagr": -0.0778,
+      "max_drawdown": -0.3291,
+      "sortino": -0.51,
+      "calmar": -0.24
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.02,
+      "cagr": -0.0128,
+      "max_drawdown": -0.2401,
+      "sortino": 0.03,
+      "calmar": -0.05
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.07,
+      "cagr": -0.1753,
+      "max_drawdown": -0.2484,
+      "sortino": -1.4,
+      "calmar": -0.71
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.07,
+      "cagr": 0.2123,
+      "max_drawdown": -0.2461,
+      "sortino": 1.58,
+      "calmar": 0.86
+    }
+  },
+  "O2-CrisisAlphaMomentum": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.16,
+      "cagr": -0.009,
+      "max_drawdown": -0.2556,
+      "sortino": -0.22,
+      "calmar": -0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": -0.08,
+      "cagr": -0.0162,
+      "max_drawdown": -0.1053,
+      "sortino": -0.1,
+      "calmar": -0.15
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.03,
+      "cagr": -0.0049,
+      "max_drawdown": -0.117,
+      "sortino": 0.04,
+      "calmar": -0.04
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.64,
+      "cagr": -0.0293,
+      "max_drawdown": -0.0791,
+      "sortino": -0.77,
+      "calmar": -0.37
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.0,
+      "cagr": -0.001,
+      "max_drawdown": -0.0445,
+      "sortino": -0.01,
+      "calmar": -0.02
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": 0.28,
+      "cagr": 0.028,
+      "max_drawdown": -0.1065,
+      "sortino": 0.42,
+      "calmar": 0.26
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": -0.38,
+      "cagr": -0.0154,
+      "max_drawdown": -0.083,
+      "sortino": -0.44,
+      "calmar": -0.19
+    }
+  },
+  "O4-BlackSwanInsurance": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.28,
+      "cagr": 0.0168,
+      "max_drawdown": -0.1918,
+      "sortino": 0.41,
+      "calmar": 0.09
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.72,
+      "cagr": 0.0784,
+      "max_drawdown": -0.0753,
+      "sortino": 1.12,
+      "calmar": 1.04
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.35,
+      "cagr": 0.0396,
+      "max_drawdown": -0.1084,
+      "sortino": 0.52,
+      "calmar": 0.36
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.14,
+      "cagr": 0.0061,
+      "max_drawdown": -0.0819,
+      "sortino": 0.2,
+      "calmar": 0.07
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.44,
+      "cagr": -0.0129,
+      "max_drawdown": -0.0561,
+      "sortino": -0.61,
+      "calmar": -0.23
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -0.83,
+      "cagr": -0.073,
+      "max_drawdown": -0.1548,
+      "sortino": -1.16,
+      "calmar": -0.47
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.61,
+      "cagr": 0.0342,
+      "max_drawdown": -0.07,
+      "sortino": 0.88,
+      "calmar": 0.49
+    }
+  },
+  "P1-FeatureComboSignal": {
+    "Full Period (2010-2025)": {
+      "sharpe": -0.18,
+      "cagr": -0.0111,
+      "max_drawdown": -0.2477,
+      "sortino": -0.25,
+      "calmar": -0.04
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 0.45,
+      "cagr": 0.0486,
+      "max_drawdown": -0.1631,
+      "sortino": 0.64,
+      "calmar": 0.3
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -0.26,
+      "cagr": -0.0392,
+      "max_drawdown": -0.1028,
+      "sortino": -0.37,
+      "calmar": -0.38
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.77,
+      "cagr": -0.0796,
+      "max_drawdown": -0.2415,
+      "sortino": -1.02,
+      "calmar": -0.33
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": 0.41,
+      "cagr": 0.032,
+      "max_drawdown": -0.0828,
+      "sortino": 0.61,
+      "calmar": 0.39
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.16,
+      "cagr": -0.1236,
+      "max_drawdown": -0.2463,
+      "sortino": -1.49,
+      "calmar": -0.5
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.06,
+      "cagr": 0.0007,
+      "max_drawdown": -0.1853,
+      "sortino": 0.08,
+      "calmar": 0.0
+    }
+  },
+  "Q1-QualityTrend": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.84,
+      "cagr": 0.1432,
+      "max_drawdown": -0.3675,
+      "sortino": 1.21,
+      "calmar": 0.39
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 2.46,
+      "cagr": 0.5903,
+      "max_drawdown": -0.1149,
+      "sortino": 3.95,
+      "calmar": 5.14
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.83,
+      "cagr": 0.1465,
+      "max_drawdown": -0.2142,
+      "sortino": 1.21,
+      "calmar": 0.68
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": 0.26,
+      "cagr": 0.0323,
+      "max_drawdown": -0.3063,
+      "sortino": 0.38,
+      "calmar": 0.11
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.82,
+      "cagr": -0.125,
+      "max_drawdown": -0.2286,
+      "sortino": -1.06,
+      "calmar": -0.55
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.3,
+      "cagr": -0.1495,
+      "max_drawdown": -0.2231,
+      "sortino": -1.65,
+      "calmar": -0.67
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.88,
+      "cagr": 0.1674,
+      "max_drawdown": -0.2406,
+      "sortino": 1.25,
+      "calmar": 0.7
+    }
+  },
+  "Q2-MultiAssetTrend": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.88,
+      "cagr": 0.1526,
+      "max_drawdown": -0.3385,
+      "sortino": 1.26,
+      "calmar": 0.45
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 2.08,
+      "cagr": 0.3684,
+      "max_drawdown": -0.1193,
+      "sortino": 3.33,
+      "calmar": 3.09
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.76,
+      "cagr": 0.0832,
+      "max_drawdown": -0.1064,
+      "sortino": 1.19,
+      "calmar": 0.78
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.19,
+      "cagr": -0.0299,
+      "max_drawdown": -0.2319,
+      "sortino": -0.25,
+      "calmar": -0.13
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.51,
+      "cagr": -0.0748,
+      "max_drawdown": -0.2357,
+      "sortino": -0.66,
+      "calmar": -0.32
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.19,
+      "cagr": -0.1349,
+      "max_drawdown": -0.2131,
+      "sortino": -1.52,
+      "calmar": -0.63
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 0.81,
+      "cagr": 0.1423,
+      "max_drawdown": -0.2437,
+      "sortino": 1.17,
+      "calmar": 0.58
+    }
+  },
+  "Q3-MomentumCrashFilter": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.83,
+      "cagr": 0.1434,
+      "max_drawdown": -0.3285,
+      "sortino": 1.19,
+      "calmar": 0.44
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.55,
+      "cagr": 0.3376,
+      "max_drawdown": -0.1535,
+      "sortino": 2.26,
+      "calmar": 2.2
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": -1.04,
+      "cagr": -0.1938,
+      "max_drawdown": -0.2401,
+      "sortino": -1.36,
+      "calmar": -0.81
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.3,
+      "cagr": -0.0539,
+      "max_drawdown": -0.2441,
+      "sortino": -0.4,
+      "calmar": -0.22
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.84,
+      "cagr": -0.1493,
+      "max_drawdown": -0.2493,
+      "sortino": -1.1,
+      "calmar": -0.6
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.61,
+      "cagr": -0.1683,
+      "max_drawdown": -0.2407,
+      "sortino": -1.9,
+      "calmar": -0.7
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.21,
+      "cagr": 0.2494,
+      "max_drawdown": -0.2444,
+      "sortino": 1.78,
+      "calmar": 1.02
+    }
+  },
+  "Ensemble-BestOfEach": {
+    "Full Period (2010-2025)": {
+      "sharpe": 0.99,
+      "cagr": 0.1836,
+      "max_drawdown": -0.3645,
+      "sortino": 1.41,
+      "calmar": 0.5
+    },
+    "COVID-19 (2020)": {
+      "sharpe": 1.58,
+      "cagr": 0.3316,
+      "max_drawdown": -0.2099,
+      "sortino": 2.24,
+      "calmar": 1.58
+    },
+    "EU Debt Crisis (2011)": {
+      "sharpe": 0.48,
+      "cagr": 0.0731,
+      "max_drawdown": -0.1102,
+      "sortino": 0.65,
+      "calmar": 0.66
+    },
+    "Oil Crash (2014-2016)": {
+      "sharpe": -0.25,
+      "cagr": -0.0583,
+      "max_drawdown": -0.3402,
+      "sortino": -0.33,
+      "calmar": -0.17
+    },
+    "Volmageddon + Fed (2018)": {
+      "sharpe": -0.73,
+      "cagr": -0.1366,
+      "max_drawdown": -0.2412,
+      "sortino": -0.94,
+      "calmar": -0.57
+    },
+    "Russia-Ukraine + Inflation (2022)": {
+      "sharpe": -1.74,
+      "cagr": -0.2205,
+      "max_drawdown": -0.3186,
+      "sortino": -2.12,
+      "calmar": -0.69
+    },
+    "Recovery & Recent (2023-2025)": {
+      "sharpe": 1.12,
+      "cagr": 0.2237,
+      "max_drawdown": -0.2227,
+      "sortino": 1.61,
+      "calmar": 1.0
+    }
+  }
+}

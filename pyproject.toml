@@ -7,7 +7,11 @@ name = "financial_algo"
 version = "2.0.0"
 description = "Financial algorithm library for portfolio analysis and trading signals"
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "pandas>=1.5",
+    "numpy>=1.23",
+    "yfinance>=0.2",
+]
 
 [project.optional-dependencies]
 dev = [

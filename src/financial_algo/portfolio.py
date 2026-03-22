@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from typing import Iterable
 
+import numpy as np
+import pandas as pd
+
+from financial_algo.indicators import drawdown as _drawdown
+from financial_algo.indicators import realized_vol
+
 
 class Portfolio:
     """A simple long-only portfolio tracker.
@@ -123,3 +129,100 @@ class Portfolio:
         return (
             f"Portfolio(cash={self._cash:.2f}, positions={self._positions})"
         )
+
+
+# =========================================================================
+# Leverage & risk overlay utilities (operate on weight DataFrames)
+# =========================================================================
+
+
+def apply_leverage(
+    weights: pd.DataFrame,
+    leverage: float,
+) -> pd.DataFrame:
+    """Scale all weights by a constant leverage factor.
+
+    Parameters
+    ----------
+    weights:
+        Target weights (Date × Ticker).
+    leverage:
+        Multiplier (e.g. 2.0 for 2× leverage).
+    """
+    return weights * leverage
+
+
+def apply_vol_target(
+    weights: pd.DataFrame,
+    prices: pd.DataFrame,
+    target_vol: float = 0.15,
+    lookback: int = 20,
+) -> pd.DataFrame:
+    """Scale weights so the portfolio's realised vol tracks *target_vol*.
+
+    Parameters
+    ----------
+    weights:
+        Target weights (Date × Ticker).
+    prices:
+        Adjusted close prices.
+    target_vol:
+        Annualised target volatility (e.g. 0.15 = 15 %).
+    lookback:
+        Rolling window for realised vol.
+    """
+    asset_ret = prices.pct_change().fillna(0.0)
+    port_ret = (weights.shift(1).fillna(0) * asset_ret).sum(axis=1)
+    rvol = port_ret.rolling(lookback).std() * np.sqrt(252)
+    scale = (target_vol / rvol).clip(upper=3.0).fillna(1.0)
+    return weights.multiply(scale, axis=0)
+
+
+def apply_drawdown_control(
+    weights: pd.DataFrame,
+    prices: pd.DataFrame,
+    max_dd_trigger: float = -0.15,
+    recovery_rate: float = 0.05,
+) -> pd.DataFrame:
+    """Zero out weights when portfolio drawdown exceeds a trigger.
+
+    Re-enters when drawdown improves by *recovery_rate* from the trigger
+    point.
+
+    Parameters
+    ----------
+    weights:
+        Target weights (Date × Ticker).
+    prices:
+        Adjusted close prices.
+    max_dd_trigger:
+        Drawdown threshold (e.g. -0.15 = −15 %).
+    recovery_rate:
+        DD improvement needed to re-enter (positive number).
+    """
+    asset_ret = prices.pct_change().fillna(0.0)
+    port_ret = (weights.shift(1).fillna(0) * asset_ret).sum(axis=1)
+    equity = (1 + port_ret).cumprod()
+    dd = _drawdown(equity)
+
+    dd_vals = dd.values
+    n = len(dd_vals)
+    flat_mask = np.zeros(n, dtype=bool)
+    flat = False
+    trigger_dd = 0.0
+
+    for i in range(n):
+        if not flat:
+            if dd_vals[i] <= max_dd_trigger:
+                flat = True
+                trigger_dd = dd_vals[i]
+                flat_mask[i] = True
+        else:
+            if dd_vals[i] >= trigger_dd + recovery_rate:
+                flat = False
+            else:
+                flat_mask[i] = True
+
+    controlled = weights.copy()
+    controlled.loc[flat_mask] = 0.0
+    return controlled
