@@ -24,6 +24,7 @@ from financial_algo.strategies.crypto_crisis import (
     CryptoFlightToQuality,
     CryptoGoldDivergence,
     CryptoRecoverySurge,
+    CryptoContagionHedge,
 )
 from financial_algo.strategies.ensemble import EnsembleStrategy, EnsembleConfig
 from financial_algo.strategies.crisis_spike import (
@@ -39,12 +40,17 @@ from financial_algo.strategies.momentum import (
     CrossSectionalMomentum,
     DualMomentum,
     MomentumVolScaled,
+    GlobalMomentumRotation,
+    KSTMomentum,
 )
 from financial_algo.strategies.mean_reversion import (
     SectorMeanReversion,
     RSIMeanReversion,
     OvernightGapFade,
     CointegrationPairs,
+    GlobalMeanReversion,
+    DV2MeanReversion,
+    FormulaicAlphaMeanRev,
 )
 from financial_algo.strategies.fixed_income import (
     YieldCurveTrade,
@@ -57,6 +63,7 @@ from financial_algo.strategies.volatility_strats import (
     VolOfVolRegime,
     VolTermStructure,
     VolSpikeRecovery,
+    CrossAssetVolSignal,
 )
 from financial_algo.strategies.macro import (
     DollarCarry,
@@ -64,6 +71,9 @@ from financial_algo.strategies.macro import (
     EMRiskPremium,
     CommodityMomentum,
     RatesRegimeTrade,
+    InflationBreakevenTrade,
+    GlobalRotation,
+    CommodityMacroSignal,
 )
 from financial_algo.strategies.seasonal import (
     SeasonalStrategy,
@@ -75,6 +85,8 @@ from financial_algo.strategies.factor import (
     MultiFactorComposite,
     SizeFactor,
     ValueFactor,
+    RealAssetsFactor,
+    FormulaicAlphaMomentum,
 )
 from financial_algo.strategies.tail_risk import (
     TailRiskParity,
@@ -83,12 +95,48 @@ from financial_algo.strategies.tail_risk import (
     CrisisRotation,
     VIXSpikeRecovery,
     TailHedgeOverlay,
+    PreciousMetalsCrisisHedge,
+    DrawdownRecoveryTiming,
 )
-from financial_algo.strategies.signal_combo import FeatureComboSignal
+from financial_algo.strategies.signal_combo import (
+    Alpha158Ranker,
+    FeatureComboSignal,
+    FundamentalMomentumSignal,
+    GMMRegimeClassifier,
+    MultiSignalConsensus,
+    XGBoostSignalCombo,
+)
+from financial_algo.strategies.ml_strategies import (
+    AdaptiveThreshold,
+    CrossSectionalRanker,
+)
 from financial_algo.strategies.quality_trend import (
     QualityTrend,
     MultiAssetTrend,
     MomentumCrashFilter,
+)
+from financial_algo.strategies.multi_freq import (
+    WeeklyMomentumRotation,
+    MonthlyMacroRegime,
+    MultiTimeframeTrend,
+    WeeklyMeanReversion,
+)
+from financial_algo.strategies.regime_hardening import (
+    BearMarketAlpha,
+    CrisisHedgeAdaptive,
+    DefensiveRotationR3,
+    AdaptiveRiskBudget,
+    RatesTighteningAlpha,
+    BondEquityHedge,
+    VolExplosionAlpha,
+    VolRegimeSwitcher,
+    MultiAssetCTATrend,
+    CommodityMacroOverlay,
+)
+from financial_algo.strategies.dl_strategies import (
+    TemporalCNNAlpha,
+    LSTMRegimeDetector,
+    AttentionCrossSectionalRanker,
 )
 
 __all__ = [
@@ -103,31 +151,56 @@ __all__ = [
     "MultiPairPortfolio", "PairTrade",
     # F - Crypto
     "CryptoFlightToQuality", "CryptoRecoverySurge", "CryptoGoldDivergence",
+    "CryptoContagionHedge",
     # Ensemble
     "EnsembleStrategy", "EnsembleConfig",
     # Crisis Spike
     "CommodityShockRider", "DefenseSpikeBreakout", "GoldFearRally", "MultiAssetCrisisLong",
     # I - Momentum
     "TimeSeriesMomentum", "CrossSectionalMomentum", "DualMomentum", "MomentumVolScaled",
+    "GlobalMomentumRotation", "KSTMomentum",
     # J - Mean Reversion
     "SectorMeanReversion", "RSIMeanReversion", "OvernightGapFade", "CointegrationPairs",
+    "GlobalMeanReversion", "DV2MeanReversion", "FormulaicAlphaMeanRev",
     # H - Fixed Income
     "YieldCurveTrade", "CreditSpreadMeanRev", "DurationTiming",
     # L - Volatility
     "VolRiskPremium", "VolSpreadHarvest", "VolOfVolRegime",
-    "VolTermStructure", "VolSpikeRecovery",
+    "VolTermStructure", "VolSpikeRecovery", "CrossAssetVolSignal",
     # M - Macro
     "DollarCarry", "GoldDollarInverse", "EMRiskPremium", "CommodityMomentum",
-    "RatesRegimeTrade",
+    "RatesRegimeTrade", "InflationBreakevenTrade", "GlobalRotation",
+    "CommodityMacroSignal",
     # N - Seasonal
     "SeasonalStrategy", "TurnOfMonth", "PreHolidayDrift",
     # K - Factor
     "LowVolFactor", "MultiFactorComposite", "SizeFactor", "ValueFactor",
+    "RealAssetsFactor", "FormulaicAlphaMomentum",
     # O - Tail Risk
     "TailRiskParity", "CrisisAlphaMomentum", "BlackSwanInsurance",
     "CrisisRotation", "VIXSpikeRecovery", "TailHedgeOverlay",
-    # P - Signal Combo
+    "PreciousMetalsCrisisHedge",
+    "DrawdownRecoveryTiming",
+    # P - Signal Combo / ML
+    "Alpha158Ranker",
     "FeatureComboSignal",
+    "FundamentalMomentumSignal",
+    "XGBoostSignalCombo",
+    "GMMRegimeClassifier",
+    "MultiSignalConsensus",
+    "AdaptiveThreshold",
+    "CrossSectionalRanker",
     # Q - Quality Trend
     "QualityTrend", "MultiAssetTrend", "MomentumCrashFilter",
+    # MF - Multi-Frequency
+    "WeeklyMomentumRotation", "MonthlyMacroRegime",
+    "MultiTimeframeTrend", "WeeklyMeanReversion",
+    # R - Regime Hardening
+    "BearMarketAlpha", "CrisisHedgeAdaptive",
+    "DefensiveRotationR3", "AdaptiveRiskBudget",
+    "RatesTighteningAlpha", "BondEquityHedge",
+    "VolExplosionAlpha", "VolRegimeSwitcher",
+    "MultiAssetCTATrend", "CommodityMacroOverlay",
+    # DL - Deep Learning
+    "TemporalCNNAlpha", "LSTMRegimeDetector", "AttentionCrossSectionalRanker",
 ]

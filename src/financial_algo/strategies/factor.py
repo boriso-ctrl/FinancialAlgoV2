@@ -318,3 +318,316 @@ class ValueFactor(Strategy):
             weights[t] = weights[t] / total_w * c.leverage
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# K5 — Real Assets Factor (inflation-linked rotation)
+# =========================================================================
+
+@dataclass
+class RealAssetsConfig:
+    """Config for real assets vs nominal assets factor strategy."""
+
+    real_tickers: list[str] | None = None
+    nominal_tickers: list[str] | None = None
+
+    inflation_long: str = "TIP"
+    inflation_short: str = "IEF"
+
+    signal_window: int = 63     # ~3 months for inflation trend
+    trend_window: int = 200     # SMA trend filter on each asset
+    rebalance_freq: int = 21    # monthly rebalance
+    leverage: float = 1.5
+
+    def __post_init__(self) -> None:
+        if self.real_tickers is None:
+            self.real_tickers = ["VNQ", "DBC", "GLD", "SLV", "TIP"]
+        if self.nominal_tickers is None:
+            self.nominal_tickers = ["SPY", "TLT", "AGG"]
+
+
+class RealAssetsFactor(Strategy):
+    """Rotate between real and nominal asset baskets based on inflation.
+
+    Thesis: When inflation expectations rise (TIP/IEF ratio trending up),
+    real assets (commodities, gold, silver, REITs, TIPS) outperform
+    nominal assets (equities, treasuries, agg bonds). When deflation
+    risks dominate (TIP/IEF falling), nominal assets outperform.
+    This captures the inflation risk premium documented by Ang (2014)
+    and the real asset return pattern under different inflation regimes.
+    Long-only both baskets -- tilt allocation, never go short.
+    """
+
+    name = "K5-RealAssetsFactor"
+
+    def __init__(self, config: RealAssetsConfig | None = None) -> None:
+        self.cfg = config or RealAssetsConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        real_avail = [t for t in c.real_tickers if t in prices.columns]
+        nom_avail = [t for t in c.nominal_tickers if t in prices.columns]
+        if not real_avail or not nom_avail:
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        # Inflation signal: TIP/IEF ratio momentum
+        has_signal = (c.inflation_long in prices.columns
+                      and c.inflation_short in prices.columns)
+        if has_signal:
+            tip_ief = prices[c.inflation_long] / prices[c.inflation_short]
+            # Guard against division issues
+            tip_ief = tip_ief.replace([np.inf, -np.inf], np.nan).ffill()
+            tip_ief_sma = tip_ief.rolling(c.signal_window).mean()
+            inflation_rising = (tip_ief > tip_ief_sma).fillna(False)
+        else:
+            # Fallback: 50/50 split
+            inflation_rising = pd.Series(True, index=prices.index)
+
+        # Trend filter per asset: only include if above 200-day SMA
+        all_assets = list(set(real_avail + nom_avail))
+        sma200 = prices[all_assets].rolling(c.trend_window).mean()
+        trend_up = prices[all_assets] > sma200
+
+        # Rebalance mask
+        rebal_mask = pd.Series(False, index=prices.index)
+        rebal_mask.iloc[::c.rebalance_freq] = True
+
+        # Real tickers: higher weight when inflation rising
+        real_w_inf = 0.70  # 70% to real when inflation rising
+        real_w_def = 0.30  # 30% to real when deflation
+
+        real_frac = pd.Series(
+            np.where(inflation_rising, real_w_inf, real_w_def),
+            index=prices.index,
+        )
+        nom_frac = 1.0 - real_frac
+
+        # Apply rebalance hold
+        real_frac = real_frac.where(rebal_mask).ffill().fillna(0.5)
+        nom_frac = nom_frac.where(rebal_mask).ffill().fillna(0.5)
+
+        # Distribute within each basket (equal weight, trend-filtered)
+        for t in real_avail:
+            in_trend = trend_up[t].fillna(False) if t in trend_up.columns else True
+            n_real = max(len(real_avail), 1)
+            w_t = real_frac * c.leverage / n_real
+            weights[t] = np.where(in_trend, w_t, 0.0)
+
+        for t in nom_avail:
+            in_trend = trend_up[t].fillna(False) if t in trend_up.columns else True
+            n_nom = max(len(nom_avail), 1)
+            w_t = nom_frac * c.leverage / n_nom
+            weights[t] = np.where(in_trend, w_t, 0.0)
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# S1 — Formulaic Alpha Momentum (WorldQuant 101 Alphas: #12, #17, #52)
+# =========================================================================
+
+@dataclass
+class FormulaicAlphaMomConfig:
+    """Config for WorldQuant formulaic alpha momentum composite."""
+
+    rebalance_freq: int = 21       # monthly rebalance
+    long_pct: float = 0.2          # top 20% (quintile)
+    short_pct: float = 0.2         # bottom 20%
+    long_only: bool = True         # long-only by default
+    leverage: float = 1.0
+    adv_window: int = 20           # average daily volume window
+    min_assets: int = 5            # minimum assets for cross-sectional signals
+
+
+class FormulaicAlphaMomentum(Strategy):
+    """Composite of WorldQuant formulaic momentum alphas (#12, #17, #52).
+
+    Thesis: Volume-price interaction signals capture informed trading
+    activity. When volume diverges from price (Alpha012), momentum
+    accelerates with volume confirmation (Alpha017), or long-term
+    momentum aligns with volume rank (Alpha052), alpha exists from
+    information asymmetry between informed and noise traders.
+
+    Signal: Cross-sectional z-score average of 3 alpha signals.
+    Portfolio: Long top quintile (or long-short via config).
+    """
+
+    name = "S1-FormulaicAlphaMomentum"
+
+    def __init__(self, config: FormulaicAlphaMomConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or FormulaicAlphaMomConfig()
+        self._volume: pd.DataFrame | None = None
+        self._low: pd.DataFrame | None = None
+
+    def set_ohlcv(
+        self,
+        *,
+        volume: pd.DataFrame | None = None,
+        low: pd.DataFrame | None = None,
+        **kwargs,
+    ) -> None:
+        """Inject OHLCV data for better signal quality."""
+        if volume is not None:
+            self._volume = volume
+        if low is not None:
+            self._low = low
+
+    def _get_volume(self, prices: pd.DataFrame) -> pd.DataFrame:
+        if self._volume is not None:
+            v = self._volume.reindex(
+                index=prices.index, columns=prices.columns,
+            ).ffill().fillna(1e6)
+            return v
+        # Proxy: |return| * price as dollar-volume proxy
+        ret_abs = prices.pct_change().fillna(0.0).abs()
+        return (ret_abs * prices + 1e4).clip(lower=1.0)
+
+    def _get_low(self, prices: pd.DataFrame) -> pd.DataFrame:
+        if self._low is not None:
+            return self._low.reindex(
+                index=prices.index, columns=prices.columns,
+            ).ffill().bfill()
+        # Proxy: close minus half the absolute daily range
+        ret_abs = prices.pct_change().fillna(0.0).abs()
+        return prices * (1 - ret_abs * 0.5).clip(lower=0.5)
+
+    @staticmethod
+    def _ts_rank(x: pd.DataFrame, d: int) -> pd.DataFrame:
+        """Time-series percentile rank of current value in rolling window."""
+        arr = x.values
+        T, N = arr.shape
+        out = np.full((T, N), np.nan)
+        for i in range(d - 1, T):
+            window = arr[i - d + 1: i + 1, :]
+            current = arr[i, :]
+            with np.errstate(invalid="ignore"):
+                valid_count = np.sum(~np.isnan(window), axis=0)
+                le_count = np.nansum(window <= current[np.newaxis, :], axis=0)
+                mask = valid_count > 1
+                out[i, mask] = le_count[mask] / valid_count[mask]
+        return pd.DataFrame(out, index=x.index, columns=x.columns)
+
+    @staticmethod
+    def _cs_zscore(df: pd.DataFrame) -> pd.DataFrame:
+        """Cross-sectional z-score per row."""
+        mu = df.mean(axis=1)
+        std = df.std(axis=1).replace(0, np.nan)
+        result = df.sub(mu, axis=0).div(std, axis=0)
+        return result.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    def _alpha012(
+        self, close: pd.DataFrame, volume: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """sign(delta(volume, 1)) * (-1 * delta(close, 1))"""
+        delta_vol = volume.diff(1).fillna(0.0)
+        delta_close = close.diff(1).fillna(0.0)
+        return np.sign(delta_vol) * (-1 * delta_close)
+
+    def _alpha017(
+        self, close: pd.DataFrame, volume: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """-rank(ts_rank(close,10)) * rank(accel) * rank(ts_rank(rel_vol,5))"""
+        ts_rank_close = self._ts_rank(close, 10)
+        rank_ts_close = ts_rank_close.rank(axis=1, pct=True)
+
+        # Momentum acceleration: delta of delta close
+        delta_close = close.diff(1).fillna(0.0)
+        accel = delta_close.diff(1).fillna(0.0)
+        rank_accel = accel.rank(axis=1, pct=True)
+
+        # Relative volume rank
+        adv = volume.rolling(self.cfg.adv_window, min_periods=1).mean()
+        rel_vol = volume / adv.replace(0, np.nan)
+        rel_vol = rel_vol.replace([np.inf, -np.inf], np.nan).fillna(1.0)
+        ts_rank_vol = self._ts_rank(rel_vol, 5)
+        rank_ts_vol = ts_rank_vol.rank(axis=1, pct=True)
+
+        return -1 * rank_ts_close * rank_accel * rank_ts_vol
+
+    def _alpha052(
+        self,
+        close: pd.DataFrame,
+        low: pd.DataFrame,
+        volume: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """(-delta(ts_min(low,5),5)) * rank(long_mom) * ts_rank(volume,5)"""
+        ts_min_low = low.rolling(5, min_periods=1).min()
+        neg_delta_min = -1 * ts_min_low.diff(5).fillna(0.0)
+
+        # Long-term momentum ratio
+        returns = close.pct_change(1).fillna(0.0)
+        ts_sum_240 = returns.rolling(240, min_periods=20).sum()
+        ts_sum_20 = returns.rolling(20, min_periods=5).sum()
+        mom_ratio = (ts_sum_240 - ts_sum_20) / 220
+        mom_ratio = mom_ratio.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        rank_mom = mom_ratio.rank(axis=1, pct=True)
+
+        ts_rank_vol = self._ts_rank(volume, 5)
+
+        return neg_delta_min * rank_mom * ts_rank_vol
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        if prices.shape[1] < c.min_assets:
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        close = prices
+        volume = self._get_volume(prices)
+        low = self._get_low(prices)
+
+        # Compute each alpha
+        a12 = self._alpha012(close, volume)
+        a17 = self._alpha017(close, volume)
+        a52 = self._alpha052(close, low, volume)
+
+        # Cross-sectional z-score each alpha
+        z12 = self._cs_zscore(a12)
+        z17 = self._cs_zscore(a17)
+        z52 = self._cs_zscore(a52)
+
+        # Equal-weight composite
+        composite = (z12 + z17 + z52) / 3.0
+
+        # Cross-sectional rank
+        cs_rank = composite.rank(axis=1, pct=True)
+
+        # Portfolio construction
+        long_thresh = 1.0 - c.long_pct
+        short_thresh = c.short_pct
+
+        is_long = pd.notna(cs_rank) & (cs_rank >= long_thresh)
+        is_short = pd.notna(cs_rank) & (cs_rank <= short_thresh)
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if c.long_only:
+            w_long = is_long.astype(float)
+            row_sum = w_long.sum(axis=1).clip(lower=1e-8)
+            weights = w_long.div(row_sum, axis=0) * c.leverage
+        else:
+            w_long = is_long.astype(float)
+            w_short = is_short.astype(float) * -1.0
+            raw = w_long + w_short
+            gross = raw.abs().sum(axis=1).clip(lower=1e-8)
+            weights = raw.div(gross, axis=0) * c.leverage
+
+        # Monthly rebalance hold
+        rebal_mask = pd.Series(False, index=prices.index)
+        rebal_mask.iloc[::c.rebalance_freq] = True
+        weights = weights.where(rebal_mask).ffill().fillna(0.0)
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)

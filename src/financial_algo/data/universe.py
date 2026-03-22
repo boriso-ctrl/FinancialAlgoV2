@@ -12,13 +12,13 @@ ENERGY: list[str] = ["XLE", "USO", "XOP", "OIH", "CVX", "XOM"]
 DEFENSE: list[str] = ["ITA", "LMT", "RTX", "NOC", "GD"]
 """Aerospace & Defense — war/geopolitical crisis plays."""
 
-SAFE_HAVEN: list[str] = ["GLD", "TLT", "IEF", "UUP"]
+SAFE_HAVEN: list[str] = ["GLD", "SLV", "TLT", "IEF", "SHY", "UUP"]
 """Traditional flight-to-safety instruments."""
 
 BROAD: list[str] = ["SPY", "QQQ", "IWM", "EFA", "EEM"]
 """Broad equity indices (US large, tech, small, intl/dev, intl/EM)."""
 
-CRYPTO: list[str] = ["BTC-USD"]
+CRYPTO: list[str] = ["BTC-USD", "ETH-USD"]
 """Crypto assets (yfinance tickers)."""
 
 SECTORS: list[str] = [
@@ -40,6 +40,34 @@ VOLATILITY: list[str] = ["^VIX"]
 """Volatility indices (non-tradeable, used for regime detection only)."""
 
 # ---------------------------------------------------------------------------
+# Commodities
+# ---------------------------------------------------------------------------
+
+COMMODITIES: list[str] = ["DBC", "DBA"]
+"""Broad commodities and agriculture ETFs."""
+
+# ---------------------------------------------------------------------------
+# Fixed Income
+# ---------------------------------------------------------------------------
+
+FIXED_INCOME: list[str] = ["TIP", "AGG", "EMB"]
+"""Fixed income ETFs (TIPS, aggregate bonds, EM bonds)."""
+
+# ---------------------------------------------------------------------------
+# Regional
+# ---------------------------------------------------------------------------
+
+REGIONAL: list[str] = ["FXI", "VGK", "EWJ", "INDA"]
+"""Regional equity ETFs (China, Europe, Japan, India)."""
+
+# ---------------------------------------------------------------------------
+# Real Estate
+# ---------------------------------------------------------------------------
+
+REAL_ESTATE: list[str] = ["VNQ"]
+"""Real estate ETFs."""
+
+# ---------------------------------------------------------------------------
 # Credit proxy (fear gauge)
 # ---------------------------------------------------------------------------
 
@@ -51,6 +79,8 @@ CREDIT_PROXY: list[str] = ["HYG", "LQD"]
 # ---------------------------------------------------------------------------
 
 CRISIS_UNIVERSE: list[str] = sorted(
-    set(ENERGY + DEFENSE + SAFE_HAVEN + BROAD + CRYPTO + SECTORS + VOLATILITY + CREDIT_PROXY)
+    set(ENERGY + DEFENSE + SAFE_HAVEN + BROAD + CRYPTO + SECTORS
+        + VOLATILITY + CREDIT_PROXY + COMMODITIES + FIXED_INCOME
+        + REGIONAL + REAL_ESTATE)
 )
 """Full ticker universe across all categories (deduplicated, sorted)."""

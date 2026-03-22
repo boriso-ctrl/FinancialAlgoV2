@@ -5,6 +5,8 @@ from financial_algo.fundamental.strategies.sentiment_strategies import (
     SentimentCrisisAlpha,
     SentimentDivergence,
     SentimentEnhancedRegime,
+    CryptoSentimentDivergence,
+    RedditSentimentAlpha,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "FearGreedContrarian",
     "SentimentDivergence",
     "SentimentEnhancedRegime",
+    "CryptoSentimentDivergence",
+    "RedditSentimentAlpha",
 ]

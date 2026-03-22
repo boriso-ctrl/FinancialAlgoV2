@@ -18,7 +18,10 @@ def _make_prices(n: int = 300, seed: int = 42) -> pd.DataFrame:
         "ITA", "LMT", "RTX", "NOC", "GD",
         "EFA", "EEM",
         "HYG", "LQD",
-        "BTC-USD",
+        "BTC-USD", "ETH-USD",
+        # Init 4 expansion
+        "SLV", "DBC", "DBA", "SHY", "TIP", "EMB", "AGG",
+        "VNQ", "FXI", "VGK", "EWJ", "INDA", "XBI",
     ]
     data = {}
     for t in tickers:
@@ -194,6 +197,55 @@ class TestEnsembleStrategy:
         # Shifted first row should be 0 (due to shift+1)
         assert (shifted.iloc[0] == 0.0).all()
 
+    def test_ensemble_hrp_weighting(self):
+        """HRP weighting produces valid weights via skfolio (skip if not installed)."""
+        skfolio = pytest.importorskip("skfolio", reason="skfolio not installed")
+        from financial_algo.strategies.crash_hedge import CrashHedgeQQQ, VolCarry
+        from financial_algo.strategies.ensemble import EnsembleConfig, EnsembleStrategy
+        from financial_algo.strategies.factor import LowVolFactor
+
+        prices = _make_prices(n=200)
+        strats = [CrashHedgeQQQ(), VolCarry(), LowVolFactor()]
+        cfg = EnsembleConfig(
+            weighting_method="hrp",
+            skfolio_refit_every=21,
+            skfolio_risk_measure="variance",
+            max_single_weight=0.50,
+            max_gross_leverage=2.0,
+        )
+        ens = EnsembleStrategy(strats, cfg)
+        w = ens.generate_weights(prices)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any(), "HRP weights contain NaN"
+        assert not np.isinf(w.values).any(), "HRP weights contain inf"
+
+    def test_ensemble_hrp_fallback_without_skfolio(self):
+        """When skfolio is absent, HRP path falls back to inverse_vol."""
+        from unittest.mock import patch
+        from financial_algo.strategies.crash_hedge import CrashHedgeQQQ, VolCarry
+        from financial_algo.strategies.ensemble import EnsembleConfig, EnsembleStrategy
+
+        prices = _make_prices(n=150)
+        strats = [CrashHedgeQQQ(), VolCarry()]
+        cfg = EnsembleConfig(
+            weighting_method="hrp",
+            skfolio_refit_every=21,
+        )
+        # Simulate skfolio not installed via import failure
+        import builtins
+        real_import = builtins.__import__
+
+        def _mock_import(name, *args, **kwargs):
+            if name == "skfolio":
+                raise ImportError("mocked: skfolio not installed")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=_mock_import):
+            ens = EnsembleStrategy(strats, cfg)
+            w = ens.generate_weights(prices)
+            assert len(w) == len(prices)
+            assert not w.isna().any().any(), "Fallback weights contain NaN"
+
 
 class TestCrisisSpikeStrategies:
     """Cat H: Crisis Spike (Upward) strategies."""
@@ -340,6 +392,65 @@ class TestMomentumStrategies:
         assert isinstance(w, pd.DataFrame)
         assert len(w) == len(prices)
 
+    def test_global_momentum_rotation_basic(self):
+        from financial_algo.strategies.momentum import GlobalMomentumRotation
+        prices = _make_prices(n=400)
+        strat = GlobalMomentumRotation()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_global_momentum_rotation_no_inf(self):
+        from financial_algo.strategies.momentum import GlobalMomentumRotation
+        prices = _make_prices(n=400)
+        strat = GlobalMomentumRotation()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_global_momentum_rotation_long_only(self):
+        from financial_algo.strategies.momentum import GlobalMomentumRotation
+        prices = _make_prices(n=400)
+        strat = GlobalMomentumRotation()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+# =========================================================================
+# I6: KSTMomentum
+# =========================================================================
+
+class TestKSTMomentum:
+    def test_basic(self):
+        from financial_algo.strategies.momentum import KSTMomentum
+        prices = _make_prices(n=300)
+        strat = KSTMomentum()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+
+    def test_no_inf(self):
+        from financial_algo.strategies.momentum import KSTMomentum
+        prices = _make_prices(n=300)
+        strat = KSTMomentum()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.momentum import KSTMomentum
+        prices = _make_prices(n=300)
+        strat = KSTMomentum()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_active_after_warmup(self):
+        from financial_algo.strategies.momentum import KSTMomentum
+        prices = _make_prices(n=400)
+        strat = KSTMomentum()
+        w = strat.generate_weights(prices)
+        # Should have some positions after 200-bar KST warmup
+        assert w.iloc[250:].sum(axis=1).max() > 0
+
 
 # =========================================================================
 # Cat J: Mean Reversion Strategies
@@ -362,9 +473,68 @@ class TestMeanReversionStrategies:
         assert isinstance(w, pd.DataFrame)
         assert len(w) == len(prices)
 
+    def test_global_mean_reversion_basic(self):
+        from financial_algo.strategies.mean_reversion import GlobalMeanReversion
+        prices = _make_prices(n=300)
+        strat = GlobalMeanReversion()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_global_mean_reversion_no_inf(self):
+        from financial_algo.strategies.mean_reversion import GlobalMeanReversion
+        prices = _make_prices(n=300)
+        strat = GlobalMeanReversion()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_global_mean_reversion_long_only(self):
+        from financial_algo.strategies.mean_reversion import GlobalMeanReversion
+        prices = _make_prices(n=300)
+        strat = GlobalMeanReversion()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
 
 # =========================================================================
-# Cat H-FI: Fixed Income Strategies
+# J6: DV2MeanReversion
+# =========================================================================
+
+class TestDV2MeanReversion:
+    def test_basic(self):
+        from financial_algo.strategies.mean_reversion import DV2MeanReversion
+        prices = _make_prices(n=300)
+        strat = DV2MeanReversion()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+
+    def test_no_inf(self):
+        from financial_algo.strategies.mean_reversion import DV2MeanReversion
+        prices = _make_prices(n=300)
+        strat = DV2MeanReversion()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.mean_reversion import DV2MeanReversion
+        prices = _make_prices(n=300)
+        strat = DV2MeanReversion()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_max_leverage_respected(self):
+        from financial_algo.strategies.mean_reversion import DV2MeanReversion, DV2MeanRevConfig
+        prices = _make_prices(n=300)
+        cfg = DV2MeanRevConfig(leverage=1.5)
+        strat = DV2MeanReversion(cfg)
+        w = strat.generate_weights(prices)
+        assert w.sum(axis=1).max() <= 1.6  # allow small fp tolerance
+
+
+# =========================================================================
+# H-FI: Fixed Income Strategies
 # =========================================================================
 
 class TestFixedIncomeStrategies:
@@ -606,6 +776,31 @@ class TestValueFactor:
         assert len(w) == len(prices)
 
 
+class TestRealAssetsFactor:
+    def test_basic(self):
+        from financial_algo.strategies.factor import RealAssetsFactor
+        prices = _make_prices(n=400)
+        strat = RealAssetsFactor()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.factor import RealAssetsFactor
+        prices = _make_prices(n=400)
+        strat = RealAssetsFactor()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.factor import RealAssetsFactor
+        prices = _make_prices(n=400)
+        strat = RealAssetsFactor()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
 class TestDurationTiming:
     def test_basic(self):
         from financial_algo.strategies.fixed_income import DurationTiming
@@ -744,3 +939,1038 @@ class TestVolSpikeRecovery:
         strat = VolSpikeRecovery()
         w = strat.generate_weights(prices)
         assert (w >= 0).all().all()
+
+
+# =========================================================================
+# Cat MF: Multi-Frequency Strategies
+# =========================================================================
+
+class TestWeeklyMomentumRotation:
+    def test_basic(self):
+        from financial_algo.strategies.multi_freq import WeeklyMomentumRotation
+        prices = _make_prices(n=400)
+        strat = WeeklyMomentumRotation()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.multi_freq import WeeklyMomentumRotation
+        prices = _make_prices(n=400)
+        strat = WeeklyMomentumRotation()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_only(self):
+        from financial_algo.strategies.multi_freq import WeeklyMomentumRotation
+        prices = _make_prices(n=400)
+        strat = WeeklyMomentumRotation()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+class TestMonthlyMacroRegime:
+    def test_basic(self):
+        from financial_algo.strategies.multi_freq import MonthlyMacroRegime
+        prices = _make_prices(n=400)
+        strat = MonthlyMacroRegime()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.multi_freq import MonthlyMacroRegime
+        prices = _make_prices(n=400)
+        strat = MonthlyMacroRegime()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+
+class TestMultiTimeframeTrend:
+    def test_basic(self):
+        from financial_algo.strategies.multi_freq import MultiTimeframeTrend
+        prices = _make_prices(n=400)
+        strat = MultiTimeframeTrend()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.multi_freq import MultiTimeframeTrend
+        prices = _make_prices(n=400)
+        strat = MultiTimeframeTrend()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+
+class TestWeeklyMeanReversion:
+    def test_basic(self):
+        from financial_algo.strategies.multi_freq import WeeklyMeanReversion
+        prices = _make_prices(n=400)
+        strat = WeeklyMeanReversion()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.multi_freq import WeeklyMeanReversion
+        prices = _make_prices(n=400)
+        strat = WeeklyMeanReversion()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_only(self):
+        from financial_algo.strategies.multi_freq import WeeklyMeanReversion
+        prices = _make_prices(n=400)
+        strat = WeeklyMeanReversion()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+# =========================================================================
+# Cat O: O7 - Precious Metals Crisis Hedge
+# =========================================================================
+
+class TestPreciousMetalsCrisisHedge:
+    def test_basic(self):
+        from financial_algo.strategies.tail_risk import PreciousMetalsCrisisHedge
+        prices = _make_prices()
+        strat = PreciousMetalsCrisisHedge()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.tail_risk import PreciousMetalsCrisisHedge
+        prices = _make_prices()
+        strat = PreciousMetalsCrisisHedge()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_only(self):
+        from financial_algo.strategies.tail_risk import PreciousMetalsCrisisHedge
+        prices = _make_prices()
+        strat = PreciousMetalsCrisisHedge()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_empty_prices(self):
+        from financial_algo.strategies.tail_risk import PreciousMetalsCrisisHedge
+        prices = pd.DataFrame()
+        strat = PreciousMetalsCrisisHedge()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+
+
+# =========================================================================
+# Cat F: F4 - Crypto Contagion Hedge
+# =========================================================================
+
+class TestCryptoContagionHedge:
+    def test_basic(self):
+        from financial_algo.strategies.crypto_crisis import CryptoContagionHedge
+        prices = _make_prices()
+        strat = CryptoContagionHedge()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.crypto_crisis import CryptoContagionHedge
+        prices = _make_prices()
+        strat = CryptoContagionHedge()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_only(self):
+        from financial_algo.strategies.crypto_crisis import CryptoContagionHedge
+        prices = _make_prices()
+        strat = CryptoContagionHedge()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_handles_missing_eth(self):
+        """F4 must handle missing ETH-USD gracefully (pre-2017 data)."""
+        from financial_algo.strategies.crypto_crisis import CryptoContagionHedge
+        prices = _make_prices()
+        # Drop ETH to simulate pre-2017 data
+        prices_no_eth = prices.drop(columns=["ETH-USD"])
+        strat = CryptoContagionHedge()
+        w = strat.generate_weights(prices_no_eth)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices_no_eth)
+        assert not w.isna().any().any()
+        # Without ETH, no contagion signal -> all weights should be 0
+        assert (w == 0).all().all()
+
+
+# =========================================================================
+# Cat L: L6 - Cross-Asset Vol Signal
+# =========================================================================
+
+class TestCrossAssetVolSignal:
+    def test_basic(self):
+        from financial_algo.strategies.volatility_strats import CrossAssetVolSignal
+        prices = _make_prices()
+        strat = CrossAssetVolSignal()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.volatility_strats import CrossAssetVolSignal
+        prices = _make_prices()
+        strat = CrossAssetVolSignal()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_only(self):
+        from financial_algo.strategies.volatility_strats import CrossAssetVolSignal
+        prices = _make_prices()
+        strat = CrossAssetVolSignal()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_handles_missing_tickers(self):
+        """L6 must work even if some vol basket tickers are missing."""
+        from financial_algo.strategies.volatility_strats import CrossAssetVolSignal
+        prices = _make_prices()
+        # Remove FXI and DBC from prices
+        prices_reduced = prices.drop(columns=["FXI", "DBC"], errors="ignore")
+        strat = CrossAssetVolSignal()
+        w = strat.generate_weights(prices_reduced)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices_reduced)
+        assert not w.isna().any().any()
+
+
+# =========================================================================
+# Cat G: G5 - Crypto Sentiment Divergence
+# =========================================================================
+
+class TestCryptoSentimentDivergence:
+    def test_basic(self):
+        from financial_algo.fundamental.strategies.sentiment_strategies import (
+            CryptoSentimentDivergence,
+        )
+        prices = _make_prices()
+        strat = CryptoSentimentDivergence()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.fundamental.strategies.sentiment_strategies import (
+            CryptoSentimentDivergence,
+        )
+        prices = _make_prices()
+        strat = CryptoSentimentDivergence()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_only(self):
+        from financial_algo.fundamental.strategies.sentiment_strategies import (
+            CryptoSentimentDivergence,
+        )
+        prices = _make_prices()
+        strat = CryptoSentimentDivergence()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_handles_missing_eth(self):
+        """G5 must degrade gracefully when ETH-USD is missing."""
+        from financial_algo.fundamental.strategies.sentiment_strategies import (
+            CryptoSentimentDivergence,
+        )
+        prices = _make_prices()
+        prices_no_eth = prices.drop(columns=["ETH-USD"])
+        strat = CryptoSentimentDivergence()
+        w = strat.generate_weights(prices_no_eth)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices_no_eth)
+        assert not w.isna().any().any()
+
+    def test_handles_missing_btc(self):
+        """G5 must return neutral weights when BTC-USD is missing."""
+        from financial_algo.fundamental.strategies.sentiment_strategies import (
+            CryptoSentimentDivergence,
+        )
+        prices = _make_prices()
+        prices_no_btc = prices.drop(columns=["BTC-USD"])
+        strat = CryptoSentimentDivergence()
+        w = strat.generate_weights(prices_no_btc)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices_no_btc)
+        assert not w.isna().any().any()
+
+
+# =========================================================================
+# Cat M: M6-M8 New Macro Strategies
+# =========================================================================
+
+class TestInflationBreakevenTrade:
+    def test_basic(self):
+        from financial_algo.strategies.macro import InflationBreakevenTrade
+        prices = _make_prices(n=300)
+        strat = InflationBreakevenTrade()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.macro import InflationBreakevenTrade
+        prices = _make_prices(n=300)
+        strat = InflationBreakevenTrade()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_missing_tickers(self):
+        from financial_algo.strategies.macro import InflationBreakevenTrade
+        prices = _make_prices(n=300).drop(columns=["TIP"])
+        strat = InflationBreakevenTrade()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+
+class TestGlobalRotation:
+    def test_basic(self):
+        from financial_algo.strategies.macro import GlobalRotation
+        prices = _make_prices(n=400)
+        strat = GlobalRotation()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.macro import GlobalRotation
+        prices = _make_prices(n=400)
+        strat = GlobalRotation()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_only(self):
+        from financial_algo.strategies.macro import GlobalRotation
+        prices = _make_prices(n=400)
+        strat = GlobalRotation()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+class TestCommodityMacroSignal:
+    def test_basic(self):
+        from financial_algo.strategies.macro import CommodityMacroSignal
+        prices = _make_prices(n=400)
+        strat = CommodityMacroSignal()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.macro import CommodityMacroSignal
+        prices = _make_prices(n=400)
+        strat = CommodityMacroSignal()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_only(self):
+        from financial_algo.strategies.macro import CommodityMacroSignal
+        prices = _make_prices(n=400)
+        strat = CommodityMacroSignal()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+# =========================================================================
+# Cat R: Regime Hardening — R7, R8
+# =========================================================================
+
+class TestVolExplosionAlpha:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import VolExplosionAlpha
+        prices = _make_prices(n=400)
+        strat = VolExplosionAlpha()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import VolExplosionAlpha
+        prices = _make_prices(n=400)
+        strat = VolExplosionAlpha()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_max_leverage(self):
+        from financial_algo.strategies.regime_hardening import VolExplosionAlpha
+        prices = _make_prices(n=400)
+        strat = VolExplosionAlpha()
+        w = strat.generate_weights(prices)
+        assert (w.sum(axis=1) <= 1.0 + 1e-9).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.regime_hardening import VolExplosionAlpha
+        prices = _make_prices(n=400)
+        strat = VolExplosionAlpha()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+class TestVolRegimeSwitcher:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import VolRegimeSwitcher
+        prices = _make_prices(n=400)
+        strat = VolRegimeSwitcher()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import VolRegimeSwitcher
+        prices = _make_prices(n=400)
+        strat = VolRegimeSwitcher()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_max_leverage(self):
+        from financial_algo.strategies.regime_hardening import VolRegimeSwitcher
+        prices = _make_prices(n=400)
+        strat = VolRegimeSwitcher()
+        w = strat.generate_weights(prices)
+        assert (w.sum(axis=1) <= 1.0 + 1e-9).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.regime_hardening import VolRegimeSwitcher
+        prices = _make_prices(n=400)
+        strat = VolRegimeSwitcher()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+class TestRatesTighteningAlpha:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import RatesTighteningAlpha
+        prices = _make_prices(n=400)
+        strat = RatesTighteningAlpha()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import RatesTighteningAlpha
+        prices = _make_prices(n=400)
+        strat = RatesTighteningAlpha()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_max_leverage(self):
+        from financial_algo.strategies.regime_hardening import RatesTighteningAlpha
+        prices = _make_prices(n=400)
+        strat = RatesTighteningAlpha()
+        w = strat.generate_weights(prices)
+        assert (w.sum(axis=1) <= 1.0 + 1e-9).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.regime_hardening import RatesTighteningAlpha
+        prices = _make_prices(n=400)
+        strat = RatesTighteningAlpha()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+class TestBondEquityHedge:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import BondEquityHedge
+        prices = _make_prices(n=400)
+        strat = BondEquityHedge()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import BondEquityHedge
+        prices = _make_prices(n=400)
+        strat = BondEquityHedge()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_max_leverage(self):
+        from financial_algo.strategies.regime_hardening import BondEquityHedge
+        prices = _make_prices(n=400)
+        strat = BondEquityHedge()
+        w = strat.generate_weights(prices)
+        assert (w.sum(axis=1) <= 1.0 + 1e-9).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.regime_hardening import BondEquityHedge
+        prices = _make_prices(n=400)
+        strat = BondEquityHedge()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+
+class TestBearMarketAlpha:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import BearMarketAlpha
+        prices = _make_prices()
+        regime = _make_regime(prices)
+        strat = BearMarketAlpha()
+        w = strat.generate_weights(prices, regime)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import BearMarketAlpha
+        prices = _make_prices()
+        regime = _make_regime(prices)
+        strat = BearMarketAlpha()
+        w = strat.generate_weights(prices, regime)
+        assert not np.isinf(w.values).any()
+
+    def test_without_regime(self):
+        from financial_algo.strategies.regime_hardening import BearMarketAlpha
+        prices = _make_prices()
+        strat = BearMarketAlpha()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_max_leverage(self):
+        from financial_algo.strategies.regime_hardening import BearMarketAlpha
+        prices = _make_prices()
+        regime = _make_regime(prices)
+        strat = BearMarketAlpha()
+        w = strat.generate_weights(prices, regime)
+        gross = w.abs().sum(axis=1)
+        assert (gross <= 1.0 + 1e-9).all()
+
+
+class TestCrisisHedgeAdaptive:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import CrisisHedgeAdaptive
+        prices = _make_prices()
+        strat = CrisisHedgeAdaptive()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import CrisisHedgeAdaptive
+        prices = _make_prices()
+        strat = CrisisHedgeAdaptive()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_mostly_flat(self):
+        """R2 should be flat (all zeros) for most of the time."""
+        from financial_algo.strategies.regime_hardening import CrisisHedgeAdaptive
+        prices = _make_prices()
+        strat = CrisisHedgeAdaptive()
+        w = strat.generate_weights(prices)
+        flat_days = (w.abs().sum(axis=1) == 0).sum()
+        # At least some flat days (pure hedge strategy)
+        assert flat_days > 0
+
+    def test_short_spy_during_stress(self):
+        """R2 should have negative SPY weight during stress periods."""
+        from financial_algo.strategies.regime_hardening import CrisisHedgeAdaptive
+        prices = _make_prices()
+        strat = CrisisHedgeAdaptive()
+        w = strat.generate_weights(prices)
+        # There should be at least some negative SPY positions
+        if "SPY" in w.columns:
+            assert (w["SPY"] < 0).any()
+
+
+# =========================================================================
+# Cat R: R3 - Defensive Rotation, R4 - Adaptive Risk Budget
+# =========================================================================
+
+class TestDefensiveRotationR3:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import DefensiveRotationR3
+        prices = _make_prices(n=400)
+        strat = DefensiveRotationR3()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import DefensiveRotationR3
+        prices = _make_prices(n=400)
+        strat = DefensiveRotationR3()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.regime_hardening import DefensiveRotationR3
+        prices = _make_prices(n=400)
+        strat = DefensiveRotationR3()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_gross_leverage_capped(self):
+        from financial_algo.strategies.regime_hardening import DefensiveRotationR3
+        prices = _make_prices(n=400)
+        strat = DefensiveRotationR3()
+        w = strat.generate_weights(prices)
+        gross = w.abs().sum(axis=1)
+        assert (gross <= 1.0 + 1e-9).all()
+
+    def test_handles_missing_tickers(self):
+        from financial_algo.strategies.regime_hardening import DefensiveRotationR3
+        prices = _make_prices(n=400)
+        prices_reduced = prices.drop(columns=["UUP"], errors="ignore")
+        strat = DefensiveRotationR3()
+        w = strat.generate_weights(prices_reduced)
+        assert isinstance(w, pd.DataFrame)
+        assert not w.isna().any().any()
+
+
+class TestAdaptiveRiskBudget:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import AdaptiveRiskBudget
+        prices = _make_prices(n=400)
+        strat = AdaptiveRiskBudget()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import AdaptiveRiskBudget
+        prices = _make_prices(n=400)
+        strat = AdaptiveRiskBudget()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.regime_hardening import AdaptiveRiskBudget
+        prices = _make_prices(n=400)
+        strat = AdaptiveRiskBudget()
+        w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_always_invested(self):
+        """R4 should always be invested (equity + safe = ~1.0)."""
+        from financial_algo.strategies.regime_hardening import AdaptiveRiskBudget
+        prices = _make_prices(n=400)
+        strat = AdaptiveRiskBudget()
+        w = strat.generate_weights(prices)
+        total = w.sum(axis=1)
+        # After warm-up, total allocation should be close to 1.0
+        assert (total.iloc[63:] > 0.5).all()
+
+    def test_no_spy_returns_zeros(self):
+        """R4 handles missing SPY gracefully."""
+        from financial_algo.strategies.regime_hardening import AdaptiveRiskBudget
+        prices = _make_prices(n=300)
+        prices_no_spy = prices.drop(columns=["SPY"])
+        strat = AdaptiveRiskBudget()
+        w = strat.generate_weights(prices_no_spy)
+        assert (w == 0).all().all()
+
+
+# =========================================================================
+# Cat P: ML-enhanced strategies (P2, P3)
+# =========================================================================
+
+class TestXGBoostSignalCombo:
+    def test_basic(self):
+        from financial_algo.strategies.signal_combo import XGBoostSignalCombo
+        prices = _make_prices(n=600)
+        strat = XGBoostSignalCombo()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.signal_combo import XGBoostSignalCombo
+        prices = _make_prices(n=600)
+        strat = XGBoostSignalCombo()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_warmup_uses_p1_fallback(self):
+        """During warm-up (< 252 days), should produce nonzero weights."""
+        from financial_algo.strategies.signal_combo import XGBoostSignalCombo
+        prices = _make_prices(n=600)
+        strat = XGBoostSignalCombo()
+        w = strat.generate_weights(prices)
+        warmup_total = w.iloc[21:252].sum(axis=1)
+        assert (warmup_total > 0).any()
+
+    def test_ml_phase_produces_weights(self):
+        """After warm-up, ML predictions should produce weights."""
+        from financial_algo.strategies.signal_combo import XGBoostSignalCombo
+        prices = _make_prices(n=600)
+        strat = XGBoostSignalCombo()
+        w = strat.generate_weights(prices)
+        ml_total = w.iloc[300:].sum(axis=1)
+        assert (ml_total > 0).any()
+
+    def test_few_tickers(self):
+        """Graceful when fewer than 3 tickers available."""
+        from financial_algo.strategies.signal_combo import XGBoostSignalCombo
+        prices = _make_prices(n=600)[["SPY", "QQQ"]]
+        strat = XGBoostSignalCombo()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+
+class TestGMMRegimeClassifier:
+    def test_basic(self):
+        from financial_algo.strategies.signal_combo import GMMRegimeClassifier
+        prices = _make_prices(n=600)
+        strat = GMMRegimeClassifier()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.signal_combo import GMMRegimeClassifier
+        prices = _make_prices(n=600)
+        strat = GMMRegimeClassifier()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_positions_clipped(self):
+        """No individual position exceeds max_position (0.5)."""
+        from financial_algo.strategies.signal_combo import GMMRegimeClassifier
+        prices = _make_prices(n=600)
+        strat = GMMRegimeClassifier()
+        w = strat.generate_weights(prices)
+        assert (w.abs() <= 0.5 + 1e-9).all().all()
+
+    def test_no_spy_returns_zeros(self):
+        """Missing SPY makes VIX proxy impossible -- should return zeros."""
+        from financial_algo.strategies.signal_combo import GMMRegimeClassifier
+        prices = _make_prices(n=600).drop(columns=["SPY"])
+        strat = GMMRegimeClassifier()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+    def test_active_after_warmup(self):
+        """GMM should produce nonzero weights after 252-day warm-up."""
+        from financial_algo.strategies.signal_combo import GMMRegimeClassifier
+        prices = _make_prices(n=600)
+        strat = GMMRegimeClassifier()
+        w = strat.generate_weights(prices)
+        post_warmup = w.iloc[280:].abs().sum(axis=1)
+        assert (post_warmup > 0).any()
+
+class TestMultiAssetCTATrend:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import MultiAssetCTATrend
+        prices = _make_prices(n=600)
+        strat = MultiAssetCTATrend()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import MultiAssetCTATrend
+        prices = _make_prices(n=600)
+        strat = MultiAssetCTATrend()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_max_leverage(self):
+        from financial_algo.strategies.regime_hardening import MultiAssetCTATrend
+        prices = _make_prices(n=600)
+        strat = MultiAssetCTATrend()
+        w = strat.generate_weights(prices)
+        gross = w.abs().sum(axis=1)
+        assert (gross <= 1.5 + 1e-9).all()
+
+    def test_active_after_warmup(self):
+        from financial_algo.strategies.regime_hardening import MultiAssetCTATrend
+        prices = _make_prices(n=600)
+        strat = MultiAssetCTATrend()
+        w = strat.generate_weights(prices)
+        post_warmup = w.iloc[200:].abs().sum(axis=1)
+        assert (post_warmup > 0).any()
+
+    def test_no_spy_returns_zeros(self):
+        """Missing entire universe should return zero weights gracefully."""
+        from financial_algo.strategies.regime_hardening import MultiAssetCTATrend
+        prices = _make_prices(n=200)[["ITA", "LMT"]]  # no CTA universe assets
+        strat = MultiAssetCTATrend()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+
+class TestCommodityMacroOverlay:
+    def test_basic(self):
+        from financial_algo.strategies.regime_hardening import CommodityMacroOverlay
+        prices = _make_prices(n=400)
+        strat = CommodityMacroOverlay()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.regime_hardening import CommodityMacroOverlay
+        prices = _make_prices(n=400)
+        strat = CommodityMacroOverlay()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_max_leverage(self):
+        from financial_algo.strategies.regime_hardening import CommodityMacroOverlay
+        prices = _make_prices(n=400)
+        strat = CommodityMacroOverlay()
+        w = strat.generate_weights(prices)
+        gross = w.abs().sum(axis=1)
+        assert (gross <= 1.0 + 1e-9).all()
+
+    def test_dormant_missing_required(self):
+        """Without XLE/UUP/TLT/SPY, should return all zeros."""
+        from financial_algo.strategies.regime_hardening import CommodityMacroOverlay
+        prices = _make_prices(n=400)[["ITA", "LMT", "GLD"]]
+        strat = CommodityMacroOverlay()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+    def test_only_longs(self):
+        """No short positions: all weights non-negative."""
+        from financial_algo.strategies.regime_hardening import CommodityMacroOverlay
+        prices = _make_prices(n=400)
+        strat = CommodityMacroOverlay()
+        w = strat.generate_weights(prices)
+        assert (w >= -1e-9).all().all()
+
+
+class TestMultiSignalConsensus:
+    def test_basic_shape(self):
+        from financial_algo.strategies.signal_combo import MultiSignalConsensus
+        prices = _make_prices(n=400)
+        strat = MultiSignalConsensus()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert w.shape[0] == len(prices)
+        assert w.shape[1] == len(prices.columns)
+
+    def test_no_nan(self):
+        from financial_algo.strategies.signal_combo import MultiSignalConsensus
+        prices = _make_prices(n=400)
+        strat = MultiSignalConsensus()
+        w = strat.generate_weights(prices)
+        assert not w.isnull().any().any()
+        assert np.isfinite(w.values).all()
+
+    def test_long_only(self):
+        from financial_algo.strategies.signal_combo import MultiSignalConsensus
+        prices = _make_prices(n=400)
+        strat = MultiSignalConsensus()
+        w = strat.generate_weights(prices)
+        assert (w >= -1e-9).all().all()
+
+    def test_max_leverage_respected(self):
+        from financial_algo.strategies.signal_combo import MultiSignalConsensus
+        prices = _make_prices(n=400)
+        strat = MultiSignalConsensus()
+        w = strat.generate_weights(prices)
+        gross = w.abs().sum(axis=1)
+        assert (gross <= 1.5 + 1e-9).all()
+
+
+class TestDrawdownRecoveryTiming:
+    def test_basic(self):
+        from financial_algo.strategies.tail_risk import DrawdownRecoveryTiming
+        prices = _make_prices(n=500)
+        strat = DrawdownRecoveryTiming()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_empty(self):
+        from financial_algo.strategies.tail_risk import DrawdownRecoveryTiming
+        prices = pd.DataFrame()
+        strat = DrawdownRecoveryTiming()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == 0
+
+    def test_no_spy(self):
+        from financial_algo.strategies.tail_risk import DrawdownRecoveryTiming
+        prices = _make_prices(n=300)
+        prices = prices.drop(columns=["SPY"])
+        strat = DrawdownRecoveryTiming()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+    def test_recovery_activates_on_crash(self):
+        """Verify recovery window activates after a synthetic crash + bounce."""
+        from financial_algo.strategies.tail_risk import DrawdownRecoveryTiming
+        dates = pd.bdate_range("2020-01-01", periods=200)
+        # Build SPY: flat, crash, then bounce
+        spy_prices = np.ones(200) * 100.0
+        # Days 50-70: 20% crash
+        for i in range(50, 70):
+            spy_prices[i] = spy_prices[i - 1] * 0.99
+        # Days 70-80: bounce (10 consecutive up-days)
+        for i in range(70, 80):
+            spy_prices[i] = spy_prices[i - 1] * 1.015
+        # Rest stays flat from day 80
+        for i in range(80, 200):
+            spy_prices[i] = spy_prices[79]
+
+        prices = pd.DataFrame({
+            "SPY": spy_prices, "QQQ": spy_prices,
+            "IWM": spy_prices, "EFA": spy_prices,
+        }, index=dates)
+        strat = DrawdownRecoveryTiming()
+        w = strat.generate_weights(prices)
+        # After the crash and bounce, recovery should be active
+        recovery_days = (w["SPY"] > 0).sum()
+        assert recovery_days > 0, "Recovery should have activated after crash + bounce"
+
+
+# =========================================================================
+# S1 — FormulaicAlphaMomentum
+# =========================================================================
+
+class TestFormulaicAlphaMomentum:
+    def test_basic(self):
+        from financial_algo.strategies.factor import FormulaicAlphaMomentum
+        prices = _make_prices(n=300)
+        strat = FormulaicAlphaMomentum()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert w.shape == prices.shape
+        assert not w.isna().any().any()
+
+    def test_empty(self):
+        from financial_algo.strategies.factor import FormulaicAlphaMomentum
+        prices = pd.DataFrame()
+        strat = FormulaicAlphaMomentum()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == 0
+
+    def test_few_assets(self):
+        from financial_algo.strategies.factor import FormulaicAlphaMomentum
+        prices = _make_prices(n=300)[["SPY", "QQQ"]]
+        strat = FormulaicAlphaMomentum()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.factor import FormulaicAlphaMomentum
+        prices = _make_prices(n=300)
+        strat = FormulaicAlphaMomentum()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_short(self):
+        from financial_algo.strategies.factor import (
+            FormulaicAlphaMomentum, FormulaicAlphaMomConfig,
+        )
+        prices = _make_prices(n=300)
+        cfg = FormulaicAlphaMomConfig(long_only=False, leverage=1.0)
+        strat = FormulaicAlphaMomentum(config=cfg)
+        w = strat.generate_weights(prices)
+        assert (w < 0).any().any(), "Long-short should have negative weights"
+
+    def test_with_injected_volume(self):
+        from financial_algo.strategies.factor import FormulaicAlphaMomentum
+        prices = _make_prices(n=300)
+        rng = np.random.RandomState(99)
+        volume = pd.DataFrame(
+            rng.uniform(1e5, 1e7, prices.shape),
+            index=prices.index, columns=prices.columns,
+        )
+        strat = FormulaicAlphaMomentum()
+        strat.set_ohlcv(volume=volume)
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert not w.isna().any().any()
+
+
+# =========================================================================
+# S2 — FormulaicAlphaMeanRev
+# =========================================================================
+
+class TestFormulaicAlphaMeanRev:
+    def test_basic(self):
+        from financial_algo.strategies.mean_reversion import FormulaicAlphaMeanRev
+        prices = _make_prices(n=300)
+        strat = FormulaicAlphaMeanRev()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert w.shape == prices.shape
+        assert not w.isna().any().any()
+
+    def test_empty(self):
+        from financial_algo.strategies.mean_reversion import FormulaicAlphaMeanRev
+        prices = pd.DataFrame()
+        strat = FormulaicAlphaMeanRev()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == 0
+
+    def test_few_assets(self):
+        from financial_algo.strategies.mean_reversion import FormulaicAlphaMeanRev
+        prices = _make_prices(n=300)[["SPY", "QQQ"]]
+        strat = FormulaicAlphaMeanRev()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.mean_reversion import FormulaicAlphaMeanRev
+        prices = _make_prices(n=300)
+        strat = FormulaicAlphaMeanRev()
+        w = strat.generate_weights(prices)
+        assert not np.isinf(w.values).any()
+
+    def test_long_short(self):
+        from financial_algo.strategies.mean_reversion import (
+            FormulaicAlphaMeanRev, FormulaicAlphaMeanRevConfig,
+        )
+        prices = _make_prices(n=300)
+        cfg = FormulaicAlphaMeanRevConfig(long_only=False, leverage=1.0)
+        strat = FormulaicAlphaMeanRev(config=cfg)
+        w = strat.generate_weights(prices)
+        assert (w < 0).any().any(), "Long-short should have negative weights"
+
+    def test_with_injected_ohlcv(self):
+        from financial_algo.strategies.mean_reversion import FormulaicAlphaMeanRev
+        prices = _make_prices(n=300)
+        rng = np.random.RandomState(88)
+        ret_abs = prices.pct_change().fillna(0.0).abs()
+        open_df = prices.shift(1).bfill()
+        high = prices * (1 + ret_abs * 0.7)
+        low = prices * (1 - ret_abs * 0.7)
+        volume = pd.DataFrame(
+            rng.uniform(1e5, 1e7, prices.shape),
+            index=prices.index, columns=prices.columns,
+        )
+        strat = FormulaicAlphaMeanRev()
+        strat.set_ohlcv(open_df=open_df, high=high, low=low, volume=volume)
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert not w.isna().any().any()

@@ -542,3 +542,137 @@ class VolOfVolRegime(Strategy):
         weights[c.equity_ticker] = weights[c.equity_ticker] * vov_inv_scale
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L6 -- Cross-Asset Vol Signal
+# =========================================================================
+
+@dataclass
+class CrossAssetVolSignalConfig:
+    """Config for cross-asset volatility dispersion strategy."""
+
+    # Assets whose realized vol we measure for dispersion
+    vol_basket: tuple[str, ...] = (
+        "SPY", "EEM", "FXI", "DBC", "GLD", "TLT", "BTC-USD",
+    )
+
+    # Risk-on targets
+    risk_on_tickers: tuple[str, ...] = ("SPY", "QQQ")
+    risk_on_weight: float = 0.75  # per ticker in risk-on mode
+
+    # Safe-haven targets
+    safe_haven_tickers: tuple[str, ...] = ("GLD", "SLV", "TLT", "SHY")
+    safe_haven_weight: float = 0.30  # per ticker in safe-haven mode
+
+    # Realized vol parameters
+    rv_window: int = 20       # realized vol lookback per asset
+    smooth_span: int = 5      # EMA smoothing on dispersion
+
+    # Dispersion thresholds (z-score based)
+    dispersion_zscore_window: int = 252
+    low_dispersion_z: float = -0.5   # below = stable correlations = risk-on
+    high_dispersion_z: float = 1.0   # above = regime change = safe havens
+
+    # Trend filter
+    trend_window: int = 50
+    equity_ticker: str = "SPY"
+
+    # Vol-inverse scaling (reduce when overall vol is high)
+    vol_target: float = 0.15
+
+
+class CrossAssetVolSignal(Strategy):
+    """Trade cross-asset vol dispersion for regime detection.
+
+    Thesis: When realized vol across diverse asset classes (equities, EM,
+    commodities, gold, bonds, crypto) has LOW dispersion (similar vol
+    levels), correlations are stable and it is safe to lever up risk
+    assets. When dispersion SPIKES (some assets calm, others volatile),
+    a regime change is underway -- rotate to safe havens.
+
+    The std-of-vols across asset classes captures regime transitions
+    earlier than any single-asset vol measure.
+    """
+
+    name = "L6-CrossAssetVolSignal"
+
+    def __init__(self, config: CrossAssetVolSignalConfig | None = None) -> None:
+        self.cfg = config or CrossAssetVolSignalConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+
+        # Compute realized vol for each asset in the basket
+        available = [t for t in c.vol_basket if t in prices.columns]
+        if len(available) < 3:
+            # Not enough assets for meaningful dispersion
+            weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+            if c.equity_ticker in prices.columns:
+                weights[c.equity_ticker] = 0.5
+            return weights
+
+        rv_df = pd.DataFrame(index=prices.index)
+        for ticker in available:
+            rv_df[ticker] = realized_vol(prices[ticker], c.rv_window)
+        rv_df = rv_df.ffill().fillna(0.0)
+
+        # Cross-asset vol dispersion: std of realized vols across assets
+        dispersion = rv_df.std(axis=1)
+        dispersion = ema(dispersion, c.smooth_span)
+
+        # Z-score of dispersion for adaptive thresholds
+        disp_mu = dispersion.rolling(
+            c.dispersion_zscore_window, min_periods=60,
+        ).mean()
+        disp_sigma = dispersion.rolling(
+            c.dispersion_zscore_window, min_periods=60,
+        ).std().replace(0, np.nan)
+        disp_z = ((dispersion - disp_mu) / disp_sigma).fillna(0.0)
+
+        # Trend filter on SPY
+        if c.equity_ticker in prices.columns:
+            equity = prices[c.equity_ticker]
+            sma = equity.rolling(c.trend_window, min_periods=20).mean()
+            uptrend = equity >= sma
+        else:
+            uptrend = pd.Series(True, index=prices.index)
+
+        # Vol-inverse scaling: reduce gross exposure when median vol is high
+        median_rv = rv_df.median(axis=1).fillna(c.vol_target)
+        vol_scale = (c.vol_target / median_rv.clip(lower=0.05)).clip(0.5, 1.3)
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        # Regime classification
+        low_disp = pd.notna(disp_z) & (disp_z <= c.low_dispersion_z)
+        high_disp = pd.notna(disp_z) & (disp_z >= c.high_dispersion_z)
+        mid_disp = ~low_disp & ~high_disp
+
+        # Low dispersion: risk-on
+        for ticker in c.risk_on_tickers:
+            if ticker in prices.columns:
+                weights.loc[low_disp & uptrend, ticker] = c.risk_on_weight
+                weights.loc[low_disp & ~uptrend, ticker] = c.risk_on_weight * 0.5
+
+        # High dispersion: safe havens
+        for ticker in c.safe_haven_tickers:
+            if ticker in prices.columns:
+                weights.loc[high_disp, ticker] = c.safe_haven_weight
+
+        # Mid-zone: moderate risk-on, trend-dependent
+        for ticker in c.risk_on_tickers:
+            if ticker in prices.columns:
+                weights.loc[mid_disp & uptrend, ticker] = c.risk_on_weight * 0.5
+                weights.loc[mid_disp & ~uptrend, ticker] = c.risk_on_weight * 0.25
+
+        # Apply vol-inverse scaling to risk-on tickers only
+        for ticker in c.risk_on_tickers:
+            if ticker in prices.columns:
+                weights[ticker] = weights[ticker] * vol_scale
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)

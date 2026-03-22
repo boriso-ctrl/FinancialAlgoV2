@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from financial_algo.indicators import realized_vol, ema, drawdown as _drawdown, moving_average
+from financial_algo.indicators import realized_vol, ema, drawdown as _drawdown
 from financial_algo.regimes import Regime
 from financial_algo.strategies.base import Strategy
 
@@ -529,8 +529,7 @@ class TailHedgeOverlay(Strategy):
         # --- Trend filter: SPY below 200d SMA ---
         trend_below = pd.Series(False, index=prices.index)
         if c.spy_ticker in prices.columns:
-            sma_200_list = moving_average(prices[c.spy_ticker].tolist(), c.trend_sma_window)
-            sma_200 = pd.Series(sma_200_list, index=prices.index)
+            sma_200 = prices[c.spy_ticker].rolling(c.trend_sma_window).mean()
             trend_below = pd.notna(sma_200) & (prices[c.spy_ticker] < sma_200)
 
         # --- Assign weights by tier ---
@@ -565,6 +564,228 @@ class TailHedgeOverlay(Strategy):
             weights.loc[trend_below, c.gold_ticker] += c.trend_extra_gold
         if has_bond:
             weights.loc[trend_below, c.bond_ticker] += c.trend_extra_bond
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights
+
+
+# =========================================================================
+# O7 -- Precious Metals Crisis Hedge
+# =========================================================================
+
+@dataclass
+class PreciousMetalsCrisisHedgeConfig:
+    """Vol-tiered allocation between risk-on equities and safe havens.
+
+    Normal (vol < 0.15): SPY + QQQ (risk-on).
+    Elevated (0.15 <= vol < 0.25): partial hedge, split between equities
+        and precious metals / treasuries.
+    Crisis (vol >= 0.25): full crisis hedge with GLD, SLV, TLT, SHY.
+        Tilts toward SLV for higher-beta precious metal convexity.
+    """
+
+    risk_on: tuple = ("SPY", "QQQ")
+    safe_haven: tuple = ("GLD", "SLV", "TLT", "SHY")
+
+    vol_window: int = 20
+    normal_threshold: float = 0.15
+    crisis_threshold: float = 0.25
+
+    # Risk-on weights (split equally)
+    risk_on_weight: float = 0.50
+
+    # Elevated: partial hedge mix
+    elevated_equity_weight: float = 0.30
+    elevated_safe_weight: float = 0.20
+
+    # Crisis weights: precious metals + treasuries
+    # SLV gets more than GLD for convexity (higher beta = bigger crisis payoff)
+    crisis_gld: float = 0.25
+    crisis_slv: float = 0.35
+    crisis_tlt: float = 0.25
+    crisis_shy: float = 0.15
+
+
+class PreciousMetalsCrisisHedge(Strategy):
+    """Vol-tiered allocation: equities in calm, precious metals in crisis.
+
+    Thesis: SLV has higher beta than GLD in panic environments,
+    delivering more convexity when it matters most. Combined with
+    TLT + SHY for flight-to-quality, this provides a layered
+    hedge that scales with crisis severity.
+
+    The strategy uses 20-day realized vol of SPY as a VIX proxy:
+      - vol < 0.15: 100% risk-on (SPY + QQQ)
+      - 0.15 <= vol < 0.25: partial hedge (mix of equities + safe havens)
+      - vol >= 0.25: full crisis mode (GLD + SLV + TLT + SHY)
+    """
+
+    name = "O7-PreciousMetalsCrisisHedge"
+
+    def __init__(self, config: PreciousMetalsCrisisHedgeConfig | None = None) -> None:
+        self.cfg = config or PreciousMetalsCrisisHedgeConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        all_tickers = list(c.risk_on) + list(c.safe_haven)
+        avail = [t for t in all_tickers if t in prices.columns]
+        if not avail:
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        # SPY realized vol as VIX proxy
+        spy_col = "SPY" if "SPY" in prices.columns else avail[0]
+        vol = realized_vol(prices[spy_col], c.vol_window).fillna(0.0)
+
+        # Regime masks (vectorized)
+        crisis = pd.notna(vol) & (vol >= c.crisis_threshold)
+        elevated = pd.notna(vol) & (vol >= c.normal_threshold) & ~crisis
+        normal = ~crisis & ~elevated
+
+        # Normal: risk-on equities
+        risk_on_avail = [t for t in c.risk_on if t in prices.columns]
+        n_risk = len(risk_on_avail)
+        if n_risk > 0:
+            per_eq = c.risk_on_weight / n_risk
+            for t in risk_on_avail:
+                weights.loc[normal, t] = per_eq
+
+        # Elevated: partial hedge
+        if n_risk > 0:
+            per_eq_elev = c.elevated_equity_weight / n_risk
+            for t in risk_on_avail:
+                weights.loc[elevated, t] = per_eq_elev
+
+        safe_avail = [t for t in c.safe_haven if t in prices.columns]
+        n_safe = len(safe_avail)
+        if n_safe > 0:
+            per_safe_elev = c.elevated_safe_weight / n_safe
+            for t in safe_avail:
+                weights.loc[elevated, t] = per_safe_elev
+
+        # Crisis: full safe-haven allocation with SLV tilt
+        crisis_map = {
+            "GLD": c.crisis_gld,
+            "SLV": c.crisis_slv,
+            "TLT": c.crisis_tlt,
+            "SHY": c.crisis_shy,
+        }
+        for t in safe_avail:
+            w_val = crisis_map.get(t, 0.0)
+            if w_val > 0:
+                weights.loc[crisis, t] = w_val
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights
+
+
+# =========================================================================
+# S3 -- Drawdown Recovery Timing
+# =========================================================================
+
+@dataclass
+class DrawdownRecoveryTimingConfig:
+    """Aggressively long risk assets during confirmed recovery from deep drawdowns.
+
+    Trigger: SPY drawdown crosses -15%, then 5 consecutive up-days
+    from the trough confirm the recovery has begun. Strategy stays
+    long for 60 trading days after confirmation.
+    Outside recovery windows: fully neutral (no bleed).
+    """
+
+    spy_ticker: str = "SPY"
+    risk_tickers: tuple = ("SPY", "QQQ", "IWM", "EFA")
+
+    drawdown_threshold: float = -0.15  # -15% from peak
+    confirmation_days: int = 5  # consecutive up days to confirm trough
+    recovery_window: int = 60  # trading days to stay long after confirmation
+
+    per_asset_weight: float = 0.25  # equal weight per risk asset
+
+
+class DrawdownRecoveryTiming(Strategy):
+    """Long risk assets during early recovery from deep drawdowns.
+
+    After SPY draws down >= 15% from peak and then shows 5 consecutive
+    up-days (trough confirmation), go long SPY/QQQ/IWM/EFA with equal
+    weight for 60 trading days. These recovery windows (2020 COVID
+    bounce, 2022 bear market bottom) are the highest-Sharpe periods.
+
+    Outside recovery windows the strategy is fully flat -- zero cost
+    of carry in calm markets.
+    """
+
+    name = "S3-DrawdownRecoveryTiming"
+
+    def __init__(self, config: DrawdownRecoveryTimingConfig | None = None) -> None:
+        self.cfg = config or DrawdownRecoveryTimingConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        spy_col = c.spy_ticker if c.spy_ticker in prices.columns else None
+        if spy_col is None:
+            return weights
+
+        spy = prices[spy_col]
+
+        # Rolling drawdown from peak
+        peak = spy.cummax()
+        dd = ((spy - peak) / peak).fillna(0.0)
+
+        # Deep drawdown flag
+        in_deep_dd = dd <= c.drawdown_threshold
+
+        # Daily returns for consecutive-up detection
+        spy_ret = spy.pct_change().fillna(0.0)
+        up_day = (spy_ret > 0).astype(float)
+
+        # Consecutive up-day count (vectorized cumsum trick)
+        not_up = up_day == 0
+        group_id = not_up.cumsum()
+        consec_up = up_day.groupby(group_id).cumsum()
+
+        # Check if we were recently in deep DD (within lookback window)
+        lookback = c.confirmation_days + 10
+        was_in_deep_dd = (
+            in_deep_dd.astype(float)
+            .rolling(lookback, min_periods=1)
+            .max()
+            .astype(bool)
+        )
+
+        # Confirmation: recently in deep DD + N consecutive up-days
+        confirmation = was_in_deep_dd & (consec_up >= c.confirmation_days)
+
+        # Shift to avoid look-ahead (today's signal -> tomorrow's weight)
+        confirm_shifted = confirmation.shift(1).fillna(False).astype(bool)
+
+        # Recovery window: stay long for N days after any confirmation
+        recovery_active = (
+            confirm_shifted
+            .astype(float)
+            .rolling(c.recovery_window, min_periods=1)
+            .max()
+            .astype(bool)
+        )
+
+        # Assign equal weight to available risk assets
+        avail = [t for t in c.risk_tickers if t in prices.columns]
+        if not avail:
+            return weights
+
+        for t in avail:
+            weights.loc[recovery_active, t] = c.per_asset_weight
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights

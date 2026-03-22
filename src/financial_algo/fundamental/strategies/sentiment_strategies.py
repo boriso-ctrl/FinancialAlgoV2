@@ -233,6 +233,7 @@ class FearGreedContrarian(Strategy):
         w.loc[extreme_greed, c.equity_ticker] = c.leverage_greed_short
         w.loc[extreme_greed, c.hedge_ticker] = abs(c.leverage_greed_short) * 0.5
 
+        w = w.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return w
 
 
@@ -480,6 +481,427 @@ class SentimentEnhancedRegime(Strategy):
         w[c.equity_ticker] = (w[c.equity_ticker] * vol_scale).clip(
             lower=-c.max_leverage, upper=c.max_leverage
         )
+
+        w = w.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return w
+
+
+# =========================================================================
+# G5 — Crypto Sentiment Divergence
+# =========================================================================
+
+@dataclass
+class CryptoSentimentDivergenceConfig:
+    """Config for crypto sentiment divergence strategy."""
+
+    btc_ticker: str = "BTC-USD"
+    eth_ticker: str = "ETH-USD"
+
+    # Equity tickers for risk-on / risk-off
+    equity_tickers: tuple[str, ...] = ("SPY", "QQQ")
+    safe_haven_tickers: tuple[str, ...] = ("GLD", "TLT")
+
+    # Crypto momentum lookback
+    crypto_mom_window: int = 20
+
+    # Divergence threshold: absolute difference in normalised returns
+    divergence_threshold: float = 0.15  # 15% return divergence over window
+
+    # VIX proxy: SPY realized vol threshold for "high VIX"
+    vix_rv_window: int = 20
+    high_vol_percentile_window: int = 252
+    high_vol_percentile: float = 0.70  # above 70th percentile = high vol
+
+    # Position sizing
+    risk_on_weight: float = 0.80       # equity weight in crypto-strength mode
+    safe_haven_weight: float = 0.40    # safe-haven weight in stress mode
+    neutral_equity_weight: float = 0.40  # baseline equity weight
+
+    # Trend filter
+    trend_window: int = 50
+    equity_ref: str = "SPY"
+
+
+class CryptoSentimentDivergence(Strategy):
+    """Use BTC/ETH divergence as crypto sentiment barometer.
+
+    Thesis: BTC and ETH normally co-move strongly. When they diverge
+    significantly (one up, one down over 20 days), this signals internal
+    crypto market stress -- a leading indicator for broader risk-off
+    sentiment. Combined with high VIX (realized vol proxy), this
+    triggers a defensive rotation to GLD+TLT.
+
+    When BTC and ETH both show positive momentum, crypto sentiment is
+    strong -- a risk-on signal that supports overweighting SPY+QQQ.
+
+    ETH-USD data starts from 2017-11-09 -- strategy gracefully degrades
+    to neutral when ETH data is unavailable.
+    """
+
+    name = "G5-CryptoSentimentDivergence"
+
+    def __init__(
+        self, config: CryptoSentimentDivergenceConfig | None = None,
+    ) -> None:
+        self.cfg = config or CryptoSentimentDivergenceConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+        sentiment_df: pd.DataFrame | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        has_btc = c.btc_ticker in prices.columns
+        has_eth = c.eth_ticker in prices.columns
+
+        # If BTC not available, return neutral equity weight
+        if not has_btc:
+            if c.equity_ref in prices.columns:
+                weights[c.equity_ref] = c.neutral_equity_weight
+            return weights
+
+        # Crypto momentum
+        btc_ret = prices[c.btc_ticker].pct_change(c.crypto_mom_window).fillna(0.0)
+
+        if has_eth:
+            eth_ret = prices[c.eth_ticker].pct_change(c.crypto_mom_window).fillna(0.0)
+            eth_available = prices[c.eth_ticker].notna()
+        else:
+            eth_ret = pd.Series(0.0, index=prices.index)
+            eth_available = pd.Series(False, index=prices.index)
+
+        # Divergence: absolute difference in returns over lookback
+        divergence = (btc_ret - eth_ret).abs()
+
+        # Crypto strength: both positive momentum
+        both_positive = (btc_ret > 0) & (eth_ret > 0) & eth_available
+
+        # Crypto stress: significant divergence (one up, one down)
+        crypto_stress = (
+            eth_available
+            & pd.notna(divergence)
+            & (divergence >= c.divergence_threshold)
+            & ((btc_ret > 0) != (eth_ret > 0))  # opposite signs
+        )
+
+        # High-vol proxy (VIX substitute)
+        if c.equity_ref in prices.columns:
+            spy_rv = realized_vol(prices[c.equity_ref], c.vix_rv_window)
+            spy_rv = spy_rv.fillna(0.0)
+            rv_pctl = spy_rv.rolling(
+                c.high_vol_percentile_window, min_periods=60,
+            ).rank(pct=True).fillna(0.5)
+            high_vol = rv_pctl >= c.high_vol_percentile
+        else:
+            high_vol = pd.Series(False, index=prices.index)
+
+        # Trend filter on equity
+        if c.equity_ref in prices.columns:
+            sma = prices[c.equity_ref].rolling(
+                c.trend_window, min_periods=20,
+            ).mean()
+            uptrend = prices[c.equity_ref] >= sma
+        else:
+            uptrend = pd.Series(True, index=prices.index)
+
+        # --- State machine ---
+
+        # State 1: Crypto stress + high vol => safe havens
+        stress_signal = crypto_stress & high_vol
+        for ticker in c.safe_haven_tickers:
+            if ticker in prices.columns:
+                weights.loc[stress_signal, ticker] = c.safe_haven_weight
+
+        # State 2: Crypto strength + uptrend => risk-on
+        strength_signal = both_positive & uptrend & ~stress_signal
+        for ticker in c.equity_tickers:
+            if ticker in prices.columns:
+                weights.loc[strength_signal, ticker] = c.risk_on_weight
+
+        # State 3: Crypto strength + downtrend => moderate risk-on
+        strength_down = both_positive & ~uptrend & ~stress_signal
+        for ticker in c.equity_tickers:
+            if ticker in prices.columns:
+                weights.loc[strength_down, ticker] = c.risk_on_weight * 0.5
+
+        # State 4: Neutral (no clear signal)
+        neutral = ~stress_signal & ~strength_signal & ~strength_down
+        if c.equity_ref in prices.columns:
+            weights.loc[neutral & uptrend, c.equity_ref] = c.neutral_equity_weight
+            weights.loc[neutral & ~uptrend, c.equity_ref] = (
+                c.neutral_equity_weight * 0.6
+            )
+
+        # Before ETH data is available, fall back to neutral
+        no_eth_yet = ~eth_available
+        if c.equity_ref in prices.columns:
+            weights.loc[no_eth_yet] = 0.0
+            weights.loc[no_eth_yet & uptrend, c.equity_ref] = (
+                c.neutral_equity_weight
+            )
+            weights.loc[no_eth_yet & ~uptrend, c.equity_ref] = (
+                c.neutral_equity_weight * 0.6
+            )
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# G7 — Reddit Sentiment Alpha
+# =========================================================================
+
+@dataclass
+class RedditSentimentConfig:
+    """Config for Reddit-based sentiment alpha strategy.
+
+    Thesis
+    ------
+    Reddit retail sentiment (r/wallstreetbets, r/stocks, r/options) is
+    a genuinely orthogonal data source to VIX-derived sentiment.  The
+    alpha comes from three distinct effects:
+
+    1. **Mention velocity spike**: When a ticker's mention count surges
+       (z-score > threshold vs 30d mean), it signals crowded attention.
+       Combined with direction this becomes momentum or contrarian.
+
+    2. **Sentiment extremes are contrarian**: When WSB is extremely
+       bullish on a name (bullish_pct > 0.85, sent_zscore > 2.0), the
+       crowd is typically wrong at the turning point.  Fade it.
+
+    3. **Divergence signal**: When Reddit sentiment diverges from price
+       action (price falling but sentiment rising, or vice versa), the
+       smart money is already positioned and retail is late.
+
+    Tail risk: Long-biased with explicit drawdown protection via VIX
+    regime filter and position caps.
+    """
+
+    # Primary equity to trade (sentiment is aggregated across tickers
+    # but we express the view through liquid ETFs)
+    equity_ticker: str = "SPY"
+    tech_ticker: str = "QQQ"
+    hedge_ticker: str = "TLT"
+    gold_ticker: str = "GLD"
+
+    # Which tickers to read Reddit sentiment for
+    sentiment_tickers: tuple[str, ...] = ("SPY", "QQQ", "IWM")
+
+    # Mention velocity thresholds
+    mention_vel_high: float = 2.0     # z-score: buzz spike
+    mention_vel_extreme: float = 3.0  # z-score: viral / meme event
+
+    # Sentiment z-score thresholds (calibrated to ewm-smoothed range)
+    sent_contrarian_bull: float = 1.3   # extreme bullish -> fade
+    sent_contrarian_bear: float = -1.3  # extreme bearish -> buy
+    sent_mild_bull: float = 0.3         # mild bullish -> confirm trend
+
+    # Bullish percentage thresholds
+    crowd_euphoria: float = 0.80        # >80% bullish -> contrarian short
+    crowd_panic: float = 0.25           # <25% bullish -> contrarian long
+
+    # Position sizing
+    contrarian_long_weight: float = 1.8   # buy extreme fear
+    contrarian_short_weight: float = -0.6  # fade extreme greed (limited)
+    trend_confirm_weight: float = 1.2     # sentiment confirms trend
+    neutral_weight: float = 0.5           # no clear signal
+    hedge_weight: float = 0.3            # TLT hedge in contrarian short
+
+    # Trend filter
+    trend_window: int = 50
+    vol_window: int = 20
+
+    # Regime filter: reduce all positions in crisis
+    crisis_scale: float = 0.3
+
+
+class RedditSentimentAlpha(Strategy):
+    """G7 — Reddit sentiment contrarian alpha.
+
+    ORTHOGONAL to existing G1-G5 strategies because:
+    - G1 (SentimentCrisisAlpha): Uses VIX fear spikes + news acceleration
+    - G2 (FearGreedContrarian): Uses composite Fear & Greed index
+    - G3 (SentimentDivergence): Uses VIX z-score mean reversion
+    - G4 (SentimentEnhancedRegime): Uses VIX + regime overlay
+    - G5 (CryptoSentimentDivergence): Uses BTC/ETH divergence
+
+    G7 uses Reddit-specific signals:
+    - Mention velocity (retail attention, not vol)
+    - Crowd sentiment extremes (contrarian vs. trend-following retail)
+    - Bullish/bearish consensus percentage (herding detection)
+
+    None of these overlap with VIX-derived signals.  Correlation with
+    existing strategies expected to be < 0.3 because the data source
+    is fundamentally different (social media vs. options market).
+
+    Carry/bleed in calm markets: +0.5x equity (small long bias).
+    Worst case: Contrarian short during sustained meme mania.
+    Mitigation: -0.6x max short + TLT hedge + VIX regime filter.
+    """
+
+    name = "G7-RedditSentimentAlpha"
+
+    def __init__(self, config: RedditSentimentConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or RedditSentimentConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+        reddit_features: pd.DataFrame | None = None,
+    ) -> pd.DataFrame:
+        """Generate portfolio weights from Reddit sentiment features.
+
+        Parameters
+        ----------
+        prices:
+            Adjusted close prices (Date x Ticker).
+        regime:
+            Optional regime Series from detect_regime().
+        reddit_features:
+            DataFrame from ``build_synthetic_reddit_sentiment`` or
+            ``extract_reddit_features``.  If None, builds synthetic.
+        """
+        from financial_algo.regimes import Regime
+
+        c = self.cfg
+
+        # Build synthetic reddit features if not provided
+        if reddit_features is None:
+            from financial_algo.fundamental.data.reddit_feeds import (
+                build_synthetic_reddit_sentiment,
+            )
+            reddit_features = build_synthetic_reddit_sentiment(prices)
+
+        # Align index
+        reddit_features = reddit_features.reindex(prices.index).fillna(0.0)
+
+        # --- Aggregate signals across tracked tickers ---
+        mention_vels = []
+        sent_zscores = []
+        bull_pcts = []
+
+        for ticker in c.sentiment_tickers:
+            vel_col = f"{ticker}_mention_vel"
+            sent_col = f"{ticker}_sent_zscore"
+            bull_col = f"{ticker}_bullish_pct"
+
+            if vel_col in reddit_features.columns:
+                mention_vels.append(reddit_features[vel_col])
+            if sent_col in reddit_features.columns:
+                sent_zscores.append(reddit_features[sent_col])
+            if bull_col in reddit_features.columns:
+                bull_pcts.append(reddit_features[bull_col])
+
+        # Use market-level aggregates if per-ticker not available
+        if not mention_vels and "market_mention_vel" in reddit_features.columns:
+            mention_vels = [reddit_features["market_mention_vel"]]
+        if not sent_zscores and "market_sent_zscore" in reddit_features.columns:
+            sent_zscores = [reddit_features["market_sent_zscore"]]
+
+        # Mean across tickers
+        if mention_vels:
+            agg_vel = pd.concat(mention_vels, axis=1).mean(axis=1)
+        else:
+            agg_vel = pd.Series(0.0, index=prices.index)
+
+        if sent_zscores:
+            agg_sent = pd.concat(sent_zscores, axis=1).mean(axis=1)
+        else:
+            agg_sent = pd.Series(0.0, index=prices.index)
+
+        if bull_pcts:
+            agg_bull = pd.concat(bull_pcts, axis=1).mean(axis=1)
+        else:
+            agg_bull = pd.Series(0.5, index=prices.index)
+
+        # --- Trend filter ---
+        equity = prices.get(c.equity_ticker, prices.iloc[:, 0])
+        sma = equity.rolling(c.trend_window, min_periods=20).mean()
+        uptrend = equity >= sma
+        downtrend = ~uptrend
+
+        # Vol scaling
+        rv = realized_vol(equity, c.vol_window).fillna(0.15)
+        vol_scale = (0.15 / rv.clip(lower=0.05)).clip(0.5, 1.5)
+
+        # --- Regime filter ---
+        if regime is not None:
+            crisis_regimes = {
+                Regime.OIL_CRISIS, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS,
+            }
+            is_crisis = regime.isin(crisis_regimes)
+        else:
+            is_crisis = pd.Series(False, index=prices.index)
+
+        # --- Signal construction (vectorized) ---
+
+        # Signal 1: Crowd euphoria -> contrarian short
+        # Either extreme bullish consensus OR extreme sentiment z-score
+        # (requiring both is too strict -- either alone indicates herding)
+        euphoria = (
+            (pd.notna(agg_bull) & (agg_bull >= c.crowd_euphoria))
+            | (pd.notna(agg_sent) & (agg_sent >= c.sent_contrarian_bull))
+        )
+
+        # Signal 2: Crowd panic -> contrarian long
+        # Either extreme bearish consensus OR extreme negative sentiment
+        panic = (
+            (pd.notna(agg_bull) & (agg_bull <= c.crowd_panic))
+            | (pd.notna(agg_sent) & (agg_sent <= c.sent_contrarian_bear))
+        )
+
+        # Signal 3: Mild bullish + uptrend + high mentions -> trend confirm
+        trend_confirm = (
+            uptrend
+            & pd.notna(agg_sent) & (agg_sent >= c.sent_mild_bull)
+            & pd.notna(agg_vel) & (agg_vel >= c.mention_vel_high)
+            & ~euphoria  # not at extreme
+        )
+
+        # Signal 4: Mention velocity extreme (viral event) -> reduce
+        # exposure regardless of direction (event risk)
+        viral = pd.notna(agg_vel) & (agg_vel >= c.mention_vel_extreme)
+
+        # --- Build weights ---
+        tickers = [c.equity_ticker, c.tech_ticker, c.hedge_ticker, c.gold_ticker]
+        w = pd.DataFrame(0.0, index=prices.index, columns=tickers)
+
+        # Neutral baseline
+        w[c.equity_ticker] = np.where(uptrend, c.neutral_weight, c.neutral_weight * 0.6)
+
+        # Contrarian long on crowd panic
+        w.loc[panic & uptrend, c.equity_ticker] = c.contrarian_long_weight
+        w.loc[panic & uptrend, c.tech_ticker] = c.contrarian_long_weight * 0.5
+        w.loc[panic & downtrend, c.equity_ticker] = c.contrarian_long_weight * 0.7
+        w.loc[panic & downtrend, c.hedge_ticker] = c.hedge_weight * 0.5
+
+        # Trend confirmation: boost equity
+        w.loc[trend_confirm, c.equity_ticker] = c.trend_confirm_weight
+        w.loc[trend_confirm, c.tech_ticker] = c.trend_confirm_weight * 0.3
+
+        # Contrarian short on crowd euphoria
+        w.loc[euphoria, c.equity_ticker] = c.contrarian_short_weight
+        w.loc[euphoria, c.hedge_ticker] = c.hedge_weight
+        w.loc[euphoria, c.gold_ticker] = c.hedge_weight * 0.5
+
+        # Viral event: flatten to minimal exposure
+        w.loc[viral, c.equity_ticker] = 0.1
+        w.loc[viral, c.tech_ticker] = 0.0
+        w.loc[viral, c.hedge_ticker] = c.hedge_weight
+        w.loc[viral, c.gold_ticker] = c.hedge_weight * 0.3
+
+        # Vol scaling on equity + tech
+        w[c.equity_ticker] = w[c.equity_ticker] * vol_scale
+        w[c.tech_ticker] = w[c.tech_ticker] * vol_scale
+
+        # Crisis regime: scale everything down
+        for col in tickers:
+            w.loc[is_crisis, col] = w.loc[is_crisis, col] * c.crisis_scale
 
         w = w.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return w

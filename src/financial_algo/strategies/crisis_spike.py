@@ -19,8 +19,20 @@ import numpy as np
 import pandas as pd
 
 from financial_algo.indicators import ema, realized_vol, zscore
-from financial_algo.regimes import Regime, is_crisis
+from financial_algo.regimes import Regime
 from financial_algo.strategies.base import Strategy
+
+
+def _latch(entry: np.ndarray, exit_cond: np.ndarray) -> np.ndarray:
+    """Set-reset latch: ON when *entry* fires, stays ON until *exit_cond*.
+
+    Operates on raw numpy boolean arrays for speed (avoids pd.iloc overhead).
+    """
+    n = len(entry)
+    state = np.zeros(n, dtype=bool)
+    for i in range(1, n):
+        state[i] = entry[i] or (state[i - 1] and not exit_cond[i])
+    return state
 
 
 # =========================================================================
@@ -98,13 +110,10 @@ class CommodityShockRider(Strategy):
         momentum_fading = oil_mom <= c.exit_momentum_threshold
 
         # State machine: stay in trade until momentum fades
-        in_trade = pd.Series(False, index=prices.index)
-        for i in range(1, len(prices)):
-            if spike_up.iloc[i]:
-                in_trade.iloc[i] = True
-            elif in_trade.iloc[i - 1] and not momentum_fading.iloc[i]:
-                in_trade.iloc[i] = True
-            # else: stay out (momentum faded or no entry)
+        in_trade = pd.Series(
+            _latch(spike_up.values, momentum_fading.values),
+            index=prices.index,
+        )
 
         # Regime filter: more aggressive during crisis regimes
         regime_mult = pd.Series(1.0, index=prices.index)
@@ -186,12 +195,11 @@ class GoldFearRally(Strategy):
         entry = gold_breaking_out & gold_outperforming
 
         # Stay in trade while gold momentum positive
-        in_trade = pd.Series(False, index=prices.index)
-        for i in range(1, len(prices)):
-            if entry.iloc[i]:
-                in_trade.iloc[i] = True
-            elif in_trade.iloc[i - 1] and gold_mom.iloc[i] >= 0:
-                in_trade.iloc[i] = True
+        gold_mom_negative = (gold_mom < 0).values
+        in_trade = pd.Series(
+            _latch(entry.values, gold_mom_negative),
+            index=prices.index,
+        )
 
         tickers = [c.gold_ticker, c.bond_ticker]
         w = pd.DataFrame(0.0, index=prices.index, columns=tickers)
@@ -270,12 +278,11 @@ class DefenseSpikeBreakout(Strategy):
             regime_mult[war_mask] = 1.5
 
         # Stay in while momentum holds
-        in_trade = pd.Series(False, index=prices.index)
-        for i in range(1, len(prices)):
-            if entry.iloc[i]:
-                in_trade.iloc[i] = True
-            elif in_trade.iloc[i - 1] and ita_mom.iloc[i] >= 0:
-                in_trade.iloc[i] = True
+        ita_mom_negative = (ita_mom < 0).values
+        in_trade = pd.Series(
+            _latch(entry.values, ita_mom_negative),
+            index=prices.index,
+        )
 
         tickers = [c.defense_ticker, c.contractor_a, c.contractor_b]
         w = pd.DataFrame(0.0, index=prices.index, columns=tickers)

@@ -59,6 +59,7 @@ from financial_algo.strategies.crypto_crisis import (
     CryptoFlightToQuality,
     CryptoGoldDivergence,
     CryptoRecoverySurge,
+    CryptoContagionHedge,
 )
 from financial_algo.strategies.crisis_spike import (
     CommodityShockRider,
@@ -74,12 +75,14 @@ from financial_algo.strategies.momentum import (
     CrossSectionalMomentum,
     DualMomentum,
     MomentumVolScaled,
+    GlobalMomentumRotation,
 )
 from financial_algo.strategies.mean_reversion import (
     SectorMeanReversion,
     RSIMeanReversion,
     OvernightGapFade,
     CointegrationPairs,
+    GlobalMeanReversion,
 )
 from financial_algo.strategies.fixed_income import (
     YieldCurveTrade,
@@ -92,6 +95,7 @@ from financial_algo.strategies.volatility_strats import (
     VolOfVolRegime,
     VolTermStructure,
     VolSpikeRecovery,
+    CrossAssetVolSignal,
 )
 from financial_algo.strategies.macro import (
     DollarCarry,
@@ -99,6 +103,9 @@ from financial_algo.strategies.macro import (
     EMRiskPremium,
     CommodityMomentum,
     RatesRegimeTrade,
+    InflationBreakevenTrade,
+    GlobalRotation,
+    CommodityMacroSignal,
 )
 from financial_algo.strategies.seasonal import (
     SeasonalStrategy,
@@ -110,6 +117,7 @@ from financial_algo.strategies.factor import (
     MultiFactorComposite,
     SizeFactor,
     ValueFactor,
+    RealAssetsFactor,
 )
 from financial_algo.strategies.tail_risk import (
     TailRiskParity,
@@ -118,12 +126,39 @@ from financial_algo.strategies.tail_risk import (
     CrisisRotation,
     VIXSpikeRecovery,
     TailHedgeOverlay,
+    PreciousMetalsCrisisHedge,
 )
-from financial_algo.strategies.signal_combo import FeatureComboSignal
+from financial_algo.strategies.signal_combo import (
+    FeatureComboSignal,
+    MultiSignalConsensus,
+    XGBoostSignalCombo,
+    GMMRegimeClassifier,
+)
+from financial_algo.strategies.ml_strategies import (
+    AdaptiveThreshold,
+    CrossSectionalRanker,
+)
+from financial_algo.strategies.dl_strategies import (
+    TemporalCNNAlpha,
+    LSTMRegimeDetector,
+    AttentionCrossSectionalRanker,
+)
 from financial_algo.strategies.quality_trend import (
     QualityTrend,
     MultiAssetTrend,
     MomentumCrashFilter,
+)
+from financial_algo.strategies.multi_freq import (
+    WeeklyMomentumRotation,
+    MonthlyMacroRegime,
+    MultiTimeframeTrend,
+    WeeklyMeanReversion,
+)
+from financial_algo.strategies.regime_hardening import (
+    BearMarketAlpha, CrisisHedgeAdaptive, DefensiveRotationR3,
+    AdaptiveRiskBudget, RatesTighteningAlpha, BondEquityHedge,
+    VolExplosionAlpha, VolRegimeSwitcher, MultiAssetCTATrend,
+    CommodityMacroOverlay,
 )
 
 # --- Fundamental strategy imports ---
@@ -133,6 +168,7 @@ from financial_algo.fundamental.strategies import (
     SentimentCrisisAlpha,
     SentimentDivergence,
     SentimentEnhancedRegime,
+    CryptoSentimentDivergence,
 )
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -188,20 +224,27 @@ BT_CONFIG_ENSEMBLE = BacktestConfig(
 
 # All tickers the strategies need (deduplicated)
 TICKERS = sorted(set([
-    # Broad
+    # Broad equity
     "SPY", "QQQ", "IWM", "EFA", "EEM",
     # Safe haven
-    "GLD", "TLT", "IEF", "UUP",
+    "GLD", "SLV", "TLT", "IEF", "SHY", "UUP",
     # Energy
     "XLE", "USO", "XOP",
     # Defense
     "ITA", "LMT", "RTX",
-    # Sectors (for breadth / pairs)
+    # Sectors (for breadth / pairs / rotation)
     "XLK", "XLF", "XLI", "XLB", "XLP", "XLU", "XLY", "XLV",
-    # Credit proxy
-    "HYG", "LQD",
-    # Crypto (BTC data from ~2014)
-    "BTC-USD",
+    "XBI", "XLC", "XLRE",
+    # Commodities
+    "DBC", "DBA",
+    # Fixed income / credit
+    "HYG", "LQD", "TIP", "AGG", "EMB",
+    # Regional
+    "FXI", "VGK", "EWJ", "INDA",
+    # Real estate
+    "VNQ",
+    # Crypto
+    "BTC-USD", "ETH-USD",
 ]))
 
 VIX_TICKER = "^VIX"
@@ -290,12 +333,14 @@ def build_strategy_registry():
             ("F1-CryptoFlightToQuality", CryptoFlightToQuality(), True),
             ("F2-CryptoRecoverySurge",   CryptoRecoverySurge(),   True),
             ("F3-CryptoGoldDivergence",  CryptoGoldDivergence(),  True),
+            ("F4-CryptoContagionHedge",  CryptoContagionHedge(),  False),
         ],
         "Cat G: Fundamental/Sentiment": [
             ("G1-SentimentCrisisAlpha",   SentimentCrisisAlpha(),   True),
             ("G2-FearGreedContrarian",    FearGreedContrarian(),    True),
             ("G3-SentimentDivergence",    SentimentDivergence(),    True),
             ("G4-SentimentEnhancedRegime", SentimentEnhancedRegime(), True),
+            ("G5-CryptoSentimentDivergence", CryptoSentimentDivergence(), True),
         ],
         "Cat H: Crisis Spike (Upward)": [
             ("H1-CommodityShockRider",  CommodityShockRider(),  True),
@@ -313,18 +358,21 @@ def build_strategy_registry():
             ("I2-CrossSectionalMomentum", CrossSectionalMomentum(),  False),
             ("I3-DualMomentum",           DualMomentum(),            False),
             ("I4-MomentumVolScaled",      MomentumVolScaled(),       False),
+            ("I5-GlobalMomentumRotation", GlobalMomentumRotation(),  False),
         ],
         "Cat J: Mean Reversion": [
             ("J1-SectorMeanReversion",    SectorMeanReversion(),     False),
             ("J2-OvernightGapFade",       OvernightGapFade(),        False),
             ("J3-RSIMeanReversion",       RSIMeanReversion(),        False),
             ("J4-CointegrationPairs",     CointegrationPairs(),      False),
+            ("J5-GlobalMeanReversion",    GlobalMeanReversion(),     False),
         ],
         "Cat K: Factor": [
             ("K1-LowVolFactor",           LowVolFactor(),            False),
             ("K2-MultiFactorComposite",   MultiFactorComposite(),    False),
             ("K3-SizeFactor",             SizeFactor(),              False),
             ("K4-ValueFactor",            ValueFactor(),             False),
+            ("K5-RealAssetsFactor",       RealAssetsFactor(),        False),
         ],
         "Cat L: Volatility": [
             ("L1-VolRiskPremium",         VolRiskPremium(),          False),
@@ -332,6 +380,7 @@ def build_strategy_registry():
             ("L3-VolTermStructure",       VolTermStructure(),        False),
             ("L4-VolOfVolRegime",         VolOfVolRegime(),          False),
             ("L5-VolSpikeRecovery",       VolSpikeRecovery(),        False),
+            ("L6-CrossAssetVolSignal",    CrossAssetVolSignal(),     False),
         ],
         "Cat M: Macro": [
             ("M1-DollarCarry",            DollarCarry(),             False),
@@ -339,6 +388,9 @@ def build_strategy_registry():
             ("M3-EMRiskPremium",          EMRiskPremium(),           False),
             ("M4-CommodityMomentum",      CommodityMomentum(),       False),
             ("M5-RatesRegimeTrade",       RatesRegimeTrade(),        False),
+            ("M6-InflationBreakeven",     InflationBreakevenTrade(), False),
+            ("M7-GlobalRotation",         GlobalRotation(),          False),
+            ("M8-CommodityMacroSignal",   CommodityMacroSignal(),    False),
         ],
         "Cat N: Seasonal": [
             ("N1-SeasonalStrategy",       SeasonalStrategy(),        False),
@@ -352,14 +404,43 @@ def build_strategy_registry():
             ("O4-BlackSwanInsurance",      BlackSwanInsurance(),      False),
             ("O5-VIXSpikeRecovery",       VIXSpikeRecovery(),        False),
             ("O6-TailHedgeOverlay",       TailHedgeOverlay(),        True),
+            ("O7-PreciousMetalsCrisisHedge", PreciousMetalsCrisisHedge(), False),
         ],
-        "Cat P: Signal Combo": [
+        "Cat P: ML Signal Combo": [
             ("P1-FeatureComboSignal",     FeatureComboSignal(),      False),
+            ("P2-XGBoostSignalCombo",     XGBoostSignalCombo(),      False),
+            ("P3-GMMRegimeClassifier",    GMMRegimeClassifier(),     False),
+            ("P4-AdaptiveThreshold",      AdaptiveThreshold(),       False),
+            ("P5-CrossSectionalRanker",   CrossSectionalRanker(),    False),
+            ("G6-MultiSignalConsensus",   MultiSignalConsensus(),    False),
+        ],
+        "Cat DL: Deep Learning": [
+            ("DL1-TemporalCNNAlpha",      TemporalCNNAlpha(),        False),
+            ("DL2-LSTMRegimeDetector",    LSTMRegimeDetector(),      False),
+            ("DL3-AttentionRanker",       AttentionCrossSectionalRanker(), False),
         ],
         "Cat Q: Quality Trend": [
             ("Q1-QualityTrend",           QualityTrend(),            False),
             ("Q2-MultiAssetTrend",        MultiAssetTrend(),         False),
             ("Q3-MomentumCrashFilter",    MomentumCrashFilter(),     False),
+        ],
+        "Cat MF: Multi-Frequency": [
+            ("MF1-WeeklyMomentumRotation", WeeklyMomentumRotation(), False),
+            ("MF2-MonthlyMacroRegime",     MonthlyMacroRegime(),     False),
+            ("MF3-MultiTimeframeTrend",    MultiTimeframeTrend(),    False),
+            ("MF4-WeeklyMeanReversion",    WeeklyMeanReversion(),    False),
+        ],
+        "Cat R: Regime Hardening": [
+            ("R1-BearMarketAlpha",        BearMarketAlpha(),         True),
+            ("R2-CrisisHedgeAdaptive",    CrisisHedgeAdaptive(),     True),
+            ("R3-DefensiveRotation",      DefensiveRotationR3(),     True),
+            ("R4-AdaptiveRiskBudget",     AdaptiveRiskBudget(),      False),
+            ("R5-RatesTighteningAlpha",   RatesTighteningAlpha(),    False),
+            ("R6-BondEquityHedge",        BondEquityHedge(),         False),
+            ("R7-VolExplosionAlpha",      VolExplosionAlpha(),       False),
+            ("R8-VolRegimeSwitcher",      VolRegimeSwitcher(),       False),
+            ("R9-MultiAssetCTATrend",     MultiAssetCTATrend(),      False),
+            ("R10-CommodityMacroOverlay", CommodityMacroOverlay(),   False),
         ],
     }
 
@@ -378,6 +459,13 @@ def spy_benchmark(prices: pd.DataFrame, config: BacktestConfig) -> dict | None:
     except Exception as e:
         print(f"  [WARN] Benchmark: {e}")
         return None
+
+
+def _inject_features(strategies, features: "pd.DataFrame") -> None:
+    """Inject intraday feature DataFrame into any strategy that accepts it."""
+    for strat in strategies:
+        if hasattr(strat, "set_intraday_features"):
+            strat.set_intraday_features(features)
 
 
 # =========================================================================
@@ -423,45 +511,75 @@ def main() -> None:
     print()
 
     # ------------------------------------------------------------------
-    # 3. Build strategy registry
+    # 3. Load intraday features (Phase 2: Alpaca pipeline, optional)
+    # ------------------------------------------------------------------
+    intraday_features: "pd.DataFrame | None" = None
+    try:
+        import os
+        if os.environ.get("ALPACA_API_KEY") and os.environ.get("ALPACA_SECRET"):
+            from financial_algo.data.feature_store import FeatureStore
+            equity_tickers = [t for t in TICKERS
+                              if not t.startswith("^") and "-USD" not in t]
+            print("[2b/4] Loading Alpaca intraday features ...")
+            store = FeatureStore(tickers=equity_tickers, start=DATA_START, end=DATA_END)
+            intraday_features = store.load()
+            if intraday_features is not None and not intraday_features.empty:
+                print(f"       Loaded {intraday_features.shape[1]} intraday features "
+                      f"for {intraday_features.shape[1] // 7} tickers")
+            else:
+                intraday_features = None
+            print()
+    except Exception as e:
+        print(f"       [WARN] Intraday feature load failed (skipping): {e}")
+        intraday_features = None
+
+    # ------------------------------------------------------------------
+    # 4. Build strategy registry
     # ------------------------------------------------------------------
     registry = build_strategy_registry()
 
-    # Ensemble v4: Sprint "Alpha Maximization v4" — expanded with new high-Sharpe candidates
-    # Previous v3: 12 members, Sharpe 1.05, CAGR 21.17%, MaxDD -29.99%
-    # v4 adds: F2(0.93), L4(0.92), F3(0.89), L3(0.86), K2(0.84), K4(0.81), G1(0.80), N1(0.79), G3(0.78)
+    # Ensemble v8: Initiative 5 — ML/Adaptive Signals
+    # New: P4-AdaptiveThreshold added (Sharpe 0.75, A/B confirmed additive)
+    # v7->v8: P3-GMM and P5-Ranker excluded (Sharpe < 0.3 threshold)
     ensemble_members = [
         FeatureComboSignal(),    # P1 -- Sharpe 0.97, multi-signal composite
         CrashHedgeQQQ(),         # D2 -- Sharpe 0.94, trend/vol on QQQ
-        CryptoRecoverySurge(),   # F2 -- Sharpe 0.93, crypto regime (NEW)
+        CryptoRecoverySurge(),   # F2 -- Sharpe 0.93, crypto regime
+        MonthlyMacroRegime(),    # MF2 -- Sharpe 1.24 (standalone), monthly macro
         VolRiskPremium(),        # L1 -- Sharpe 0.92, pure VRP
-        VolOfVolRegime(),        # L4 -- Sharpe 0.92, vol-of-vol dynamic sizing (NEW)
+        VolOfVolRegime(),        # L4 -- Sharpe 0.92, vol-of-vol dynamic sizing
         TailRiskParity(),        # O1 -- Sharpe 0.90, risk-parity
         VolCarry(),              # D3 -- Sharpe 0.89, vol carry
-        CryptoGoldDivergence(),  # F3 -- Sharpe 0.89, crypto/gold signal (NEW)
+        CryptoGoldDivergence(),  # F3 -- Sharpe 0.89, crypto/gold signal
         MultiAssetTrend(),       # Q2 -- Sharpe 0.88, multi-asset trend
         FearGreedContrarian(),   # G2 -- Sharpe 0.87, contrarian sentiment
-        VolTermStructure(),      # L3 -- Sharpe 0.86, term structure carry (NEW)
+        VolTermStructure(),      # L3 -- Sharpe 0.86, term structure carry
         VolSpreadHarvest(),      # L2 -- Sharpe 0.85, vol spread
         LowVolFactor(),          # K1 -- Sharpe 0.84, low-vol factor
-        MultiFactorComposite(),  # K2 -- Sharpe 0.84, multi-factor (NEW)
+        MultiFactorComposite(),  # K2 -- Sharpe 0.84, multi-factor
         VolSpikeRecovery(),      # L5 -- Sharpe 0.84, low-DD vol timing
         QualityTrend(),          # Q1 -- Sharpe 0.84, trend + quality filter
         MomentumCrashFilter(),   # Q3 -- Sharpe 0.83, momentum + crash hedge
-        ValueFactor(),           # K4 -- Sharpe 0.81, value factor (NEW)
-        SentimentCrisisAlpha(),  # G1 -- Sharpe 0.80, crisis sentiment (NEW)
-        SeasonalStrategy(),      # N1 -- Sharpe 0.79, seasonality (NEW)
-        SentimentDivergence(),   # G3 -- Sharpe 0.78, sent divergence (NEW)
-        TailHedgeOverlay(),      # O6 -- pure safe-haven hedge overlay (NEW)
+        ValueFactor(),           # K4 -- Sharpe 0.81, value factor
+        SentimentCrisisAlpha(),  # G1 -- Sharpe 0.80, crisis sentiment
+        SeasonalStrategy(),      # N1 -- Sharpe 0.79, seasonality
+        WeeklyMomentumRotation(), # MF1 -- Sharpe 0.78, weekly momentum
+        SentimentDivergence(),   # G3 -- Sharpe 0.78, sent divergence
+        TailHedgeOverlay(),      # O6 -- pure safe-haven hedge overlay
+        AdaptiveThreshold(),     # P4 -- Sharpe 0.75, walk-forward param optimizer
+        MultiAssetCTATrend(),    # R9 -- Sharpe 1.14, CTA-style trend following
     ]
-    sharpe_scores = [0.97, 0.94, 0.93, 0.92, 0.92, 0.90, 0.89, 0.89, 0.88, 0.87,
-                     0.86, 0.85, 0.84, 0.84, 0.84, 0.84, 0.83, 0.81, 0.80, 0.79, 0.78,
-                     0.50]  # O6 gets moderate weight (hedge, not alpha source)
+    sharpe_scores = [0.97, 0.94, 0.93, 0.93, 0.92, 0.92, 0.90, 0.89, 0.89, 0.88,
+                     0.87, 0.86, 0.85, 0.84, 0.84, 0.84, 0.84, 0.83, 0.81, 0.80,
+                     0.79, 0.78, 0.78,
+                     0.50,  # O6 gets moderate weight (hedge, not alpha source)
+                     0.75,  # P4 AdaptiveThreshold
+                     1.14]  # R9 MultiAssetCTATrend
     prior_weights = [s ** 2 for s in sharpe_scores]
     ensemble_cfg = EnsembleConfig(
         use_inverse_vol=False,        # fixed Sharpe-proportional (less turnover)
         max_gross_leverage=2.5,
-        max_single_weight=0.20,       # tighter cap with 22 members
+        max_single_weight=0.20,       # tighter cap with 26 members
         dd_scale_start=-0.12,         # start scaling down at -12% DD
         dd_scale_end=-0.22,           # fully flat at -22% DD
         prior_weights=prior_weights,
@@ -478,8 +596,17 @@ def main() -> None:
     )
 
     total_strategies = sum(len(v) for v in registry.values()) + 2  # +benchmark +ensemble
-    print(f"[3/4] Running {total_strategies} strategy backtests across "
+    print(f"[4/4] Running {total_strategies} strategy backtests across "
           f"{len(CRISIS_WINDOWS)} time windows ...")
+
+    # Inject intraday features into strategies that support them
+    if intraday_features is not None:
+        _inject_features(ensemble_members, intraday_features)
+        _inject_features(
+            [s for cat in registry.values() for _, s, _ in cat],
+            intraday_features,
+        )
+        print(f"       Intraday features injected into eligible strategies.")
     print()
 
     # ------------------------------------------------------------------
@@ -549,6 +676,23 @@ def main() -> None:
             print(f"  [WARN] Ensemble: {e}")
             ens_m = None
         rows.append({"Category": "Ensemble", "Strategy": "Ensemble-BestOfEach", **metrics_row(ens_m)})
+
+        # Generate HTML tearsheet (optional — requires quantstats)
+        if ens_result is not None:
+            try:
+                from financial_algo.reporting import generate_tearsheet
+                _safe = window_name.replace(" ", "_").replace("(", "").replace(")", "").replace("/", "-")
+                ts_path = generate_tearsheet(
+                    ens_result,
+                    benchmark_prices=p_win["SPY"] if "SPY" in p_win.columns else None,
+                    output_path=f"results/tearsheet_{_safe}.html",
+                    title=f"Ensemble - {window_name}",
+                )
+                print(f"  Tearsheet saved: {ts_path}")
+            except ImportError:
+                pass  # quantstats not installed — skip tearsheet
+            except Exception as e:
+                print(f"  [WARN] Tearsheet generation failed: {e}")
 
         # Display results table
         df = pd.DataFrame(rows)

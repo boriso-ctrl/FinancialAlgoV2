@@ -1,64 +1,94 @@
 Category,Strategy,CAGR,Sharpe,Sortino,MaxDD,Calmar,AnnVol,WinRate,TotRet,Trades/Mo
 Benchmark,BuyHold-SPY,-3.65%,-0.10,-0.13,-24.50%,-0.15,19.11%,37.86%,-9.79%,11.7
-Cat B: Oil Crisis,B1-OilMomentumSurge,-7.82%,-0.66,-0.86,-24.53%,-0.32,11.38%,36.84%,-20.22%,8.0
-Cat B: Oil Crisis,B2-OilShockHedge,-6.46%,-0.55,-0.75,-24.19%,-0.27,11.12%,35.29%,-16.92%,9.9
-Cat B: Oil Crisis,B3-OilMeanReversion,-6.75%,-0.83,-1.06,-21.98%,-0.31,8.00%,35.76%,-17.63%,7.4
-Cat B: Oil Crisis,B4-EnergyPairs,-1.22%,-0.06,-0.09,-18.94%,-0.06,10.65%,31.65%,-3.36%,3.2
-Cat C: War/Geopolitical,C1-DefenseRotation,5.03%,0.39,0.58,-24.02%,0.21,15.50%,38.14%,14.58%,12.3
-Cat C: War/Geopolitical,C2-SafeHavenFlight,-5.78%,-0.47,-0.63,-26.60%,-0.22,11.31%,38.22%,-15.23%,11.5
-Cat C: War/Geopolitical,C3-PostWarRecovery,-6.85%,-0.43,-0.58,-23.83%,-0.29,14.19%,30.62%,-17.87%,8.3
+Cat B: Oil Crisis,B1-OilMomentumSurge,-7.81%,-0.66,-0.86,-24.52%,-0.32,11.36%,37.06%,-20.20%,8.0
+Cat B: Oil Crisis,B2-OilShockHedge,-6.45%,-0.55,-0.75,-24.17%,-0.27,11.11%,35.50%,-16.90%,9.9
+Cat B: Oil Crisis,B3-OilMeanReversion,-6.75%,-0.83,-1.06,-21.97%,-0.31,8.01%,36.00%,-17.62%,7.4
+Cat B: Oil Crisis,B4-EnergyPairs,-1.22%,-0.06,-0.09,-18.93%,-0.06,10.66%,31.88%,-3.35%,3.2
+Cat C: War/Geopolitical,C1-DefenseRotation,-1.03%,0.00,0.01,-24.97%,-0.04,14.90%,36.80%,-2.84%,12.3
+Cat C: War/Geopolitical,C2-SafeHavenFlight,-5.78%,-0.47,-0.63,-26.60%,-0.22,11.31%,38.22%,-15.22%,11.5
+Cat C: War/Geopolitical,C3-PostWarRecovery,-6.83%,-0.43,-0.58,-23.81%,-0.29,14.19%,30.62%,-17.83%,8.3
 Cat C: War/Geopolitical,C4-ArmsRaceMomentum,-4.49%,-0.26,-0.35,-23.48%,-0.19,14.02%,34.54%,-11.97%,10.0
 Cat D: Crash-Hedge (General),D1-FourStateTactical,-1.74%,-0.02,-0.03,-32.30%,-0.05,16.82%,38.54%,-4.76%,12.9
 Cat D: Crash-Hedge (General),D2-CrashHedgeQQQ,4.84%,0.33,0.45,-24.82%,0.19,21.12%,39.39%,14.00%,12.1
 Cat D: Crash-Hedge (General),D3-VolCarry,-3.05%,-0.12,-0.16,-24.53%,-0.12,15.72%,39.29%,-8.24%,10.5
-Cat E: Pairs Arbitrage,E1-MultiPairPortfolio,-7.37%,-0.76,-0.98,-23.88%,-0.31,9.52%,34.44%,-19.14%,3.4
+Cat E: Pairs Arbitrage,E1-MultiPairPortfolio,-7.75%,-0.75,-0.97,-24.92%,-0.31,10.08%,31.79%,-20.05%,4.8
 Cat F: Crypto Crisis,F1-CryptoFlightToQuality,-5.59%,-0.38,-0.53,-24.49%,-0.23,12.81%,36.14%,-14.74%,10.2
 Cat F: Crypto Crisis,F2-CryptoRecoverySurge,23.19%,1.43,2.23,-14.80%,1.57,15.45%,55.59%,78.33%,6.0
-Cat F: Crypto Crisis,F3-CryptoGoldDivergence,-6.81%,-0.62,-0.81,-26.67%,-0.26,10.49%,39.69%,-17.76%,10.3
+Cat F: Crypto Crisis,F3-CryptoGoldDivergence,-6.80%,-0.62,-0.81,-26.65%,-0.26,10.49%,40.10%,-17.73%,10.3
+Cat F: Crypto Crisis,F4-CryptoContagionHedge,4.16%,0.60,0.87,-8.63%,0.48,7.17%,43.29%,11.98%,1.2
 Cat G: Fundamental/Sentiment,G1-SentimentCrisisAlpha,0.30%,0.09,0.12,-24.39%,0.01,14.13%,41.74%,0.84%,15.0
-Cat G: Fundamental/Sentiment,G2-FearGreedContrarian,0.82%,0.14,0.18,-23.18%,0.04,18.44%,39.18%,2.29%,5.2
+Cat G: Fundamental/Sentiment,G2-FearGreedContrarian,2.94%,0.25,0.34,-20.50%,0.14,18.38%,39.62%,8.37%,5.1
 Cat G: Fundamental/Sentiment,G3-SentimentDivergence,-2.48%,-0.08,-0.11,-23.56%,-0.11,15.76%,38.05%,-6.72%,15.4
 Cat G: Fundamental/Sentiment,G4-SentimentEnhancedRegime,-0.76%,0.03,0.04,-23.68%,-0.03,15.25%,40.10%,-2.08%,13.0
+Cat G: Fundamental/Sentiment,G5-CryptoSentimentDivergence,-2.56%,-0.17,-0.24,-20.89%,-0.12,11.29%,41.01%,-6.94%,2.3
 Cat H: Crisis Spike (Upward),H1-CommodityShockRider,0.59%,0.11,0.16,-16.35%,0.04,14.53%,32.26%,1.65%,3.0
-Cat H: Crisis Spike (Upward),H2-GoldFearRally,-8.34%,-0.44,-0.58,-24.79%,-0.34,16.54%,29.13%,-21.45%,2.8
-Cat H: Crisis Spike (Upward),H3-DefenseSpikeBreakout,-4.69%,-0.62,-0.71,-16.20%,-0.29,7.27%,27.59%,-12.47%,0.6
+Cat H: Crisis Spike (Upward),H2-GoldFearRally,-7.79%,-0.41,-0.53,-23.66%,-0.33,16.55%,29.13%,-20.15%,2.8
+Cat H: Crisis Spike (Upward),H3-DefenseSpikeBreakout,-4.57%,-0.60,-0.69,-15.98%,-0.29,7.30%,24.14%,-12.18%,0.7
 Cat H: Crisis Spike (Upward),H4-MultiAssetCrisisLong,-5.87%,-0.38,-0.50,-24.18%,-0.24,13.43%,30.54%,-15.44%,7.5
-Cat H-FI: Fixed Income,H1-YieldCurveTrade,-2.11%,-0.05,-0.07,-29.40%,-0.07,16.44%,37.94%,-5.76%,7.7
+Cat H-FI: Fixed Income,H1-YieldCurveTrade,-2.11%,-0.05,-0.07,-29.40%,-0.07,16.44%,37.94%,-5.75%,7.7
 Cat H-FI: Fixed Income,H2-CreditSpreadMeanRev,7.11%,0.54,0.78,-16.34%,0.44,14.67%,38.16%,21.00%,1.7
 Cat H-FI: Fixed Income,H3-DurationTiming,-1.29%,0.02,0.02,-30.19%,-0.04,17.72%,37.88%,-3.54%,10.3
-Cat I: Momentum,I1-TimeSeriesMomentum,-8.00%,-0.91,-1.13,-24.86%,-0.32,8.75%,33.10%,-20.64%,4.6
-Cat I: Momentum,I2-CrossSectionalMomentum,-6.06%,-0.46,-0.60,-22.03%,-0.28,11.96%,34.26%,-15.93%,10.6
-Cat I: Momentum,I3-DualMomentum,-3.76%,-0.13,-0.18,-27.20%,-0.14,17.47%,36.42%,-10.08%,13.8
-Cat I: Momentum,I4-MomentumVolScaled,-5.59%,-0.39,-0.52,-24.86%,-0.22,12.71%,36.33%,-14.74%,8.7
-Cat J: Mean Reversion,J1-SectorMeanReversion,-6.57%,-0.50,-0.68,-23.87%,-0.28,12.14%,30.43%,-17.18%,7.5
-Cat J: Mean Reversion,J2-OvernightGapFade,1.68%,0.21,0.30,-14.10%,0.12,11.15%,33.77%,4.73%,2.6
-Cat J: Mean Reversion,J3-RSIMeanReversion,2.17%,0.22,0.31,-21.36%,0.10,14.02%,34.25%,6.13%,6.6
-Cat J: Mean Reversion,J4-CointegrationPairs,-2.14%,-0.70,-0.88,-9.25%,-0.23,3.05%,43.73%,-5.83%,2.6
+Cat I: Momentum,I1-TimeSeriesMomentum,-8.95%,-1.13,-1.32,-24.38%,-0.37,7.99%,35.20%,-22.90%,4.1
+Cat I: Momentum,I2-CrossSectionalMomentum,-5.96%,-0.31,-0.42,-27.53%,-0.22,15.68%,34.80%,-15.68%,14.4
+Cat I: Momentum,I3-DualMomentum,-0.06%,0.06,0.08,-24.88%,-0.00,12.74%,40.67%,-0.17%,14.1
+Cat I: Momentum,I4-MomentumVolScaled,-9.04%,-0.83,-0.98,-24.14%,-0.37,10.70%,36.36%,-23.12%,8.7
+Cat I: Momentum,I5-GlobalMomentumRotation,-1.93%,-0.05,-0.06,-25.94%,-0.07,15.60%,37.78%,-5.25%,12.9
+Cat I: Momentum,I6-KSTMomentum,-8.10%,-0.79,-1.01,-24.20%,-0.33,10.01%,33.93%,-20.90%,9.6
+Cat J: Mean Reversion,J1-SectorMeanReversion,-4.92%,-0.45,-0.57,-24.23%,-0.20,10.05%,39.57%,-13.06%,8.0
+Cat J: Mean Reversion,J2-OvernightGapFade,1.65%,0.20,0.29,-14.10%,0.12,11.15%,33.99%,4.66%,2.7
+Cat J: Mean Reversion,J3-RSIMeanReversion,2.36%,0.24,0.33,-21.53%,0.11,14.27%,34.80%,6.69%,6.9
+Cat J: Mean Reversion,J4-CointegrationPairs,-4.91%,-1.25,-1.56,-15.49%,-0.32,3.96%,38.91%,-13.03%,2.8
+Cat J: Mean Reversion,J5-GlobalMeanReversion,-4.71%,-0.28,-0.38,-22.49%,-0.21,13.87%,37.66%,-12.51%,7.7
+Cat J: Mean Reversion,J6-DV2MeanReversion,-8.56%,-0.65,-0.85,-30.46%,-0.28,12.55%,35.14%,-21.99%,10.1
 Cat K: Factor,K1-LowVolFactor,-3.36%,-0.09,-0.12,-23.99%,-0.14,18.69%,35.28%,-9.04%,12.9
-Cat K: Factor,K2-MultiFactorComposite,-7.40%,-0.59,-0.75,-24.75%,-0.30,11.76%,33.98%,-19.19%,10.9
+Cat K: Factor,K2-MultiFactorComposite,-6.92%,-0.57,-0.73,-23.70%,-0.29,11.42%,34.65%,-18.03%,10.9
 Cat K: Factor,K3-SizeFactor,-0.89%,0.05,0.06,-26.86%,-0.03,18.85%,38.90%,-2.46%,13.4
-Cat K: Factor,K4-ValueFactor,-1.86%,-0.03,-0.04,-26.35%,-0.07,16.59%,35.37%,-5.08%,10.1
+Cat K: Factor,K4-ValueFactor,-1.82%,-0.03,-0.04,-26.29%,-0.07,16.56%,35.37%,-4.96%,10.1
+Cat K: Factor,K5-RealAssetsFactor,-8.50%,-1.07,-1.32,-24.72%,-0.34,7.99%,30.14%,-21.83%,5.7
 Cat L: Volatility,L1-VolRiskPremium,-3.81%,-0.10,-0.14,-25.55%,-0.15,19.55%,37.90%,-10.23%,12.9
 Cat L: Volatility,L2-VolSpreadHarvest,3.33%,0.29,0.40,-20.02%,0.17,15.97%,38.04%,9.51%,3.6
 Cat L: Volatility,L3-VolTermStructure,-1.40%,-0.01,-0.01,-23.87%,-0.06,16.22%,41.02%,-3.85%,16.4
 Cat L: Volatility,L4-VolOfVolRegime,-5.19%,-0.19,-0.26,-28.05%,-0.18,18.70%,37.40%,-13.73%,15.4
 Cat L: Volatility,L5-VolSpikeRecovery,2.18%,0.24,0.34,-15.59%,0.14,11.70%,51.16%,6.18%,0.8
+Cat L: Volatility,L6-CrossAssetVolSignal,-0.92%,0.03,0.04,-30.02%,-0.03,16.56%,38.93%,-2.52%,14.9
 Cat M: Macro,M1-DollarCarry,17.67%,0.98,1.42,-21.70%,0.81,18.37%,39.97%,57.03%,6.9
 Cat M: Macro,M2-GoldDollarInverse,10.09%,0.60,0.91,-24.48%,0.41,18.99%,37.42%,30.57%,13.2
-Cat M: Macro,M3-EMRiskPremium,-2.83%,-0.10,-0.14,-24.84%,-0.11,15.91%,38.13%,-7.66%,4.3
+Cat M: Macro,M3-EMRiskPremium,-9.67%,-0.69,-0.92,-37.43%,-0.26,13.38%,35.08%,-24.58%,7.7
 Cat M: Macro,M4-CommodityMomentum,14.14%,0.86,1.30,-23.29%,0.61,17.05%,38.85%,44.32%,5.2
 Cat M: Macro,M5-RatesRegimeTrade,-6.50%,-0.39,-0.51,-24.66%,-0.26,14.60%,38.40%,-17.00%,11.8
+Cat M: Macro,M6-InflationBreakeven,-2.09%,-0.22,-0.32,-15.01%,-0.14,8.11%,34.11%,-5.70%,0.8
+Cat M: Macro,M7-GlobalRotation,-7.48%,-0.42,-0.57,-24.89%,-0.30,15.58%,37.76%,-19.39%,15.3
+Cat M: Macro,M8-CommodityMacroSignal,-9.14%,-1.01,-1.22,-29.52%,-0.31,9.05%,40.49%,-23.36%,12.7
 Cat N: Seasonal,N1-SeasonalStrategy,4.83%,0.35,0.49,-22.36%,0.22,18.62%,39.05%,13.97%,8.6
 Cat N: Seasonal,N2-TurnOfMonth,2.12%,0.22,0.30,-23.93%,0.09,14.26%,40.47%,5.98%,5.6
 Cat N: Seasonal,N3-PreHolidayDrift,-0.71%,-0.04,-0.06,-16.42%,-0.04,8.64%,43.59%,-1.96%,1.2
 Cat O: Tail Risk,O1-TailRiskParity,-7.78%,-0.38,-0.51,-32.91%,-0.24,17.43%,34.30%,-20.12%,16.4
-Cat O: Tail Risk,O2-CrisisAlphaMomentum,-3.19%,-0.31,-0.41,-23.41%,-0.14,9.01%,28.36%,-8.61%,1.7
+Cat O: Tail Risk,O2-CrisisAlphaMomentum,-3.17%,-0.31,-0.41,-23.36%,-0.14,9.01%,29.23%,-8.54%,1.8
 Cat O: Tail Risk,O3-CrisisRotation,-4.45%,-0.49,-0.62,-23.31%,-0.19,8.61%,24.05%,-11.87%,1.3
 Cat O: Tail Risk,O4-BlackSwanInsurance,0.61%,0.14,0.20,-8.19%,0.07,5.15%,50.88%,1.71%,0.1
 Cat O: Tail Risk,O5-VIXSpikeRecovery,-1.75%,-0.37,-0.43,-8.00%,-0.22,4.46%,25.00%,-4.78%,0.2
 Cat O: Tail Risk,O6-TailHedgeOverlay,0.27%,0.13,0.18,-4.70%,0.06,2.32%,50.19%,0.76%,1.8
-Cat P: Signal Combo,P1-FeatureComboSignal,-1.97%,-0.04,-0.05,-23.54%,-0.08,16.70%,37.94%,-5.37%,12.8
+Cat O: Tail Risk,O7-PreciousMetalsCrisisHedge,6.31%,0.46,0.64,-18.05%,0.35,16.15%,38.97%,18.50%,3.2
+Cat P: ML Signal Combo,P1-FeatureComboSignal,-7.67%,-0.40,-0.53,-27.87%,-0.28,16.43%,37.02%,-19.86%,13.3
+Cat P: ML Signal Combo,P2-XGBoostSignalCombo,-6.22%,-0.37,-0.49,-24.27%,-0.26,14.49%,36.83%,-16.32%,11.6
+Cat P: ML Signal Combo,P3-GMMRegimeClassifier,-7.11%,-0.47,-0.65,-24.83%,-0.29,13.58%,32.67%,-18.50%,8.6
+Cat P: ML Signal Combo,P4-AdaptiveThreshold,-9.98%,-1.01,-1.26,-30.48%,-0.33,9.90%,36.21%,-25.30%,13.9
+Cat P: ML Signal Combo,P5-CrossSectionalRanker,-7.19%,-0.72,-0.97,-24.82%,-0.29,9.73%,37.34%,-18.68%,7.5
 Cat Q: Quality Trend,Q1-QualityTrend,3.23%,0.26,0.38,-30.63%,0.11,18.44%,36.23%,9.22%,9.0
-Cat Q: Quality Trend,Q2-MultiAssetTrend,-2.99%,-0.19,-0.25,-23.19%,-0.13,12.08%,42.28%,-8.08%,13.0
+Cat Q: Quality Trend,Q2-MultiAssetTrend,-3.93%,-0.23,-0.31,-24.57%,-0.16,13.41%,42.00%,-10.52%,13.0
 Cat Q: Quality Trend,Q3-MomentumCrashFilter,-5.39%,-0.30,-0.40,-24.41%,-0.22,14.82%,37.59%,-14.25%,11.6
-Ensemble,Ensemble-BestOfEach,5.54%,0.43,0.60,-18.67%,0.30,15.40%,44.25%,16.12%,15.9
+Cat MF: Multi-Frequency,MF1-WeeklyMomentumRotation,-1.56%,-0.02,-0.03,-24.04%,-0.07,15.54%,34.66%,-4.27%,8.1
+Cat MF: Multi-Frequency,MF2-MonthlyMacroRegime,14.28%,0.86,1.29,-23.22%,0.61,17.21%,37.37%,44.81%,4.1
+Cat MF: Multi-Frequency,MF3-MultiTimeframeTrend,-3.96%,-0.22,-0.30,-24.64%,-0.16,13.87%,39.55%,-10.60%,12.2
+Cat MF: Multi-Frequency,MF4-WeeklyMeanReversion,0.23%,0.09,0.12,-24.56%,0.01,14.89%,37.77%,0.63%,5.9
+Cat R: Regime Hardening,R1-BearMarketAlpha,-6.26%,-0.37,-0.48,-24.79%,-0.25,14.68%,37.32%,-16.41%,12.0
+Cat R: Regime Hardening,R2-CrisisHedgeAdaptive,-4.50%,-0.31,-0.45,-24.13%,-0.19,12.42%,27.35%,-11.98%,3.7
+Cat R: Regime Hardening,R3-DefensiveRotation,-0.78%,-0.02,-0.03,-24.53%,-0.03,10.74%,38.02%,-2.16%,7.0
+Cat R: Regime Hardening,R4-AdaptiveRiskBudget,4.40%,0.32,0.45,-23.58%,0.19,19.25%,37.64%,12.68%,11.0
+Cat R: Regime Hardening,R5-RatesTighteningAlpha,-2.84%,-0.14,-0.19,-24.89%,-0.11,13.83%,37.02%,-7.67%,5.6
+Cat R: Regime Hardening,R6-BondEquityHedge,13.26%,0.82,1.18,-19.35%,0.69,16.99%,38.97%,41.26%,5.1
+Cat R: Regime Hardening,R7-VolExplosionAlpha,-3.30%,-0.14,-0.19,-26.75%,-0.12,15.22%,38.91%,-8.89%,8.7
+Cat R: Regime Hardening,R8-VolRegimeSwitcher,-4.04%,-0.20,-0.28,-27.63%,-0.15,14.87%,36.49%,-10.81%,7.7
+Cat R: Regime Hardening,R9-MultiAssetCTATrend,-12.55%,-0.96,-1.23,-31.67%,-0.40,13.02%,37.78%,-31.07%,5.3
+Cat R: Regime Hardening,R10-CommodityMacroOverlay,0.00%,0.00,0.00,0.00%,0.00,0.00%,0.00%,0.00%,0.0
+Ensemble,Ensemble-BestOfEach,4.46%,0.37,0.52,-18.43%,0.24,14.83%,44.82%,12.87%,15.5

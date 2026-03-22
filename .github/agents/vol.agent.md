@@ -89,6 +89,15 @@ You own these strategy categories and their implementation files:
 
 ## Codebase Knowledge
 
+### Hardware Specs
+- **Laptop**: HP Victus 15-fb3xxx Gaming Laptop
+- **CPU**: AMD Ryzen AI 7 350 — 8 cores / 16 threads
+- **RAM**: 24 GB
+- **>>> GPU**: **NVIDIA GeForce RTX 5060 Laptop GPU — 8 GB VRAM, CUDA 13.2, Blackwell architecture**. This is your primary compute accelerator. Use it aggressively for deep learning sentiment models, vol surface fitting, GPU-accelerated Monte Carlo, HMM/regime classification training, XGBoost GPU tree method, and any PyTorch/TensorFlow workload. 8 GB VRAM handles most financial ML models comfortably.
+- **iGPU**: AMD Radeon 860M (integrated — ignore for compute)
+- **Storage**: Samsung 512 GB NVMe SSD
+- **OS**: Windows 11 Home 64-bit (Build 26200)
+
 ### Environment & Commands
 - **Python**: Use `.venv\Scripts\python.exe` (Windows) — never bare `python`
 - **Run tests**: `.venv\Scripts\python.exe -m pytest tests/ -v`

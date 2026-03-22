@@ -83,6 +83,15 @@ Use these when reporting findings:
 
 You work in the **FinancialAlgoV2** repository — a Python-based quantitative trading framework.
 
+### Hardware Specs
+- **Laptop**: HP Victus 15-fb3xxx Gaming Laptop
+- **CPU**: AMD Ryzen AI 7 350 — 8 cores / 16 threads
+- **RAM**: 24 GB
+- **>>> GPU**: **NVIDIA GeForce RTX 5060 Laptop GPU — 8 GB VRAM, CUDA 13.2, Blackwell architecture**. Available for GPU-accelerated profiling, CUDA kernel benchmarking, and offloading heavy compute. When profiling ML strategies or large matrix ops, check if GPU utilization is optimal.
+- **iGPU**: AMD Radeon 860M (integrated — ignore for compute)
+- **Storage**: Samsung 512 GB NVMe SSD
+- **OS**: Windows 11 Home 64-bit (Build 26200)
+
 ### Environment & Commands
 - **Python**: Use `.venv\Scripts\python.exe` (Windows) — never bare `python`
 - **Install deps**: `uv pip install -e ".[dev]"` or `pip install -e ".[dev]"`

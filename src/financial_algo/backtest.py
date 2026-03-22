@@ -211,6 +211,7 @@ def _vol_target_overlay(
     # Weights are already shifted +1, use them directly for return calc
     port_return = (weights * asset_returns).sum(axis=1)
     rvol = port_return.rolling(lookback).std() * np.sqrt(252)
+    rvol = rvol.replace(0, np.nan)  # avoid division by zero -> inf
     # Scale factor: target / realised (capped at 3x to avoid blowup)
     scale = (target_vol / rvol).clip(upper=3.0).fillna(1.0)
     return weights.multiply(scale, axis=0)

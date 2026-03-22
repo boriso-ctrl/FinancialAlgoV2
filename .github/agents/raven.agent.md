@@ -107,6 +107,15 @@ class MyExperiment(Strategy):
         return weights
 ```
 
+### Hardware Specs
+- **Laptop**: HP Victus 15-fb3xxx Gaming Laptop
+- **CPU**: AMD Ryzen AI 7 350 — 8 cores / 16 threads
+- **RAM**: 24 GB
+- **>>> GPU**: **NVIDIA GeForce RTX 5060 Laptop GPU — 8 GB VRAM, CUDA 13.2, Blackwell architecture**. This is your secret weapon for experimental alpha. Use it for deep learning signal discovery, GPU-accelerated feature engineering, autoencoders for anomaly detection, reinforcement learning experiments, and rapid hyperparameter search. 8 GB VRAM handles most experimental models. Always prefer `device='cuda'` in PyTorch experiments.
+- **iGPU**: AMD Radeon 860M (integrated — ignore for compute)
+- **Storage**: Samsung 512 GB NVMe SSD
+- **OS**: Windows 11 Home 64-bit (Build 26200)
+
 ### Key rules:
 - Inherit from `Strategy` (in `src/financial_algo/strategies/base.py`)
 - `backtest_weights()` already shifts +1 day -- do NOT double-shift

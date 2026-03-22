@@ -29,6 +29,7 @@ from .alt_signals import (
     CorrelationRegimeBreak,
     LiquidityVacuum,
 )
+from .chronos_forecast import ChronosForecast
 
 ALL_EXPERIMENTAL: list[_Strategy] = [
     CopperGoldGrowth(),
@@ -43,6 +44,7 @@ ALL_EXPERIMENTAL: list[_Strategy] = [
     BreadthDivergence(),
     CorrelationRegimeBreak(),
     LiquidityVacuum(),
+    ChronosForecast(),
 ]
 
 __all__ = [
@@ -58,5 +60,6 @@ __all__ = [
     "BreadthDivergence",
     "CorrelationRegimeBreak",
     "LiquidityVacuum",
+    "ChronosForecast",
     "ALL_EXPERIMENTAL",
 ]

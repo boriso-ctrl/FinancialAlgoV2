@@ -70,6 +70,15 @@ You have four specialist department heads. **Delegate to them** when the task is
 
 You work in the **FinancialAlgoV2** repository — a Python-based quantitative trading framework.
 
+### Hardware Specs
+- **Laptop**: HP Victus 15-fb3xxx Gaming Laptop
+- **CPU**: AMD Ryzen AI 7 350 — 8 cores / 16 threads
+- **RAM**: 24 GB
+- **>>> GPU**: **NVIDIA GeForce RTX 5060 Laptop GPU — 8 GB VRAM, CUDA 13.2, Blackwell architecture**. This GPU is available for PyTorch/TensorFlow deep learning training, GPU-accelerated backtesting, Monte Carlo simulations, and any CUDA workload. Use it aggressively for ML strategies (P1/P2), hyperparameter sweeps, and large matrix operations. Always prefer GPU over CPU when a CUDA path exists.
+- **iGPU**: AMD Radeon 860M (integrated — ignore for compute, display only)
+- **Storage**: Samsung 512 GB NVMe SSD
+- **OS**: Windows 11 Home 64-bit (Build 26200)
+
 ### Environment & Commands
 - **Python**: Use `.venv\Scripts\python.exe` (Windows) — never bare `python` to avoid PATH issues
 - **Install deps**: `uv pip install -e ".[dev]"` or `pip install -e ".[dev]"`

@@ -252,3 +252,114 @@ class CryptoGoldDivergence(Strategy):
         w[c.crypto_ticker] = btc_w
         w = w.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return w
+
+
+# =========================================================================
+# F4 - Crypto Contagion Hedge
+# =========================================================================
+
+@dataclass
+class CryptoContagionHedgeConfig:
+    """Hedge against crypto contagion using BTC + ETH drawdown signals.
+
+    When both BTC-USD and ETH-USD are in >20% drawdown from 60-day high,
+    this signals broad crypto contagion / risk-off. Hedge with safe havens.
+    When both are above their 60-day high, go risk-on.
+    Mixed signals = stay flat.
+    """
+
+    btc_ticker: str = "BTC-USD"
+    eth_ticker: str = "ETH-USD"
+
+    safe_tickers: tuple = ("GLD", "SHY", "UUP")
+    risk_on_tickers: tuple = ("SPY", "QQQ")
+
+    drawdown_window: int = 60
+    contagion_threshold: float = -0.20  # both must be < -20% from peak
+
+    # Safe-haven weights during contagion
+    safe_gld: float = 0.40
+    safe_shy: float = 0.35
+    safe_uup: float = 0.25
+
+    # Risk-on weights when crypto strong
+    risk_on_weight: float = 0.50
+
+
+class CryptoContagionHedge(Strategy):
+    """Crypto contagion detector: hedge when BTC+ETH both in deep drawdown.
+
+    Thesis: When both BTC and ETH are simultaneously in >20% drawdown
+    from their 60-day highs, this signals broad risk-off contagion
+    spreading beyond crypto. Go long GLD + SHY + UUP (flight to quality).
+    When both are above their 60-day max (strong), go risk-on SPY + QQQ.
+    Mixed signals = flat (no edge).
+
+    ETH data starts 2017-11, so periods before that treat ETH signal
+    as neutral (no contagion signal without both assets).
+    """
+
+    name = "F4-CryptoContagionHedge"
+
+    def __init__(self, config: CryptoContagionHedgeConfig | None = None) -> None:
+        self.cfg = config or CryptoContagionHedgeConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        all_tickers = list(c.safe_tickers) + list(c.risk_on_tickers)
+        avail = [t for t in all_tickers if t in prices.columns]
+        if not avail:
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        # --- Compute drawdowns for BTC and ETH ---
+        def _drawdown_pct(ticker: str) -> pd.Series:
+            if ticker not in prices.columns:
+                return pd.Series(np.nan, index=prices.index)
+            p = prices[ticker]
+            peak = p.rolling(c.drawdown_window, min_periods=1).max()
+            dd = (p - peak) / peak.replace(0, np.nan)
+            return dd.fillna(0.0)
+
+        btc_dd = _drawdown_pct(c.btc_ticker)
+        eth_dd = _drawdown_pct(c.eth_ticker)
+
+        # Both must have valid data for contagion signal
+        btc_valid = pd.notna(prices.get(c.btc_ticker, pd.Series(dtype=float)))
+        eth_valid = pd.notna(prices.get(c.eth_ticker, pd.Series(dtype=float)))
+        both_valid = btc_valid & eth_valid
+
+        # Contagion: both in deep drawdown
+        btc_stressed = btc_dd < c.contagion_threshold
+        eth_stressed = eth_dd < c.contagion_threshold
+        contagion = both_valid & btc_stressed & eth_stressed
+
+        # Crypto strong: both at or near highs (dd > -2%)
+        btc_strong = btc_dd > -0.02
+        eth_strong = eth_dd > -0.02
+        crypto_strong = both_valid & btc_strong & eth_strong
+
+        # --- Assign weights ---
+        # Contagion: flight to quality
+        safe_map = {"GLD": c.safe_gld, "SHY": c.safe_shy, "UUP": c.safe_uup}
+        safe_avail = [t for t in c.safe_tickers if t in prices.columns]
+        for t in safe_avail:
+            w_val = safe_map.get(t, 0.0)
+            if w_val > 0:
+                weights.loc[contagion, t] = w_val
+
+        # Crypto strong: risk-on
+        risk_avail = [t for t in c.risk_on_tickers if t in prices.columns]
+        n_risk = len(risk_avail)
+        if n_risk > 0:
+            per_risk = c.risk_on_weight / n_risk
+            for t in risk_avail:
+                weights.loc[crypto_strong, t] = per_risk
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights

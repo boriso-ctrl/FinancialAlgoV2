@@ -12,7 +12,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-import numpy as np
 import pandas as pd
 
 from financial_algo.indicators import breadth_count, ema, realized_vol, zscore

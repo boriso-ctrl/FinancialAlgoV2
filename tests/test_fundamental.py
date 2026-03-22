@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -25,9 +27,16 @@ from financial_algo.fundamental.signals import (
 )
 from financial_algo.fundamental.strategies import (
     FearGreedContrarian,
+    RedditSentimentAlpha,
     SentimentCrisisAlpha,
     SentimentDivergence,
     SentimentEnhancedRegime,
+)
+from financial_algo.fundamental.data.reddit_feeds import (
+    _DEFAULT_CACHE_DIR,
+    _score_text_vader,
+    build_synthetic_reddit_sentiment,
+    extract_reddit_features,
 )
 
 
@@ -302,3 +311,296 @@ class TestSentimentEnhancedRegime:
         # Not necessarily different (depends on sentiment) but should be valid
         assert not crisis_w.isna().any().any()
         assert not normal_w.isna().any().any()
+
+
+# =========================================================================
+# Reddit Feeds — build_synthetic_reddit_sentiment
+# =========================================================================
+
+class TestBuildSyntheticRedditSentiment:
+    def test_output_shape(self, prices):
+        df = build_synthetic_reddit_sentiment(prices)
+        assert len(df) == len(prices)
+        assert df.index.equals(prices.index)
+
+    def test_deterministic_with_seed(self, prices):
+        """Same seed produces identical output."""
+        df1 = build_synthetic_reddit_sentiment(prices, noise_seed=42)
+        df2 = build_synthetic_reddit_sentiment(prices, noise_seed=42)
+        pd.testing.assert_frame_equal(df1, df2)
+
+    def test_different_seed_differs(self, prices):
+        """Different seeds produce different output."""
+        df1 = build_synthetic_reddit_sentiment(prices, noise_seed=42)
+        df2 = build_synthetic_reddit_sentiment(prices, noise_seed=99)
+        assert not df1.equals(df2)
+
+    def test_expected_columns(self, prices):
+        df = build_synthetic_reddit_sentiment(prices, tickers=["SPY", "QQQ"])
+        for t in ["SPY", "QQQ"]:
+            assert f"{t}_mention_vel" in df.columns
+            assert f"{t}_sent_zscore" in df.columns
+            assert f"{t}_bullish_pct" in df.columns
+        assert "market_mention_vel" in df.columns
+        assert "market_sent_zscore" in df.columns
+
+    def test_no_nan_no_inf(self, prices):
+        df = build_synthetic_reddit_sentiment(prices)
+        assert not df.isna().any().any(), "NaN values found"
+        assert not np.isinf(df.values).any(), "Inf values found"
+
+    def test_mention_vel_clipped(self, prices):
+        df = build_synthetic_reddit_sentiment(prices)
+        vel_cols = [c for c in df.columns if c.endswith("_mention_vel")]
+        for col in vel_cols:
+            assert df[col].between(-5, 5).all(), f"{col} exceeds clip range"
+
+    def test_bullish_pct_bounded(self, prices):
+        df = build_synthetic_reddit_sentiment(prices)
+        bull_cols = [c for c in df.columns if c.endswith("_bullish_pct")]
+        for col in bull_cols:
+            assert df[col].between(0.0, 1.0).all(), f"{col} out of [0,1]"
+
+    def test_subset_tickers(self, prices):
+        """Only requested tickers appear."""
+        df = build_synthetic_reddit_sentiment(prices, tickers=["SPY"])
+        assert "SPY_mention_vel" in df.columns
+        assert "QQQ_mention_vel" not in df.columns
+
+    def test_with_vix(self, prices, vix):
+        """Accepts optional VIX series without error."""
+        df = build_synthetic_reddit_sentiment(prices, vix=vix)
+        assert not df.isna().any().any()
+
+    def test_missing_ticker_ignored(self, prices):
+        """Ticker not in prices is silently skipped."""
+        df = build_synthetic_reddit_sentiment(
+            prices, tickers=["SPY", "DOESNOTEXIST"],
+        )
+        assert "SPY_mention_vel" in df.columns
+        assert "DOESNOTEXIST_mention_vel" not in df.columns
+
+
+# =========================================================================
+# Reddit Feeds — _score_text_vader
+# =========================================================================
+
+class TestScoreTextVader:
+    def test_returns_float(self):
+        score = _score_text_vader("I love this stock!")
+        assert isinstance(score, float)
+
+    def test_bounded(self):
+        score = _score_text_vader("Terrible earnings report, sell sell sell")
+        assert -1.0 <= score <= 1.0
+
+    def test_empty_string(self):
+        score = _score_text_vader("")
+        assert isinstance(score, float)
+        assert -1.0 <= score <= 1.0
+
+
+# =========================================================================
+# Reddit Feeds — extract_reddit_features
+# =========================================================================
+
+class TestExtractRedditFeatures:
+    @pytest.fixture
+    def daily_reddit_data(self, dates):
+        """Multi-day fake Reddit daily data."""
+        rng = np.random.RandomState(42)
+        rows = []
+        for dt in dates:
+            for ticker in ["SPY", "QQQ"]:
+                rows.append({
+                    "date": dt,
+                    "ticker": ticker,
+                    "mention_count": rng.randint(10, 200),
+                    "mean_sentiment": rng.uniform(-0.5, 0.5),
+                    "bullish_pct": rng.uniform(0.2, 0.8),
+                    "bearish_pct": rng.uniform(0.1, 0.5),
+                    "weighted_sentiment": rng.uniform(-0.3, 0.3),
+                    "total_score": rng.randint(50, 5000),
+                })
+        df = pd.DataFrame(rows).set_index("date")
+        return df
+
+    def test_output_columns(self, daily_reddit_data):
+        feat = extract_reddit_features(daily_reddit_data, tickers=["SPY"])
+        assert "SPY_mention_vel" in feat.columns
+        assert "SPY_sent_zscore" in feat.columns
+        assert "SPY_bullish_pct" in feat.columns
+
+    def test_no_nan_no_inf(self, daily_reddit_data):
+        feat = extract_reddit_features(daily_reddit_data)
+        assert not feat.isna().any().any(), "NaN in features"
+        assert not np.isinf(feat.values).any(), "Inf in features"
+
+    def test_mention_vel_clipped(self, daily_reddit_data):
+        feat = extract_reddit_features(daily_reddit_data)
+        vel_cols = [c for c in feat.columns if c.endswith("_mention_vel")]
+        for col in vel_cols:
+            assert feat[col].between(-5, 5).all()
+
+    def test_empty_input(self):
+        empty = pd.DataFrame(
+            columns=["ticker", "mention_count", "mean_sentiment",
+                     "bullish_pct", "bearish_pct", "weighted_sentiment",
+                     "total_score"],
+            index=pd.DatetimeIndex([], name="date"),
+        )
+        feat = extract_reddit_features(empty)
+        assert feat.empty
+
+    def test_subset_tickers(self, daily_reddit_data):
+        feat = extract_reddit_features(daily_reddit_data, tickers=["SPY"])
+        assert "SPY_mention_vel" in feat.columns
+        assert "QQQ_mention_vel" not in feat.columns
+
+
+# =========================================================================
+# Reddit Feeds — cache path logic
+# =========================================================================
+
+class TestRedditCachePath:
+    def test_default_cache_dir_is_pathlib(self):
+        assert isinstance(_DEFAULT_CACHE_DIR, Path)  # pyright: ignore[reportPossiblyUnbound]
+
+    def test_cache_dir_under_home(self):
+        assert ".financial_algo_cache" in str(_DEFAULT_CACHE_DIR)
+        assert "reddit" in str(_DEFAULT_CACHE_DIR)
+
+
+# =========================================================================
+# G7 — RedditSentimentAlpha
+# =========================================================================
+
+class TestRedditSentimentAlpha:
+    def test_importable(self):
+        """G7 is importable from fundamental.strategies."""
+        from financial_algo.fundamental.strategies import RedditSentimentAlpha as G7
+        assert G7 is not None
+        assert G7.name == "G7-RedditSentimentAlpha"
+
+    def test_output_valid(self, prices, regime):
+        """generate_weights returns correct shape, no NaN/inf."""
+        strat = RedditSentimentAlpha()
+        w = strat.generate_weights(prices, regime)
+        assert len(w) == len(prices)
+        assert w.index.equals(prices.index)
+        assert w.shape[1] > 0
+        assert not w.isna().any().any(), "NaN in weights"
+        assert not np.isinf(w.values).any(), "Inf in weights"
+
+    def test_without_regime(self, prices):
+        """Works without regime argument."""
+        strat = RedditSentimentAlpha()
+        w = strat.generate_weights(prices)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_with_explicit_reddit_features(self, prices, regime):
+        """Accepts pre-built Reddit features."""
+        features = build_synthetic_reddit_sentiment(prices)
+        strat = RedditSentimentAlpha()
+        w = strat.generate_weights(prices, regime, reddit_features=features)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_handles_missing_reddit_data(self, prices, regime):
+        """Falls back to synthetic when no Reddit data provided."""
+        strat = RedditSentimentAlpha()
+        # None triggers synthetic fallback internally
+        w = strat.generate_weights(prices, regime, reddit_features=None)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_signal_euphoria(self, prices):
+        """When sentiment is extremely bullish, equity weight should be negative (contrarian short)."""
+        strat = RedditSentimentAlpha()
+        # Build features with extreme bullish sentiment
+        features = build_synthetic_reddit_sentiment(prices)
+        # Override to simulate euphoria
+        for col in features.columns:
+            if col.endswith("_bullish_pct"):
+                features[col] = 0.95  # way above crowd_euphoria=0.80
+            if col.endswith("_sent_zscore"):
+                features[col] = 3.0  # way above sent_contrarian_bull=1.3
+        w = strat.generate_weights(prices, reddit_features=features)
+        # In euphoria, equity should be shorted (negative or very small)
+        # Most days should have negative/low equity weight
+        spy_w = w["SPY"]
+        assert (spy_w < 0.5).sum() > len(spy_w) * 0.5
+
+    def test_signal_panic(self, prices):
+        """When sentiment is extremely bearish, equity weight should be high (contrarian long)."""
+        strat = RedditSentimentAlpha()
+        features = build_synthetic_reddit_sentiment(prices)
+        for col in features.columns:
+            if col.endswith("_bullish_pct"):
+                features[col] = 0.10  # below crowd_panic=0.25
+            if col.endswith("_sent_zscore"):
+                features[col] = -3.0  # below sent_contrarian_bear=-1.3
+        w = strat.generate_weights(prices, reddit_features=features)
+        spy_w = w["SPY"]
+        # In panic, should have elevated equity weight
+        assert (spy_w > 0.5).sum() > len(spy_w) * 0.3
+
+    def test_signal_neutral(self, prices):
+        """When sentiment is neutral, weights should be modest."""
+        strat = RedditSentimentAlpha()
+        features = build_synthetic_reddit_sentiment(prices)
+        for col in features.columns:
+            if col.endswith("_bullish_pct"):
+                features[col] = 0.50  # neutral
+            if col.endswith("_sent_zscore"):
+                features[col] = 0.0  # neutral
+            if col.endswith("_mention_vel"):
+                features[col] = 0.0  # no buzz
+        w = strat.generate_weights(prices, reddit_features=features)
+        spy_w = w["SPY"]
+        # Neutral weight is 0.5 * vol_scale, should be in modest range
+        assert spy_w.abs().max() < 2.0
+
+    def test_signal_viral_event(self, prices):
+        """Viral mention spike reduces equity exposure."""
+        strat = RedditSentimentAlpha()
+        features = build_synthetic_reddit_sentiment(prices)
+        for col in features.columns:
+            if col.endswith("_mention_vel"):
+                features[col] = 4.0  # above mention_vel_extreme=3.0
+            if col.endswith("_sent_zscore"):
+                features[col] = 0.0
+            if col.endswith("_bullish_pct"):
+                features[col] = 0.50
+        w = strat.generate_weights(prices, reddit_features=features)
+        # Viral should cap equity at low level (0.1 * vol_scale)
+        spy_w = w["SPY"]
+        assert spy_w.max() < 0.5
+
+    def test_vol_scaling(self, prices):
+        """Position sizes scale inversely with SPY vol."""
+        strat = RedditSentimentAlpha()
+        w = strat.generate_weights(prices)
+        # Weights should not all be identical (vol changes over time)
+        spy_w = w["SPY"]
+        assert spy_w.std() > 0.0
+
+    def test_crisis_regime_scales_down(self, prices, regime):
+        """In CRISIS regime, all positions should be scaled by crisis_scale."""
+        strat = RedditSentimentAlpha()
+        w_with_regime = strat.generate_weights(prices, regime)
+        w_no_regime = strat.generate_weights(prices, regime=None)
+        # During crisis days (90-110), weights with regime should be smaller
+        crisis_abs = w_with_regime.iloc[95:105].abs().sum().sum()
+        no_crisis_abs = w_no_regime.iloc[95:105].abs().sum().sum()
+        assert crisis_abs < no_crisis_abs, (
+            "Crisis regime should reduce position sizes"
+        )
+
+    def test_output_tickers(self, prices):
+        """Output should contain SPY, QQQ, TLT, GLD columns."""
+        strat = RedditSentimentAlpha()
+        w = strat.generate_weights(prices)
+        for ticker in ["SPY", "QQQ", "TLT", "GLD"]:
+            assert ticker in w.columns

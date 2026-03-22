@@ -22,7 +22,6 @@ from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
-import numpy as np
 import pandas as pd
 
 
