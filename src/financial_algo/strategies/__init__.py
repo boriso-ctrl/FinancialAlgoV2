@@ -42,6 +42,7 @@ from financial_algo.strategies.momentum import (
     MomentumVolScaled,
     GlobalMomentumRotation,
     KSTMomentum,
+    AdaptiveTrendFilter,
 )
 from financial_algo.strategies.mean_reversion import (
     SectorMeanReversion,
@@ -156,7 +157,9 @@ __all__ = [
     "CommodityShockRider", "DefenseSpikeBreakout", "GoldFearRally", "MultiAssetCrisisLong",
     # I - Momentum
     "TimeSeriesMomentum", "CrossSectionalMomentum", "DualMomentum", "MomentumVolScaled",
-    "GlobalMomentumRotation", "KSTMomentum",
+    "GlobalMomentumRotation", "KSTMomentum", "AdaptiveTrendFilter",
+        "GlobalMomentumRotation", "KSTMomentum",
+        "GlobalMomentumRotation", "KSTMomentum", "AdaptiveTrendFilter",
     # J - Mean Reversion
     "SectorMeanReversion", "RSIMeanReversion", "OvernightGapFade", "CointegrationPairs",
     "GlobalMeanReversion", "FormulaicAlphaMeanRev",

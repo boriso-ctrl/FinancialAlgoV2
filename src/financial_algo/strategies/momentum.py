@@ -498,3 +498,127 @@ class KSTMomentum(Strategy):
             weight_df[t] = raw[t]
 
         return weight_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# I10 -- Adaptive Trend Filter
+# =========================================================================
+
+@dataclass
+class AdaptiveTrendFilterConfig:
+    """Config for adaptive multi-timeframe trend-following strategy."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM", "GLD", "TLT", "IEF", "UUP",
+        "XLE", "XLK", "XLF", "XLI", "XLB", "XLP", "XLU", "XLY", "XLV",
+        "HYG", "LQD", "SLV", "SHY", "DBC", "DBA", "TIP", "AGG", "EMB",
+        "FXI", "VGK", "EWJ", "INDA", "VNQ", "XBI",
+    ])
+    mom_windows: list[int] = field(default_factory=lambda: [21, 63, 126, 252])
+    vol_window: int = 20
+    low_vol_threshold: float = 0.15
+    high_vol_threshold: float = 0.25
+    low_vol_weights: list[float] = field(
+        default_factory=lambda: [0.4, 0.3, 0.2, 0.1],
+    )
+    high_vol_weights: list[float] = field(
+        default_factory=lambda: [0.1, 0.2, 0.3, 0.4],
+    )
+    long_n: int = 5
+    short_n: int = 3
+    target_vol: float = 0.20
+    pos_vol_window: int = 60
+
+
+class AdaptiveTrendFilter(Strategy):
+    """Multi-timeframe momentum with adaptive vol-based weighting.
+
+    By weighting shorter lookbacks in low-vol trending environments and
+    longer lookbacks in high-vol noisy environments, the composite
+    momentum signal captures trends without whipsaw.
+    """
+
+    name = "I10-AdaptiveTrendFilter"
+
+    def __init__(self, config=None):
+        super().__init__()
+        self.cfg = config or AdaptiveTrendFilterConfig()
+
+    def generate_weights(self, prices, regime=None):
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if len(avail) < c.long_n + c.short_n:
+            return weights
+
+        p = prices[avail]
+
+        # Compute 4 momentum signals
+        mom_signals = []
+        for w in c.mom_windows:
+            mom = p.pct_change(w).fillna(0.0)
+            mom_signals.append(mom)
+
+        # Compute SPY realized vol for adaptive weighting
+        spy_col = "SPY" if "SPY" in prices.columns else avail[0]
+        spy_ret = prices[spy_col].pct_change().fillna(0.0)
+        spy_vol = spy_ret.rolling(c.vol_window, min_periods=5).std() * np.sqrt(252)
+        spy_vol = spy_vol.fillna(c.low_vol_threshold)
+
+        # Adaptive weight interpolation: alpha=0 => low-vol, alpha=1 => high-vol
+        alpha = (spy_vol - c.low_vol_threshold) / max(
+            c.high_vol_threshold - c.low_vol_threshold, 1e-8
+        )
+        alpha = alpha.clip(0.0, 1.0)
+
+        low_w = np.array(c.low_vol_weights)
+        high_w = np.array(c.high_vol_weights)
+
+        # Broadcast: (T,) x (4,) -> (T, 4)
+        adaptive_w = (
+            (1.0 - alpha.values[:, np.newaxis]) * low_w[np.newaxis, :]
+            + alpha.values[:, np.newaxis] * high_w[np.newaxis, :]
+        )
+
+        # Weighted composite momentum score per asset
+        mom_stack = np.stack([m.values for m in mom_signals], axis=2)
+        combo = np.sum(mom_stack * adaptive_w[:, np.newaxis, :], axis=2)
+        combo_df = pd.DataFrame(combo, index=p.index, columns=p.columns)
+        combo_df = combo_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+        # Cross-sectional rank each day
+        cs_rank = combo_df.rank(axis=1, method="average", ascending=True)
+        n_assets = cs_rank.count(axis=1)
+
+        long_thresh = n_assets - c.long_n + 0.5
+        short_thresh = c.short_n + 0.5
+
+        is_long = cs_rank.gt(long_thresh, axis=0)
+        is_short = cs_rank.lt(short_thresh, axis=0)
+
+        # Vol-scaling per position
+        ret = p.pct_change().fillna(0.0)
+        rvol = ret.rolling(c.pos_vol_window, min_periods=10).std() * np.sqrt(252)
+        rvol = rvol.replace(0.0, np.nan).fillna(c.target_vol)
+
+        vol_scale = (c.target_vol / rvol).clip(0.1, 5.0)
+
+        # Build raw weights
+        n_long = is_long.sum(axis=1).clip(lower=1)
+        n_short = is_short.sum(axis=1).clip(lower=1)
+
+        long_w = is_long.astype(float).div(n_long, axis=0) * vol_scale
+        short_w = is_short.astype(float).div(n_short, axis=0) * vol_scale * -1.0
+
+        raw = long_w + short_w
+
+        # Normalize gross leverage to ~1.5
+        gross = raw.abs().sum(axis=1).clip(lower=1e-8)
+        target_gross = 1.5
+        scaled = raw.div(gross, axis=0) * target_gross
+
+        weights.loc[:, avail] = scaled
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
