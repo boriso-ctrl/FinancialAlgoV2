@@ -1,0 +1,11 @@
+﻿.venv\Scripts\python.exe : C:\Users\boris\Documents\GitHub\FinancialAlgoV2\.ven
+v\Lib\site-packages\numpy\_core\_methods.py:49: RuntimeWarning: invalid value 
+encountered in reduce
+At line:1 char:1
++ .venv\Scripts\python.exe scripts/production/run_crisis_backtest.py 2> ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\boris\...tered in reduce 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  return umr_sum(a, axis, dtype, out, keepdims, initial, where)

@@ -644,3 +644,98 @@ class FormulaicAlphaMeanRev(Strategy):
         weights = weights.where(rebal_mask).ffill().fillna(0.0)
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# J6 -- Drift Reversal Alpha (arXiv:2511.12490 direct implementation)
+# =========================================================================
+
+@dataclass
+class DriftReversalConfig:
+    """Config for drift-regime-gated short-term reversal strategy."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "GLD", "TLT", "XLE", "XLK", "XLF",
+    ])
+    reversal_window: int = 5       # 5-day return for reversal signal
+    drift_window: int = 63         # trailing days for positive-day fraction
+    drift_threshold: float = 0.60  # fraction above which drift regime is ON
+    overextended_pct: float = 0.02 # +2% threshold for short signal
+    oversold_pct: float = -0.02    # -2% threshold for long signal
+    size_scale_denom: float = 0.05 # |5d return| / 0.05 for position sizing
+    max_weight: float = 0.30       # max single position
+    max_gross_leverage: float = 1.5
+
+
+class DriftReversalAlpha(Strategy):
+    """Short-term reversal activated only during drift regimes.
+
+    Thesis (arXiv:2511.12490): When prices have been consistently
+    positive (>60% positive days in trailing 63d window), short-term
+    reversals become highly predictable. Overextended assets (5d return
+    > +2%) revert down; oversold assets (5d return < -2%) bounce.
+    During non-drift periods, reversal signals are unreliable and
+    positions are flattened.
+
+    Signal:
+    - 5-day return per asset (reversal signal).
+    - drift_ratio = rolling 63-day fraction of positive return days.
+    - Gate: only act when drift_ratio > 0.60.
+    - 5d > +2% -> SHORT; 5d < -2% -> LONG; else flat.
+    - Size by |5d_ret| / 0.05, clamped to 0.30.
+    """
+
+    name = "J6-DriftReversalAlpha"
+
+    def __init__(self, config: DriftReversalConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or DriftReversalConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if not avail:
+            return weights
+
+        p = prices[avail]
+
+        # 5-day return (reversal signal)
+        ret_5d = p.pct_change(c.reversal_window).fillna(0.0)
+
+        # Drift regime: fraction of positive return days over trailing window
+        daily_ret = p.pct_change().fillna(0.0)
+        pos_day = (daily_ret > 0).astype(float)
+        drift_ratio = pos_day.rolling(c.drift_window, min_periods=21).mean()
+        drift_ratio = drift_ratio.fillna(0.0)
+
+        # Gate: only act when drift regime is ON
+        drift_on = pd.notna(drift_ratio) & (drift_ratio > c.drift_threshold)
+
+        # Reversal signals (only during drift regime)
+        overextended = drift_on & (ret_5d > c.overextended_pct)   # SHORT
+        oversold = drift_on & (ret_5d < c.oversold_pct)           # LONG
+
+        # Position sizing: scale by |5d return| / denom, clamp to max_weight
+        size = (ret_5d.abs() / c.size_scale_denom).clip(upper=c.max_weight)
+
+        # Build weights: negative for shorts, positive for longs
+        raw = pd.DataFrame(0.0, index=p.index, columns=avail)
+        raw = raw.where(~overextended, -size)   # short overextended
+        raw = raw.where(~oversold, size)         # long oversold
+
+        # Gross leverage cap
+        gross = raw.abs().sum(axis=1)
+        scale_factor = (c.max_gross_leverage / gross.clip(lower=1e-8)).clip(upper=1.0)
+        raw = raw.mul(scale_factor, axis=0)
+
+        weights.loc[:, avail] = raw
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)

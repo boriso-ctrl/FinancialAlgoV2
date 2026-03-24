@@ -622,3 +622,205 @@ class AdaptiveTrendFilter(Strategy):
 
         weights.loc[:, avail] = scaled
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# I7 — Drift Regime Momentum (arXiv:2511.12490 inspired)
+# =========================================================================
+
+@dataclass
+class DriftRegimeMomConfig:
+    """Config for drift-regime-gated cross-asset momentum."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "XLE", "XLK", "GLD", "TLT",
+    ])
+    mom_lookback: int = 252       # 12-month return window
+    mom_skip: int = 21            # skip most recent month
+    drift_window: int = 63        # trailing days for positive-day fraction
+    drift_threshold: float = 0.58 # fraction above which drift regime is ON
+    top_n_long: int = 3
+    top_n_short: int = 2
+    long_leverage: float = 1.0
+    short_leverage: float = 0.5
+    max_weight: float = 0.40
+
+
+class DriftRegimeMomentum(Strategy):
+    """Momentum gated by drift regime filter from arXiv:2511.12490.
+
+    Thesis: Momentum signals are strongest when markets have persistent
+    positive drift. When >58% of trailing 63 days have positive returns,
+    trends are self-reinforcing through institutional flow and retail
+    sentiment. Gating momentum on the drift regime avoids whipsaws
+    during directionless or mean-reverting periods.
+
+    Signal:
+    - 12-1 month momentum per asset.
+    - Drift ratio = rolling 63-day fraction of positive return days.
+    - Only take positions in assets with drift_ratio > 0.58.
+    - Long top-3, short bottom-2 among drift-eligible assets.
+    """
+
+    name = "I7-DriftRegimeMomentum"
+
+    def __init__(self, config: DriftRegimeMomConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or DriftRegimeMomConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if len(avail) < c.top_n_long + c.top_n_short:
+            return weights
+
+        p = prices[avail]
+
+        # 12-1 month momentum signal
+        mom = p.pct_change(c.mom_lookback).shift(c.mom_skip).fillna(0.0)
+
+        # Drift regime: fraction of positive return days over trailing window
+        daily_ret = p.pct_change().fillna(0.0)
+        pos_day = (daily_ret > 0).astype(float)
+        drift_ratio = pos_day.rolling(c.drift_window, min_periods=21).mean()
+        drift_ratio = drift_ratio.fillna(0.0)
+
+        # Gate: only consider assets where drift regime is ON
+        drift_on = pd.notna(drift_ratio) & (drift_ratio > c.drift_threshold)
+
+        # Mask momentum scores -- NaN for assets not in drift regime
+        mom_gated = mom.where(drift_on, np.nan)
+
+        # Count eligible assets per day
+        n_eligible = drift_on.sum(axis=1)
+
+        # Rank among eligible: highest mom = rank 1 (for longs)
+        ranks_desc = mom_gated.rank(axis=1, ascending=False, method="average")
+        # Rank among eligible: lowest mom = rank 1 (for shorts)
+        ranks_asc = mom_gated.rank(axis=1, ascending=True, method="average")
+
+        # Long: top-N by momentum among drift-eligible
+        long_mask = (ranks_desc <= c.top_n_long) & pd.notna(mom_gated)
+        # Short: bottom-N by momentum among drift-eligible
+        short_mask = (ranks_asc <= c.top_n_short) & pd.notna(mom_gated)
+
+        # Avoid longing and shorting the same asset if few are eligible
+        short_mask = short_mask & ~long_mask
+
+        # Equal weight within long/short buckets
+        n_long = long_mask.sum(axis=1).clip(lower=1)
+        n_short = short_mask.sum(axis=1).clip(lower=1)
+
+        long_w = long_mask.astype(float).div(n_long, axis=0) * c.long_leverage
+        short_w = short_mask.astype(float).div(n_short, axis=0) * c.short_leverage * -1.0
+
+        raw = long_w + short_w
+        raw = raw.clip(lower=-c.max_weight, upper=c.max_weight)
+
+        # Zero out when insufficient eligible assets
+        insufficient = n_eligible < (c.top_n_long + c.top_n_short)
+        raw[insufficient] = 0.0
+
+        weights.loc[:, avail] = raw
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# I1b -- Time-Series Momentum with Drift Gate
+# =========================================================================
+
+@dataclass
+class TSMOMDriftConfig:
+    """Config for drift-gated time-series momentum."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "GLD", "TLT", "XLE", "UUP", "HYG",
+    ])
+    lookback: int = 252      # ~12 months
+    skip: int = 21           # skip most recent month
+    vol_window: int = 60
+    target_vol: float = 0.15
+    max_weight: float = 0.30
+    leverage: float = 1.5
+    drift_window: int = 63
+    drift_threshold: float = 0.55
+    drift_off_scale: float = 0.30   # keep 30% when drift is OFF
+
+
+class TimeSeriesMomentumDrift(Strategy):
+    """I1 Time-Series Momentum enhanced with drift regime gate.
+
+    Thesis: Standard TSMOM suffers whipsaws during directionless markets.
+    By scaling down positions when the 63-day positive-day fraction is
+    below 0.55 (i.e. the asset lacks persistent drift), we filter out
+    noise-driven entries while keeping partial exposure to avoid missing
+    regime transitions entirely.
+
+    Signal: Same as I1 (12-1 momentum + TSI trend filter + vol scaling).
+    Gate: drift_ratio > 0.55 -> full weight; drift_ratio <= 0.55 -> 30%.
+    """
+
+    name = "I1b-TSMomDrift"
+
+    def __init__(self, config: TSMOMDriftConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or TSMOMDriftConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        p = prices[avail]
+
+        # 12-1 month momentum signal (same as I1)
+        ret = p.pct_change(c.lookback).shift(c.skip)
+        signal = (ret > 0).astype(float)
+
+        # Trend filter: TSI > 0 per asset
+        tsi_val = pd.DataFrame(np.nan, index=p.index, columns=avail)
+        for t in avail:
+            tsi_val[t] = tsi(p[t])
+        trend_up = (tsi_val > 0).astype(float).fillna(0.0)
+        signal = signal * trend_up
+
+        # Vol-scale each position
+        rvol = p.pct_change().fillna(0.0).rolling(c.vol_window).std() * np.sqrt(252)
+        rvol = rvol.clip(lower=0.05)
+        vol_scale = (c.target_vol / rvol).clip(upper=3.0).fillna(0.0)
+
+        # Normalize by number of active positions
+        n_active = signal.sum(axis=1).clip(lower=1)
+        weights = signal * vol_scale * c.leverage
+        weights = weights.div(n_active, axis=0)
+        weights = weights.clip(0, c.max_weight)
+
+        # Drift regime gate
+        daily_ret = p.pct_change().fillna(0.0)
+        pos_day = (daily_ret > 0).astype(float)
+        drift_ratio = pos_day.rolling(c.drift_window, min_periods=21).mean()
+        drift_ratio = drift_ratio.fillna(0.0)
+
+        # Scale: full weight when drift ON, reduced when drift OFF
+        drift_on = pd.notna(drift_ratio) & (drift_ratio > c.drift_threshold)
+        drift_scale = np.where(drift_on, 1.0, c.drift_off_scale)
+        weights = weights * drift_scale
+
+        return weights.reindex(columns=prices.columns, fill_value=0.0).replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(0.0)

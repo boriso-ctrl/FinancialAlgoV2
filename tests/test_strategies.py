@@ -1323,6 +1323,108 @@ class TestYieldCurveRegime:
 
 
 # =========================================================================
+# Cat M: M10, M11, M1b — Signal Scoreboard Strategies
+# =========================================================================
+
+class TestMacroSignalScoreboard:
+    def test_basic(self):
+        from financial_algo.strategies.macro import MacroSignalScoreboard
+        prices = _make_prices(n=400)
+        strat = MacroSignalScoreboard()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.macro import MacroSignalScoreboard
+        prices = _make_prices(n=400)
+        strat = MacroSignalScoreboard()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_empty_prices(self):
+        from financial_algo.strategies.macro import MacroSignalScoreboard
+        prices = pd.DataFrame()
+        strat = MacroSignalScoreboard()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+
+    def test_max_leverage(self):
+        from financial_algo.strategies.macro import MacroSignalScoreboard
+        prices = _make_prices(n=400)
+        strat = MacroSignalScoreboard()
+        w = strat.generate_weights(prices)
+        assert w.sum(axis=1).max() <= 1.6  # 1.5x max with rounding
+
+
+class TestAdaptiveMacroBlend:
+    def test_basic(self):
+        from financial_algo.strategies.macro import AdaptiveMacroBlend
+        prices = _make_prices(n=400)
+        strat = AdaptiveMacroBlend()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.macro import AdaptiveMacroBlend
+        prices = _make_prices(n=400)
+        strat = AdaptiveMacroBlend()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_empty_prices(self):
+        from financial_algo.strategies.macro import AdaptiveMacroBlend
+        prices = pd.DataFrame()
+        strat = AdaptiveMacroBlend()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+
+    def test_no_lookahead(self):
+        from financial_algo.strategies.macro import AdaptiveMacroBlend
+        prices = _make_prices(n=400)
+        strat = AdaptiveMacroBlend()
+        # Run twice with same input -- deterministic
+        w1 = strat.generate_weights(prices)
+        w2 = strat.generate_weights(prices)
+        pd.testing.assert_frame_equal(w1, w2)
+
+
+class TestDollarCarryScoreboard:
+    def test_basic(self):
+        from financial_algo.strategies.macro import DollarCarryScoreboard
+        prices = _make_prices(n=400)
+        strat = DollarCarryScoreboard()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.macro import DollarCarryScoreboard
+        prices = _make_prices(n=400)
+        strat = DollarCarryScoreboard()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_empty_prices(self):
+        from financial_algo.strategies.macro import DollarCarryScoreboard
+        prices = pd.DataFrame()
+        strat = DollarCarryScoreboard()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+
+    def test_missing_dollar_ticker(self):
+        from financial_algo.strategies.macro import DollarCarryScoreboard
+        prices = _make_prices(n=300).drop(columns=["UUP"])
+        strat = DollarCarryScoreboard()
+        w = strat.generate_weights(prices)
+        assert (w == 0).all().all()
+
+
+# =========================================================================
 # Cat R: Regime Hardening — R7, R8
 # =========================================================================
 

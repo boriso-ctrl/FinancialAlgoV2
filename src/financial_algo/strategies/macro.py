@@ -703,3 +703,523 @@ class YieldCurveRegime(Strategy):
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights
+
+
+# =========================================================================
+# M10 — Macro Signal Scoreboard
+# =========================================================================
+
+@dataclass
+class MacroSignalScoreboardConfig:
+    """Config for multi-signal macro scoreboard."""
+
+    # Tickers
+    tlt_ticker: str = "TLT"
+    ief_ticker: str = "IEF"
+    lqd_ticker: str = "LQD"
+    hyg_ticker: str = "HYG"
+    uup_ticker: str = "UUP"
+    gld_ticker: str = "GLD"
+    eem_ticker: str = "EEM"
+    spy_ticker: str = "SPY"
+    qqq_ticker: str = "QQQ"
+    xle_ticker: str = "XLE"
+    vix_ticker: str = "^VIX"
+
+    # Window lengths
+    curve_momentum: int = 63
+    credit_momentum: int = 63
+    dollar_momentum: int = 63
+    gold_momentum: int = 126
+    em_momentum: int = 63
+    bond_momentum: int = 63
+    commodity_momentum: int = 63
+
+    # VIX thresholds
+    vix_bull: float = 20.0
+    vix_bear: float = 25.0
+
+    # Smoothing
+    ema_span: int = 5
+
+    # Leverage per regime
+    leverage_strong: float = 1.5
+    leverage_mild: float = 1.0
+    leverage_defensive: float = 0.8
+    leverage_riskoff: float = 0.5
+
+
+class MacroSignalScoreboard(Strategy):
+    """Multi-signal macro scoreboard for regime detection.
+
+    Thesis: Macro regime transitions are best detected by consensus of
+    multiple indicators rather than any single signal. Count how many of
+    8 macro indicators are bullish, smooth with EMA, and allocate across
+    risk buckets.
+
+    Signals (each +1 bullish, -1 bearish, 0 neutral):
+      1. Yield curve slope (TLT/IEF 63d momentum) -- steepening = bullish
+      2. Credit spread (HYG/LQD 63d momentum) -- narrowing = bullish
+      3. Dollar strength (UUP 63d momentum) -- weakening = bullish
+      4. Gold momentum (GLD 126d return) -- positive = bullish
+      5. EM strength (EEM/SPY 63d ratio momentum) -- positive = bullish
+      6. VIX level -- <20 bullish, >25 bearish, else neutral
+      7. Bond momentum (TLT 63d return) -- positive = easing = bullish
+      8. Commodity momentum (XLE 63d return) -- positive = bullish
+    """
+
+    name = "M10-MacroSignalScoreboard"
+
+    def __init__(
+        self, config: MacroSignalScoreboardConfig | None = None,
+    ) -> None:
+        self.cfg = config or MacroSignalScoreboardConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if len(prices) == 0:
+            return weights
+
+        # ------ Compute 8 indicator signals (+1 / -1 / 0) ------
+        signals: list[pd.Series] = []
+
+        # 1. Yield curve slope: TLT/IEF ratio momentum
+        if c.tlt_ticker in prices.columns and c.ief_ticker in prices.columns:
+            curve_ratio = prices[c.tlt_ticker] / prices[c.ief_ticker]
+            curve_ratio = curve_ratio.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
+            curve_mom = curve_ratio.pct_change(c.curve_momentum).fillna(0.0)
+            signals.append(np.sign(curve_mom).rename("curve"))
+        else:
+            signals.append(pd.Series(0.0, index=prices.index, name="curve"))
+
+        # 2. Credit spread: HYG/LQD momentum (rising = narrowing = bullish)
+        if c.hyg_ticker in prices.columns and c.lqd_ticker in prices.columns:
+            credit_ratio = prices[c.hyg_ticker] / prices[c.lqd_ticker]
+            credit_ratio = credit_ratio.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
+            credit_mom = credit_ratio.pct_change(c.credit_momentum).fillna(0.0)
+            signals.append(np.sign(credit_mom).rename("credit"))
+        else:
+            signals.append(pd.Series(0.0, index=prices.index, name="credit"))
+
+        # 3. Dollar strength: UUP momentum (weakening = bullish -> invert)
+        if c.uup_ticker in prices.columns:
+            dollar_mom = prices[c.uup_ticker].pct_change(c.dollar_momentum).fillna(0.0)
+            signals.append((-np.sign(dollar_mom)).rename("dollar"))
+        else:
+            signals.append(pd.Series(0.0, index=prices.index, name="dollar"))
+
+        # 4. Gold momentum: GLD 126d return
+        if c.gld_ticker in prices.columns:
+            gold_mom = prices[c.gld_ticker].pct_change(c.gold_momentum).fillna(0.0)
+            signals.append(np.sign(gold_mom).rename("gold"))
+        else:
+            signals.append(pd.Series(0.0, index=prices.index, name="gold"))
+
+        # 5. EM strength: EEM/SPY ratio momentum
+        if c.eem_ticker in prices.columns and c.spy_ticker in prices.columns:
+            em_ratio = prices[c.eem_ticker] / prices[c.spy_ticker]
+            em_ratio = em_ratio.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
+            em_mom = em_ratio.pct_change(c.em_momentum).fillna(0.0)
+            signals.append(np.sign(em_mom).rename("em"))
+        else:
+            signals.append(pd.Series(0.0, index=prices.index, name="em"))
+
+        # 6. VIX level: <20 bullish(+1), >25 bearish(-1), else neutral(0)
+        if c.vix_ticker in prices.columns:
+            vix = prices[c.vix_ticker]
+            vix_sig = np.where(pd.notna(vix) & (vix < c.vix_bull), 1.0, 0.0)
+            vix_sig = np.where(pd.notna(vix) & (vix > c.vix_bear), -1.0, vix_sig)
+            signals.append(pd.Series(vix_sig, index=prices.index, name="vix"))
+        else:
+            signals.append(pd.Series(0.0, index=prices.index, name="vix"))
+
+        # 7. Bond momentum: TLT 63d return (positive = easing = bullish)
+        if c.tlt_ticker in prices.columns:
+            bond_mom = prices[c.tlt_ticker].pct_change(c.bond_momentum).fillna(0.0)
+            signals.append(np.sign(bond_mom).rename("bond"))
+        else:
+            signals.append(pd.Series(0.0, index=prices.index, name="bond"))
+
+        # 8. Commodity momentum: XLE 63d return
+        if c.xle_ticker in prices.columns:
+            comm_mom = prices[c.xle_ticker].pct_change(c.commodity_momentum).fillna(0.0)
+            signals.append(np.sign(comm_mom).rename("comm"))
+        else:
+            signals.append(pd.Series(0.0, index=prices.index, name="comm"))
+
+        # ------ Aggregate: count bullish signals ------
+        sig_df = pd.concat(signals, axis=1)
+        bullish_count = (sig_df == 1.0).sum(axis=1).astype(float)
+
+        # Smooth with EMA to avoid daily flipping
+        bullish_smooth = bullish_count.ewm(span=c.ema_span, adjust=False).mean()
+
+        # ------ Regime-based allocation ------
+        strong = bullish_smooth >= 6.0
+        mild = pd.notna(bullish_smooth) & (bullish_smooth >= 4.0) & ~strong
+        defensive = (
+            pd.notna(bullish_smooth) & (bullish_smooth >= 2.0) & ~strong & ~mild
+        )
+        riskoff = ~strong & ~mild & ~defensive
+
+        # STRONG RISK-ON: SPY 0.5, QQQ 0.3, EEM 0.2 x 1.5
+        lev = c.leverage_strong
+        if c.spy_ticker in prices.columns:
+            weights[c.spy_ticker] = np.where(strong, 0.5 * lev, weights[c.spy_ticker])
+        if c.qqq_ticker in prices.columns:
+            weights[c.qqq_ticker] = np.where(strong, 0.3 * lev, 0.0)
+        if c.eem_ticker in prices.columns:
+            weights[c.eem_ticker] = np.where(strong, 0.2 * lev, weights[c.eem_ticker])
+
+        # MILD RISK-ON: SPY 0.4, TLT 0.2, GLD 0.1 x 1.0
+        lev = c.leverage_mild
+        if c.spy_ticker in prices.columns:
+            weights[c.spy_ticker] = np.where(mild, 0.4 * lev, weights[c.spy_ticker])
+        if c.tlt_ticker in prices.columns:
+            weights[c.tlt_ticker] = np.where(mild, 0.2 * lev, weights[c.tlt_ticker])
+        if c.gld_ticker in prices.columns:
+            weights[c.gld_ticker] = np.where(mild, 0.1 * lev, weights[c.gld_ticker])
+
+        # DEFENSIVE: TLT 0.4, GLD 0.3, UUP 0.1 x 0.8
+        lev = c.leverage_defensive
+        if c.tlt_ticker in prices.columns:
+            weights[c.tlt_ticker] = np.where(defensive, 0.4 * lev, weights[c.tlt_ticker])
+        if c.gld_ticker in prices.columns:
+            weights[c.gld_ticker] = np.where(defensive, 0.3 * lev, weights[c.gld_ticker])
+        if c.uup_ticker in prices.columns:
+            weights[c.uup_ticker] = np.where(defensive, 0.1 * lev, weights[c.uup_ticker])
+
+        # RISK-OFF: TLT 0.4, GLD 0.4, UUP 0.2 x 0.5
+        lev = c.leverage_riskoff
+        if c.tlt_ticker in prices.columns:
+            weights[c.tlt_ticker] = np.where(riskoff, 0.4 * lev, weights[c.tlt_ticker])
+        if c.gld_ticker in prices.columns:
+            weights[c.gld_ticker] = np.where(riskoff, 0.4 * lev, weights[c.gld_ticker])
+        if c.uup_ticker in prices.columns:
+            weights[c.uup_ticker] = np.where(riskoff, 0.2 * lev, weights[c.uup_ticker])
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights
+
+
+# =========================================================================
+# M11 — Adaptive Macro Blend
+# =========================================================================
+
+@dataclass
+class AdaptiveMacroBlendConfig:
+    """Config for adaptive macro blend using signal accuracy weighting."""
+
+    # Tickers
+    tlt_ticker: str = "TLT"
+    ief_ticker: str = "IEF"
+    lqd_ticker: str = "LQD"
+    hyg_ticker: str = "HYG"
+    uup_ticker: str = "UUP"
+    gld_ticker: str = "GLD"
+    eem_ticker: str = "EEM"
+    spy_ticker: str = "SPY"
+    xle_ticker: str = "XLE"
+    vix_ticker: str = "^VIX"
+
+    # Signal windows (same as M10)
+    curve_momentum: int = 63
+    credit_momentum: int = 63
+    dollar_momentum: int = 63
+    gold_momentum: int = 126
+    em_momentum: int = 63
+    bond_momentum: int = 63
+    commodity_momentum: int = 63
+    vix_bull: float = 20.0
+    vix_bear: float = 25.0
+
+    # Accuracy scoring
+    accuracy_window: int = 42   # correlation window (63 - 21 = 42 usable days)
+    forward_return_days: int = 21
+    accuracy_lag: int = 21      # lag to avoid look-ahead
+
+    # Allocation thresholds
+    risk_on_threshold: float = 0.3
+    risk_off_threshold: float = -0.3
+
+    leverage: float = 0.8
+
+
+class AdaptiveMacroBlend(Strategy):
+    """Dynamically weight macro signals by their recent predictive accuracy.
+
+    Thesis: Instead of equal-weighting all macro signals, weight each by
+    how well it predicted forward SPY returns over the recent past. Signals
+    currently "working" get higher weight; signals that stopped working
+    fade out.
+
+    Look-ahead bias guard: accuracy at time t uses signal[t-63:t-21] vs
+    actual returns[t-42:t], so no future data is accessed.
+    """
+
+    name = "M11-AdaptiveMacroBlend"
+
+    def __init__(
+        self, config: AdaptiveMacroBlendConfig | None = None,
+    ) -> None:
+        self.cfg = config or AdaptiveMacroBlendConfig()
+
+    def _compute_signals(self, prices: pd.DataFrame) -> pd.DataFrame:
+        """Compute the 8 macro signals (same logic as M10)."""
+        c = self.cfg
+        signals: dict[str, pd.Series] = {}
+        idx = prices.index
+
+        # 1. Yield curve slope
+        if c.tlt_ticker in prices.columns and c.ief_ticker in prices.columns:
+            cr = prices[c.tlt_ticker] / prices[c.ief_ticker]
+            cr = cr.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
+            signals["curve"] = np.sign(cr.pct_change(c.curve_momentum).fillna(0.0))
+        else:
+            signals["curve"] = pd.Series(0.0, index=idx)
+
+        # 2. Credit spread
+        if c.hyg_ticker in prices.columns and c.lqd_ticker in prices.columns:
+            cr2 = prices[c.hyg_ticker] / prices[c.lqd_ticker]
+            cr2 = cr2.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
+            signals["credit"] = np.sign(cr2.pct_change(c.credit_momentum).fillna(0.0))
+        else:
+            signals["credit"] = pd.Series(0.0, index=idx)
+
+        # 3. Dollar (inverted -- weakening = bullish)
+        if c.uup_ticker in prices.columns:
+            signals["dollar"] = -np.sign(
+                prices[c.uup_ticker].pct_change(c.dollar_momentum).fillna(0.0),
+            )
+        else:
+            signals["dollar"] = pd.Series(0.0, index=idx)
+
+        # 4. Gold momentum
+        if c.gld_ticker in prices.columns:
+            signals["gold"] = np.sign(
+                prices[c.gld_ticker].pct_change(c.gold_momentum).fillna(0.0),
+            )
+        else:
+            signals["gold"] = pd.Series(0.0, index=idx)
+
+        # 5. EM strength
+        if c.eem_ticker in prices.columns and c.spy_ticker in prices.columns:
+            er = prices[c.eem_ticker] / prices[c.spy_ticker]
+            er = er.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
+            signals["em"] = np.sign(er.pct_change(c.em_momentum).fillna(0.0))
+        else:
+            signals["em"] = pd.Series(0.0, index=idx)
+
+        # 6. VIX level
+        if c.vix_ticker in prices.columns:
+            vix = prices[c.vix_ticker]
+            s = np.where(pd.notna(vix) & (vix < c.vix_bull), 1.0, 0.0)
+            s = np.where(pd.notna(vix) & (vix > c.vix_bear), -1.0, s)
+            signals["vix"] = pd.Series(s, index=idx)
+        else:
+            signals["vix"] = pd.Series(0.0, index=idx)
+
+        # 7. Bond momentum
+        if c.tlt_ticker in prices.columns:
+            signals["bond"] = np.sign(
+                prices[c.tlt_ticker].pct_change(c.bond_momentum).fillna(0.0),
+            )
+        else:
+            signals["bond"] = pd.Series(0.0, index=idx)
+
+        # 8. Commodity momentum
+        if c.xle_ticker in prices.columns:
+            signals["comm"] = np.sign(
+                prices[c.xle_ticker].pct_change(c.commodity_momentum).fillna(0.0),
+            )
+        else:
+            signals["comm"] = pd.Series(0.0, index=idx)
+
+        return pd.DataFrame(signals, index=idx)
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if len(prices) == 0:
+            return weights
+
+        sig_df = self._compute_signals(prices)
+
+        # Forward 21-day SPY return (will be lagged to avoid look-ahead)
+        if c.spy_ticker not in prices.columns:
+            return weights
+
+        spy = prices[c.spy_ticker]
+        # fwd_ret[d] = spy[d+21]/spy[d] - 1  (via shift(-21))
+        fwd_ret = spy.shift(-c.forward_return_days) / spy - 1
+        fwd_ret = fwd_ret.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+        # Rolling accuracy: corr(signal, fwd_ret) over 42 days, lagged 21d
+        accuracy_cols: dict[str, pd.Series] = {}
+        for col in sig_df.columns:
+            raw_corr = sig_df[col].rolling(
+                c.accuracy_window, min_periods=20,
+            ).corr(fwd_ret)
+            accuracy_cols[col] = raw_corr.shift(c.accuracy_lag).fillna(0.0)
+
+        accuracy_df = pd.DataFrame(accuracy_cols, index=prices.index)
+
+        # Weight each signal by max(accuracy, 0)
+        pos_accuracy = accuracy_df.clip(lower=0.0)
+        total_weight = pos_accuracy.sum(axis=1).replace(0.0, np.nan)
+
+        # Weighted score = sum(weight_i * signal_i) / sum(weight_i)
+        weighted_sum = (pos_accuracy * sig_df).sum(axis=1)
+        weighted_score = (weighted_sum / total_weight).fillna(0.0)
+        weighted_score = weighted_score.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+        # --- Allocation ---
+        lev = c.leverage
+        risk_on = pd.notna(weighted_score) & (weighted_score > c.risk_on_threshold)
+        risk_off = pd.notna(weighted_score) & (weighted_score < c.risk_off_threshold)
+        neutral = ~risk_on & ~risk_off
+
+        # Risk-on: SPY 0.5, EEM 0.2, XLE 0.1
+        if c.spy_ticker in prices.columns:
+            weights[c.spy_ticker] = np.where(risk_on, 0.5 * lev, weights[c.spy_ticker])
+        if c.eem_ticker in prices.columns:
+            weights[c.eem_ticker] = np.where(risk_on, 0.2 * lev, weights[c.eem_ticker])
+        if c.xle_ticker in prices.columns:
+            weights[c.xle_ticker] = np.where(risk_on, 0.1 * lev, weights[c.xle_ticker])
+
+        # Neutral: SPY 0.2, TLT 0.3, GLD 0.2
+        if c.spy_ticker in prices.columns:
+            weights[c.spy_ticker] = np.where(neutral, 0.2 * lev, weights[c.spy_ticker])
+        if c.tlt_ticker in prices.columns:
+            weights[c.tlt_ticker] = np.where(neutral, 0.3 * lev, weights[c.tlt_ticker])
+        if c.gld_ticker in prices.columns:
+            weights[c.gld_ticker] = np.where(neutral, 0.2 * lev, weights[c.gld_ticker])
+
+        # Risk-off: TLT 0.4, GLD 0.3, UUP 0.2
+        if c.tlt_ticker in prices.columns:
+            weights[c.tlt_ticker] = np.where(risk_off, 0.4 * lev, weights[c.tlt_ticker])
+        if c.gld_ticker in prices.columns:
+            weights[c.gld_ticker] = np.where(risk_off, 0.3 * lev, weights[c.gld_ticker])
+        if c.uup_ticker in prices.columns:
+            weights[c.uup_ticker] = np.where(risk_off, 0.2 * lev, weights[c.uup_ticker])
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights
+
+
+# =========================================================================
+# M1b — Dollar Carry Scoreboard (improved M1 with signal consensus)
+# =========================================================================
+
+@dataclass
+class DollarCarryScoreboardConfig:
+    """Config for dollar carry trade with 3-signal consensus."""
+
+    dollar_ticker: str = "UUP"
+    equity_ticker: str = "SPY"
+    safe_ticker: str = "TLT"
+
+    # Signal 1: UUP momentum (same as original M1)
+    momentum_window: int = 63
+    ema_span: int = 21
+
+    # Signal 2: UUP SMA crossover (DXY proxy)
+    fast_sma: int = 20
+    slow_sma: int = 60
+
+    # Signal 3: TLT 20-day momentum as rate differential proxy
+    tlt_momentum: int = 20
+
+    # Position sizing
+    leverage_risk_on: float = 1.0
+    safe_weight: float = 0.5
+
+    # Consensus: need >= 2 of 3 signals agreeing
+    consensus_threshold: int = 2
+
+
+class DollarCarryScoreboard(Strategy):
+    """Dollar carry trade enhanced with 3-signal consensus check.
+
+    Thesis: The original M1-DollarCarry uses a single signal (UUP momentum).
+    This variant requires 2-of-3 signal consensus before entry:
+      1. UUP momentum < 0 (dollar weakening)
+      2. UUP 20d SMA < 60d SMA (dollar in downtrend)
+      3. TLT 20d return > 0 (rates falling = dollar weakening)
+
+    The consensus filter reduces whipsaw and improves signal quality.
+    """
+
+    name = "M1b-DollarCarryScore"
+
+    def __init__(
+        self, config: DollarCarryScoreboardConfig | None = None,
+    ) -> None:
+        self.cfg = config or DollarCarryScoreboardConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if c.dollar_ticker not in prices.columns:
+            return weights
+
+        uup = prices[c.dollar_ticker]
+        uup_ema = ema(uup, c.ema_span)
+
+        # Signal 1: UUP momentum -- negative = dollar weakening = risk-on
+        dollar_mom = uup_ema.pct_change(c.momentum_window).fillna(0.0)
+        sig1_risk_on = (dollar_mom < 0).astype(float)
+
+        # Signal 2: UUP fast SMA < slow SMA = dollar downtrend = risk-on
+        uup_fast = uup.rolling(c.fast_sma, min_periods=10).mean()
+        uup_slow = uup.rolling(c.slow_sma, min_periods=20).mean()
+        sig2_risk_on = (uup_fast < uup_slow).astype(float)
+
+        # Signal 3: TLT 20-day momentum > 0 = rates falling = risk-on
+        if c.safe_ticker in prices.columns:
+            tlt_mom = prices[c.safe_ticker].pct_change(c.tlt_momentum).fillna(0.0)
+            sig3_risk_on = (pd.notna(tlt_mom) & (tlt_mom > 0)).astype(float)
+        else:
+            sig3_risk_on = pd.Series(0.0, index=prices.index)
+
+        # Consensus score: count how many signals say risk-on
+        consensus_on = sig1_risk_on + sig2_risk_on + sig3_risk_on
+
+        # Inverse consensus for risk-off direction
+        sig1_off = (dollar_mom > 0).astype(float)
+        sig2_off = (uup_fast > uup_slow).astype(float)
+        if c.safe_ticker in prices.columns:
+            sig3_off = (pd.notna(tlt_mom) & (tlt_mom < 0)).astype(float)
+        else:
+            sig3_off = pd.Series(0.0, index=prices.index)
+        consensus_off = sig1_off + sig2_off + sig3_off
+
+        # Take trade only when consensus threshold met
+        go_risk_on = consensus_on >= c.consensus_threshold
+        go_risk_off = consensus_off >= c.consensus_threshold
+
+        if c.equity_ticker in prices.columns:
+            weights[c.equity_ticker] = np.where(
+                go_risk_on, c.leverage_risk_on, 0.0,
+            )
+        safe_col = c.safe_ticker if c.safe_ticker in prices.columns else c.dollar_ticker
+        weights[safe_col] = np.where(
+            go_risk_off, c.safe_weight,
+            np.where(~go_risk_on, c.safe_weight * 0.5, weights[safe_col]),
+        )
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights

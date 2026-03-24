@@ -1359,3 +1359,376 @@ class VolRegimeClustering(Strategy):
             weights.loc[is_crisis, c.dollar_ticker] = c.crisis_dollar
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L9 — VIX Adaptive Carry (continuous VIX-scaled vol selling)
+# =========================================================================
+
+@dataclass
+class VIXAdaptiveCarryConfig:
+    """Continuously scale vol-carry exposure using exp(-k*(VIX/base-1)).
+
+    Instead of binary on/off for vol selling, smoothly reduce exposure
+    as VIX rises.  Hard cutoff at VIX > 35 for tail protection.
+    """
+
+    equity_ticker: str = "SPY"
+    safe_ticker: str = "TLT"
+    gold_ticker: str = "GLD"
+
+    realized_vol_window: int = 20
+    smooth_span: int = 5
+
+    # VIX-scaling parameters (from Scout / CannedOrgi research)
+    vix_k: float = 0.05          # decay constant
+    vix_base: float = 20.0       # baseline VIX level
+    vix_hard_cutoff: float = 35.0  # force flat above this VIX
+
+    # Contango detection — VIX proxy term structure
+    contango_threshold: float = 1.05   # VIX/RV > threshold = contango
+
+    # Base allocations (before VIX scaling)
+    base_equity: float = 1.3      # long SPY when selling vol
+    base_safe: float = 0.2        # small TLT hedge always on
+    base_gold: float = 0.1        # small GLD hedge always on
+    flat_safe: float = 0.5        # TLT when flat (backwardation / cutoff)
+    flat_gold: float = 0.3        # GLD when flat
+
+    # Trend filter
+    trend_window: int = 50
+
+    # Max leverage
+    max_leverage: float = 1.5
+
+
+class VIXAdaptiveCarry(Strategy):
+    """Continuously scale vol-carry exposure via exponential VIX factor.
+
+    Thesis
+    ------
+    The volatility risk premium (implied > realized) is most safely
+    harvested in calm markets.  Rather than a binary switch, use a
+    continuous scaling factor:
+
+        regime_factor = exp(-k * (VIX / base_vix - 1))
+
+    This naturally reduces exposure as VIX rises and increases it when
+    VIX is calm.  Hard cutoff at VIX > 35 for tail protection.
+    Contango confirmation (VIX > realized vol) gates the carry signal.
+
+    Target assets: SPY (long when selling vol), TLT + GLD (hedges).
+    """
+
+    name = "L9-VIXAdaptiveCarry"
+
+    def __init__(self, config: VIXAdaptiveCarryConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or VIXAdaptiveCarryConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if c.equity_ticker not in prices.columns:
+            return weights
+
+        equity = prices[c.equity_ticker]
+
+        # --- VIX ---
+        if "^VIX" in prices.columns:
+            vix = prices["^VIX"].ffill().fillna(c.vix_base)
+        else:
+            rv_proxy = realized_vol(equity, c.realized_vol_window) * 100
+            vix = rv_proxy.ffill().fillna(c.vix_base)
+
+        # --- Realized vol (annualised %) ---
+        rv = realized_vol(equity, c.realized_vol_window) * 100
+        rv = ema(rv, c.smooth_span)
+        rv_safe = rv.replace(0, np.nan)
+
+        # --- Contango detection ---
+        ratio = vix / rv_safe
+        ratio = ratio.replace([np.inf, -np.inf], np.nan).fillna(1.0)
+        in_contango = pd.notna(ratio) & (ratio >= c.contango_threshold)
+
+        # --- Trend filter ---
+        sma = equity.rolling(c.trend_window, min_periods=20).mean()
+        uptrend = equity >= sma
+
+        # --- VIX regime factor: exp(-k * (VIX/base - 1)) ---
+        vix_ratio = vix / c.vix_base
+        regime_factor = np.exp(-c.vix_k * (vix_ratio - 1.0))
+        regime_factor = regime_factor.clip(0.0, 1.2)
+
+        # --- Hard cutoff ---
+        above_cutoff = pd.notna(vix) & (vix > c.vix_hard_cutoff)
+
+        # --- Build weights ---
+        # Base case: contango + uptrend -> full carry
+        carry_signal = in_contango & uptrend
+        carry_partial = in_contango & ~uptrend  # contango but no trend
+
+        # Equity: base * regime_factor, scaled by signal quality
+        eq_weight = pd.Series(0.0, index=prices.index)
+        eq_weight = eq_weight.where(~carry_signal, c.base_equity * regime_factor)
+        eq_weight = eq_weight.where(~(carry_partial & ~carry_signal),
+                                    c.base_equity * 0.5 * regime_factor)
+
+        # Non-contango: small equity allocation scaled by regime factor
+        no_carry = ~in_contango
+        eq_weight = eq_weight.where(~(no_carry & uptrend),
+                                    0.3 * regime_factor)
+        eq_weight = eq_weight.where(~(no_carry & ~uptrend), 0.0)
+
+        # Force flat above cutoff
+        eq_weight = eq_weight.where(~above_cutoff, 0.0)
+
+        # Cap at max leverage
+        eq_weight = eq_weight.clip(0.0, c.max_leverage)
+        weights[c.equity_ticker] = eq_weight
+
+        # --- Hedges ---
+        # TLT: inversely proportional to equity exposure
+        if c.safe_ticker in prices.columns:
+            safe_weight = c.base_safe + (1.0 - regime_factor.clip(0.0, 1.0)) * 0.3
+            safe_weight = safe_weight.where(~above_cutoff, c.flat_safe)
+            weights[c.safe_ticker] = safe_weight.clip(0.0, 0.8)
+
+        if c.gold_ticker in prices.columns:
+            gold_weight = c.base_gold + (1.0 - regime_factor.clip(0.0, 1.0)) * 0.2
+            gold_weight = gold_weight.where(~above_cutoff, c.flat_gold)
+            weights[c.gold_ticker] = gold_weight.clip(0.0, 0.5)
+
+        # --- Regime overlay ---
+        if regime is not None:
+            from financial_algo.regimes import Regime
+            crisis_set = {Regime.OIL_CRISIS, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS}
+            is_crisis = regime.isin(crisis_set)
+            weights.loc[is_crisis, c.equity_ticker] = 0.0
+            if c.safe_ticker in prices.columns:
+                weights.loc[is_crisis, c.safe_ticker] = c.flat_safe
+            if c.gold_ticker in prices.columns:
+                weights.loc[is_crisis, c.gold_ticker] = c.flat_gold
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L10 — Dynamic Vol Regime Switch (smooth blend between sell-vol / buy-vol)
+# =========================================================================
+
+@dataclass
+class DynamicVolRegimeSwitchConfig:
+    """Smoothly blend between vol-selling and vol-buying portfolios.
+
+    Uses the same exp(-k*(VIX/base-1)) factor to create continuous
+    weights between risk-on carry (sell vol) and risk-off hedging (buy vol).
+    """
+
+    equity_ticker: str = "SPY"
+    safe_ticker: str = "TLT"
+    gold_ticker: str = "GLD"
+
+    realized_vol_window: int = 20
+
+    # VIX-scaling parameters
+    vix_k: float = 0.10
+    vix_base: float = 20.0
+
+    # Vol-sell portfolio weights (risk-on carry)
+    sell_equity: float = 0.9      # long SPY
+    sell_safe: float = -0.1       # slight short TLT (carry)
+
+    # Vol-buy portfolio weights (risk-off hedging)
+    buy_equity: float = 0.0       # flat SPY in risk-off
+    buy_safe: float = 0.7         # long TLT
+    buy_gold: float = 0.4         # long GLD
+
+    # Trend confirmation
+    trend_window: int = 50
+    momentum_window: int = 63
+
+    # Max leverage
+    max_leverage: float = 1.2
+
+
+class DynamicVolRegimeSwitch(Strategy):
+    """Dynamically blend vol-selling and vol-buying portfolios.
+
+    Thesis
+    ------
+    Different vol strategies work in different VIX regimes.  Rather than
+    a discrete switch, smoothly blend between them:
+
+        vol_sell_weight = exp(-k * (VIX/base - 1))   # high when VIX low
+        vol_buy_weight  = 1 - vol_sell_weight          # high when VIX high
+
+    Vol-sell portfolio: long SPY, short TLT (risk-on carry).
+    Vol-buy portfolio:  long TLT, long GLD, short SPY (risk-off hedging).
+    Final weights = vol_sell_weight * sell_portfolio + vol_buy_weight * buy_portfolio.
+
+    This creates a smooth, continuous transition from risk-on to risk-off
+    as volatility rises, avoiding the whipsaw of binary regime switches.
+    """
+
+    name = "L10-DynamicVolRegimeSwitch"
+
+    def __init__(self, config: DynamicVolRegimeSwitchConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or DynamicVolRegimeSwitchConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if c.equity_ticker not in prices.columns:
+            return weights
+
+        equity = prices[c.equity_ticker]
+
+        # --- VIX ---
+        if "^VIX" in prices.columns:
+            vix = prices["^VIX"].ffill().fillna(c.vix_base)
+        else:
+            rv_proxy = realized_vol(equity, c.realized_vol_window) * 100
+            vix = rv_proxy.ffill().fillna(c.vix_base)
+
+        # --- Blending weights ---
+        vix_ratio = vix / c.vix_base
+        vol_sell_w = np.exp(-c.vix_k * (vix_ratio - 1.0))
+        vol_sell_w = vol_sell_w.clip(0.0, 1.0)
+        vol_buy_w = 1.0 - vol_sell_w
+
+        # --- Trend confirmation ---
+        sma = equity.rolling(c.trend_window, min_periods=20).mean()
+        uptrend = equity >= sma
+        mom_ret = equity.pct_change(c.momentum_window).fillna(0.0)
+        # Trend modifier: boost sell-vol in uptrend, boost buy-vol in downtrend
+        trend_mod = np.where(uptrend, 1.1, 0.9)
+
+        # --- Blended portfolio ---
+        # Equity: sell_equity * sell_w + buy_equity * buy_w
+        eq_raw = c.sell_equity * vol_sell_w * trend_mod + c.buy_equity * vol_buy_w
+        # TLT: sell_safe * sell_w + buy_safe * buy_w
+        safe_raw = pd.Series(0.0, index=prices.index)
+        if c.safe_ticker in prices.columns:
+            safe_raw = c.sell_safe * vol_sell_w + c.buy_safe * vol_buy_w
+        # GLD: only from buy portfolio
+        gold_raw = pd.Series(0.0, index=prices.index)
+        if c.gold_ticker in prices.columns:
+            gold_raw = c.buy_gold * vol_buy_w
+
+        # --- Leverage cap ---
+        gross = eq_raw.abs() + safe_raw.abs() + gold_raw.abs()
+        scale = np.where(gross > c.max_leverage,
+                         c.max_leverage / gross.replace(0, np.nan).fillna(1.0),
+                         1.0)
+        scale = pd.Series(scale, index=prices.index).replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(1.0)
+
+        weights[c.equity_ticker] = eq_raw * scale
+        if c.safe_ticker in prices.columns:
+            weights[c.safe_ticker] = safe_raw * scale
+        if c.gold_ticker in prices.columns:
+            weights[c.gold_ticker] = gold_raw * scale
+
+        # --- Regime overlay ---
+        if regime is not None:
+            from financial_algo.regimes import Regime
+            crisis_set = {Regime.OIL_CRISIS, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS}
+            is_crisis = regime.isin(crisis_set)
+            is_elevated = regime.isin([Regime.ELEVATED])
+            # Crisis: full risk-off
+            weights.loc[is_crisis, c.equity_ticker] = 0.0
+            if c.safe_ticker in prices.columns:
+                weights.loc[is_crisis, c.safe_ticker] = 0.8
+            if c.gold_ticker in prices.columns:
+                weights.loc[is_crisis, c.gold_ticker] = 0.5
+            # Elevated: tilt toward buy-vol
+            weights.loc[is_elevated] = weights.loc[is_elevated] * 0.7
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L1b — Vol Risk Premium Adaptive (VIX-scaled version of L1)
+# =========================================================================
+
+class VolRiskPremiumAdaptive(Strategy):
+    """VIX-adaptive version of L1 VolRiskPremium for A/B testing.
+
+    Thesis
+    ------
+    Same as L1 — harvest the vol risk premium via VIX-to-realized-vol
+    ratio — but with continuous VIX scaling applied to all weights:
+
+        regime_factor = exp(-0.05 * (VIX / 20 - 1))
+
+    This reduces exposure during VIX spikes and increases it in calm
+    periods, avoiding the binary on/off behaviour of the original L1.
+
+    The original L1 class is untouched; this is a separate class to
+    allow side-by-side comparison.
+    """
+
+    name = "L1b-VolRiskPremiumAdaptive"
+
+    def __init__(self, config: VolRiskPremiumConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or VolRiskPremiumConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if c.equity_ticker not in prices.columns:
+            return weights
+
+        # --- Realized vol on equity ---
+        rv = realized_vol(prices[c.equity_ticker], c.realized_vol_window) * 100
+        rv = ema(rv, c.smooth_span)
+
+        # --- VIX ---
+        if "^VIX" in prices.columns:
+            vix = prices["^VIX"].ffill().fillna(20.0)
+        else:
+            vix = rv * 1.3
+
+        # --- VIX-to-RV ratio ---
+        ratio = vix / rv.replace(0, np.nan)
+        ratio = ratio.replace([np.inf, -np.inf], np.nan).fillna(1.0)
+
+        # --- VIX regime factor ---
+        vix_base = 20.0
+        regime_factor = np.exp(-0.05 * (vix / vix_base - 1.0))
+        regime_factor = regime_factor.clip(0.1, 1.2)
+
+        # --- Signal classification (same as L1) ---
+        contango = pd.notna(ratio) & (ratio >= c.contango_threshold)
+        backwardation = pd.notna(ratio) & (ratio <= c.backwardation_threshold)
+        neutral = ~contango & ~backwardation
+
+        # --- Base weights (same as L1) ---
+        weights.loc[contango, c.equity_ticker] = c.leverage_contango
+        weights.loc[neutral, c.equity_ticker] = c.leverage_flat
+        weights.loc[backwardation, c.hedge_ticker] = c.hedge_backwardation
+
+        # --- Apply VIX regime factor to ALL weights ---
+        for col in weights.columns:
+            weights[col] = weights[col] * regime_factor
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)

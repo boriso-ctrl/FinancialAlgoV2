@@ -100,6 +100,24 @@ class EnsembleConfig:
     rsi_exit_scale_moderate: float = 0.75
     rsi_exit_scale_extreme: float = 0.50
 
+    # --- VIX-Adaptive Prior Weights (differential regime tilting) ---
+    # Dynamically tilt strategy allocation by VIX environment:
+    # Defensive strategies (B,C,D,F,G,L,O,R) get boosted in high-VIX;
+    # Risk-on strategies get boosted in low-VIX. After scaling, weights
+    # are renormalized so this is a RELATIVE tilt, not a leverage change.
+    vix_prior_scaling: bool = False
+    vix_prior_k: float = 0.05          # exponential tilt sensitivity
+    vix_prior_base: float = 20.0       # neutral VIX level
+    vix_prior_lookback: int = 20       # SPY realized-vol lookback (days)
+
+    # --- Drift Regime Filter (arXiv:2511.12490 inspired) ---
+    # Scale down ensemble exposure when market lacks positive drift.
+    # When <threshold fraction of trailing days are positive, reduce sizing.
+    drift_filter_enabled: bool = False
+    drift_lookback: int = 63           # trailing window for drift detection
+    drift_threshold: float = 0.58      # min positive-day fraction for full exposure
+    drift_scale_weak: float = 0.50     # min scale factor when drift is absent
+
 
 class EnsembleStrategy(Strategy):
     """Combine multiple :class:`Strategy` instances.
@@ -154,9 +172,16 @@ class EnsembleStrategy(Strategy):
         # --- Apply Sharpe-based prior weights (tilt towards winners) ------
         if c.prior_weights is not None and len(c.prior_weights) == n:
             prior = np.array(c.prior_weights, dtype=float)
-            prior = prior / prior.sum()  # normalize to sum=1
-            for col in range(n):
-                alloc[col] = alloc[col] * prior[col]
+
+            if c.vix_prior_scaling and "SPY" in prices.columns:
+                alloc = self._apply_vix_prior_scaling(
+                    alloc, prior, prices, n
+                )
+            else:
+                prior = prior / prior.sum()
+                for col in range(n):
+                    alloc[col] = alloc[col] * prior[col]
+
             alloc = alloc.div(alloc.sum(axis=1), axis=0).fillna(1.0 / n)
 
         # --- Hurst regime router: tilt alloc between momentum and MR -----
@@ -216,6 +241,10 @@ class EnsembleStrategy(Strategy):
         if c.skewkurt_overlay and c.skewkurt_spy in prices.columns:
             combined = self._apply_skewkurt_overlay(combined, prices)
 
+        # --- Drift regime filter overlay --------------------------------
+        if c.drift_filter_enabled and "SPY" in prices.columns:
+            combined = self._apply_drift_filter(combined, prices)
+
         # --- Drawdown circuit-breaker ------------------------------------
         combined = self._apply_circuit_breaker(combined, asset_returns)
 
@@ -243,6 +272,89 @@ class EnsembleStrategy(Strategy):
         else:
             alloc = pd.DataFrame(1.0 / n, index=strat_returns.index, columns=range(n))
         return alloc
+
+    # ------------------------------------------------------------------
+    # VIX-adaptive prior weights
+    # ------------------------------------------------------------------
+
+    _DEFENSIVE_PREFIXES = frozenset("BCDFGLOR")
+
+    def _apply_vix_prior_scaling(
+        self,
+        alloc: pd.DataFrame,
+        prior: np.ndarray,
+        prices: pd.DataFrame,
+        n: int,
+    ) -> pd.DataFrame:
+        """Differentially scale prior weights by VIX environment.
+
+        Defensive strategies get boosted in high-VIX; risk-on strategies
+        get boosted in low-VIX.  After scaling, weights are renormalized
+        so this is a relative tilt, not a leverage change.
+        """
+        c = self.cfg
+        spy_vol = (
+            prices["SPY"]
+            .pct_change()
+            .fillna(0.0)
+            .rolling(c.vix_prior_lookback)
+            .std()
+            .mul(np.sqrt(252))
+            .fillna(c.vix_prior_base / 100.0)
+        )
+        vix_proxy = spy_vol * 100.0  # scale to VIX-like units
+
+        # Classify strategies: +1 = defensive, -1 = risk-on
+        vix_affinity = np.array([
+            1.0 if s.name[:1] in self._DEFENSIVE_PREFIXES else -1.0
+            for s in self.strategies
+        ])
+
+        vix_ratio = np.asarray(vix_proxy / c.vix_prior_base - 1.0)  # (T,)
+        vix_factor = np.exp(
+            np.outer(vix_ratio, vix_affinity * c.vix_prior_k)
+        )  # (T, n)
+        dynamic_prior = prior[np.newaxis, :] * vix_factor  # (T, n)
+
+        row_sum = dynamic_prior.sum(axis=1, keepdims=True)
+        row_sum = np.where(row_sum > 0, row_sum, 1.0)
+        dynamic_prior = dynamic_prior / row_sum
+
+        for col in range(n):
+            alloc[col] = alloc[col] * dynamic_prior[:, col]
+
+        return alloc
+
+    # ------------------------------------------------------------------
+    # Drift regime filter
+    # ------------------------------------------------------------------
+
+    def _apply_drift_filter(
+        self,
+        weights: pd.DataFrame,
+        prices: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Scale exposure based on market positive-drift strength.
+
+        When the fraction of positive SPY return days over a trailing
+        window drops below the threshold, gradually reduce position sizes.
+        Inspired by arXiv:2511.12490 drift-regime research.
+        """
+        c = self.cfg
+        spy_ret = prices["SPY"].pct_change().fillna(0.0)
+        pos_frac = (
+            (spy_ret > 0)
+            .astype(float)
+            .rolling(c.drift_lookback)
+            .mean()
+            .fillna(0.5)
+        )
+
+        ramp_width = 0.15
+        lower = c.drift_threshold - ramp_width
+        scale = ((pos_frac - lower) / ramp_width).clip(c.drift_scale_weak, 1.0)
+
+        return weights.multiply(scale, axis=0)
 
     def _alloc_skfolio(
         self,

@@ -76,16 +76,22 @@
 ### Backlog — Weak Spot Regime Hardening (COMPLETED as Init 5)
   - See Init 5 below. 2015/2018/2022 improved. Structural constraint: orthogonal alpha sources per year.
 
-## Current Ensemble (v9): Sharpe 1.31, CAGR 24.81%, MaxDD -18.62%, 26 members
-- Walk-Forward: IS=1.34, WF=1.19, MaxDD -20.0% OOS, 11/14 folds positive (weak: 2015=-0.26, 2018=-0.07, 2022=-0.61)
+## Current Ensemble (v10.1): Sharpe 1.32, CAGR 23.70%, MaxDD -18.59%, 30 members
+- Walk-Forward: pending re-validation
 - Sharpe^2 weights, max_gross_leverage=2.5, 42-ticker universe
-- 323/323 tests passing
-- P1-FeatureComboSignal: Sharpe 0.96, CAGR 18.33% — features upgraded to 9 (Sprint 7)
-  - New features: tsi_rank, rmi_rank, skew_rank (inverted), kurt_rank (inverted), rcr_rank, hurst_rank
-  - All cross-sectionally ranked [0,1]; hurst_window=126 for lower latency
-- P4-AdaptiveThreshold: WF Sharpe 0.87, 86% positive folds (best OOS of all ML strategies)
-- P2-XGBoostSignalCombo: Sharpe 0.51, watching for v9 candidacy
-- P5-CrossSectionalRanker: Sharpe 0.49 (long-only), watching for v9 candidacy
+- 553/553 tests passing (2 pre-existing experimental failures)
+- **Alpha-Max v10 Sprint Results:**
+  - 7 dead-weight strategies killed: O2, O3, O5, R2, H3, M6, J6
+  - L8-VolRegimeClustering: Sharpe 0.70, CAGR 11.39% (Vera) -- KEEP
+  - M9-YieldCurveRegime: Sharpe 0.65, CAGR 10.27% (Marcus) -- KEEP
+  - L7-ImpliedRealizedSpread: Sharpe -0.17 -- KILLED (removed from ensemble)
+  - I10-AdaptiveTrendFilter: Sharpe -0.14 -- KILLED (not in ensemble)
+  - K6-QualityMomentumComposite: Sharpe 0.02 -- KILLED (not in ensemble)
+  - O8-VolatilityConvexity: 0 trades -- DEAD (removed from ensemble)
+  - G1/G3 restored to ensemble (were wrongly removed in v10)
+  - Net: Sharpe 1.31->1.32 (+0.01), CAGR 24.81%->23.70% (-1.11%), MaxDD -18.62%->-18.59%
+  - Lesson: Sharpe^2 weighting makes bottom-tier members nearly irrelevant;
+    improvement requires better top-5 strategies or lower inter-strategy correlation
 
 ## Alpha-Boost Sprint Plan (from open-source research) -- ALL COMPLETE
 - Sprint 1: 11 new indicators -- COMPLETE

@@ -363,3 +363,122 @@ class CryptoContagionHedge(Strategy):
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights
+
+
+# =========================================================================
+# F2b - Crypto Recovery Surge with ATR-based risk management
+# =========================================================================
+
+
+def _close_atr_f2b(close: pd.Series, period: int = 14) -> pd.Series:
+    """Close-only ATR proxy: rolling mean of absolute daily changes."""
+    abs_change = (close - close.shift(1)).abs()
+    return abs_change.rolling(period, min_periods=1).mean()
+
+
+@dataclass
+class CryptoRecoverySurgeATRConfig:
+    """Crypto trend-following with ATR-based position sizing and stops.
+
+    Improvement over F2: replaces fixed vol-scaling with ATR-based
+    position sizing (size = base_size * target_risk / ATR) and adds
+    ATR-based exit (flatten when loss > 2.5 * ATR from entry).
+    """
+
+    crypto_ticker: str = "BTC-USD"
+
+    fast_ema: int = 20
+    slow_ema: int = 50
+
+    base_leverage: float = 0.35
+    recovery_boost: float = 0.35
+
+    # ATR parameters
+    atr_period: int = 14
+    target_risk: float = 0.02   # target daily risk per position
+    max_weight: float = 0.50    # max position size (cap for DD control)
+    atr_stop_mult: float = 2.5  # flatten when loss > 2.5 * ATR
+
+
+class CryptoRecoverySurgeATR(Strategy):
+    """Crypto trend-following with ATR-based risk management.
+
+    Improvement over F2-CryptoRecoverySurge:
+      - ATR-based position sizing: size = base * (target_risk / ATR)
+        adapts position size to current crypto volatility
+      - ATR-based exit: flatten when loss > 2.5 * ATR from entry
+      - Recovery regime boost amplifies positions in crypto bounce
+
+    The ATR sizing means smaller positions during extreme vol (COVID,
+    FTX collapse) and larger positions in calmer trending markets.
+    """
+
+    name = "F2b-CryptoRecovSurgeATR"
+
+    def __init__(self, config: CryptoRecoverySurgeATRConfig | None = None) -> None:
+        self.cfg = config or CryptoRecoverySurgeATRConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        if regime is None:
+            raise ValueError("CryptoRecoverySurgeATR requires a regime Series")
+
+        c = self.cfg
+        btc = prices[c.crypto_ticker]
+        w = pd.DataFrame(0.0, index=prices.index, columns=[c.crypto_ticker])
+
+        # --- Trend: EMA crossover ---
+        fast = ema(btc, c.fast_ema)
+        slow = ema(btc, c.slow_ema)
+        trend_up = fast > slow
+
+        # --- ATR-based position sizing ---
+        atr_val = _close_atr_f2b(btc, c.atr_period).fillna(0.0)
+        safe_atr = atr_val.clip(lower=1e-8)
+        # Normalise ATR as fraction of price
+        atr_pct = (safe_atr / btc.clip(lower=1e-8)).fillna(0.0)
+        atr_pct = atr_pct.replace([np.inf, -np.inf], np.nan).fillna(0.01)
+
+        # Position size: scale inversely to ATR
+        atr_scale = (c.target_risk / atr_pct).clip(0.1, 2.0)
+        atr_scale = atr_scale.replace([np.inf, -np.inf], np.nan).fillna(1.0)
+
+        # Recovery boost
+        recovery = regime.isin({Regime.RECOVERY})
+        crisis = regime.isin({
+            Regime.GENERAL_CRISIS, Regime.WAR_CRISIS, Regime.OIL_CRISIS,
+        })
+
+        # Base weight: trend + ATR sizing
+        base = trend_up.astype(float) * c.base_leverage * atr_scale
+        # Recovery boost
+        boost = (recovery & trend_up).astype(float) * c.recovery_boost * atr_scale
+        weight = (base + boost).clip(upper=c.max_weight)
+
+        # Crisis damper
+        weight = weight.where(~crisis, weight * 0.3)
+
+        # --- ATR-based stop-loss ---
+        # Track cumulative return since trend started
+        # Detect trend transitions
+        trend_int = trend_up.astype(int)
+        trend_change = trend_int.diff().fillna(0.0)
+        trend_start = trend_change == 1
+
+        # Entry price at each trend start
+        entry_price = btc.where(trend_start).ffill()
+        entry_price = entry_price.where(trend_up)
+
+        # Cumulative move since entry (long position)
+        cum_move = (btc - entry_price).fillna(0.0)
+
+        # Stop: flatten when loss > 2.5 * ATR
+        is_stopped = pd.notna(cum_move) & (cum_move < -(c.atr_stop_mult * safe_atr))
+        weight = weight.where(~(trend_up & is_stopped), 0.0)
+
+        w[c.crypto_ticker] = weight
+        w = w.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return w

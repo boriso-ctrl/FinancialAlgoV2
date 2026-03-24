@@ -6,6 +6,7 @@ from financial_algo.strategies.crash_hedge import (
     CrashHedgeQQQ,
     FourStateTactical,
     VolCarry,
+    AdaptiveStopTrend,
 )
 from financial_algo.strategies.oil_crisis import (
     EnergyPairs,
@@ -25,6 +26,7 @@ from financial_algo.strategies.crypto_crisis import (
     CryptoGoldDivergence,
     CryptoRecoverySurge,
     CryptoContagionHedge,
+    CryptoRecoverySurgeATR,
 )
 from financial_algo.strategies.ensemble import EnsembleStrategy, EnsembleConfig
 from financial_algo.strategies.crisis_spike import (
@@ -43,6 +45,8 @@ from financial_algo.strategies.momentum import (
     GlobalMomentumRotation,
     KSTMomentum,
     AdaptiveTrendFilter,
+    DriftRegimeMomentum,
+    TimeSeriesMomentumDrift,
 )
 from financial_algo.strategies.mean_reversion import (
     SectorMeanReversion,
@@ -51,6 +55,7 @@ from financial_algo.strategies.mean_reversion import (
     CointegrationPairs,
     GlobalMeanReversion,
     FormulaicAlphaMeanRev,
+    DriftReversalAlpha,
 )
 from financial_algo.strategies.fixed_income import (
     YieldCurveTrade,
@@ -65,6 +70,9 @@ from financial_algo.strategies.volatility_strats import (
     CrossAssetVolSignal,
     ImpliedRealizedSpread,
     VolRegimeClustering,
+    VIXAdaptiveCarry,
+    DynamicVolRegimeSwitch,
+    VolRiskPremiumAdaptive,
 )
 from financial_algo.strategies.macro import (
     DollarCarry,
@@ -75,6 +83,9 @@ from financial_algo.strategies.macro import (
     GlobalRotation,
     CommodityMacroSignal,
     YieldCurveRegime,
+    MacroSignalScoreboard,
+    AdaptiveMacroBlend,
+    DollarCarryScoreboard,
 )
 from financial_algo.strategies.seasonal import (
     SeasonalStrategy,
@@ -97,6 +108,7 @@ from financial_algo.strategies.tail_risk import (
     PreciousMetalsCrisisHedge,
     DrawdownRecoveryTiming,
     VolatilityConvexity,
+    ATRCrisisAlpha,
 )
 from financial_algo.strategies.signal_combo import (
     Alpha158Ranker,
@@ -158,17 +170,17 @@ __all__ = [
     # I - Momentum
     "TimeSeriesMomentum", "CrossSectionalMomentum", "DualMomentum", "MomentumVolScaled",
     "GlobalMomentumRotation", "KSTMomentum", "AdaptiveTrendFilter",
-        "GlobalMomentumRotation", "KSTMomentum",
-        "GlobalMomentumRotation", "KSTMomentum", "AdaptiveTrendFilter",
+    "DriftRegimeMomentum", "TimeSeriesMomentumDrift",
     # J - Mean Reversion
     "SectorMeanReversion", "RSIMeanReversion", "OvernightGapFade", "CointegrationPairs",
-    "GlobalMeanReversion", "FormulaicAlphaMeanRev",
+    "GlobalMeanReversion", "FormulaicAlphaMeanRev", "DriftReversalAlpha",
     # H - Fixed Income
     "YieldCurveTrade", "CreditSpreadMeanRev",
     # L - Volatility
     "VolRiskPremium", "VolSpreadHarvest", "VolOfVolRegime",
     "VolTermStructure", "VolSpikeRecovery", "CrossAssetVolSignal",
     "ImpliedRealizedSpread", "VolRegimeClustering",
+    "VIXAdaptiveCarry", "DynamicVolRegimeSwitch", "VolRiskPremiumAdaptive",
     # M - Macro
     "DollarCarry", "GoldDollarInverse", "EMRiskPremium", "CommodityMomentum",
     "RatesRegimeTrade", "GlobalRotation",
