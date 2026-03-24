@@ -49,13 +49,11 @@ from financial_algo.strategies.mean_reversion import (
     OvernightGapFade,
     CointegrationPairs,
     GlobalMeanReversion,
-    DV2MeanReversion,
     FormulaicAlphaMeanRev,
 )
 from financial_algo.strategies.fixed_income import (
     YieldCurveTrade,
     CreditSpreadMeanRev,
-    DurationTiming,
 )
 from financial_algo.strategies.volatility_strats import (
     VolRiskPremium,
@@ -64,6 +62,8 @@ from financial_algo.strategies.volatility_strats import (
     VolTermStructure,
     VolSpikeRecovery,
     CrossAssetVolSignal,
+    ImpliedRealizedSpread,
+    VolRegimeClustering,
 )
 from financial_algo.strategies.macro import (
     DollarCarry,
@@ -71,9 +71,9 @@ from financial_algo.strategies.macro import (
     EMRiskPremium,
     CommodityMomentum,
     RatesRegimeTrade,
-    InflationBreakevenTrade,
     GlobalRotation,
     CommodityMacroSignal,
+    YieldCurveRegime,
 )
 from financial_algo.strategies.seasonal import (
     SeasonalStrategy,
@@ -87,16 +87,15 @@ from financial_algo.strategies.factor import (
     ValueFactor,
     RealAssetsFactor,
     FormulaicAlphaMomentum,
+    QualityMomentumComposite,
 )
 from financial_algo.strategies.tail_risk import (
     TailRiskParity,
-    CrisisAlphaMomentum,
     BlackSwanInsurance,
-    CrisisRotation,
-    VIXSpikeRecovery,
     TailHedgeOverlay,
     PreciousMetalsCrisisHedge,
     DrawdownRecoveryTiming,
+    VolatilityConvexity,
 )
 from financial_algo.strategies.signal_combo import (
     Alpha158Ranker,
@@ -123,7 +122,6 @@ from financial_algo.strategies.multi_freq import (
 )
 from financial_algo.strategies.regime_hardening import (
     BearMarketAlpha,
-    CrisisHedgeAdaptive,
     DefensiveRotationR3,
     AdaptiveRiskBudget,
     RatesTighteningAlpha,
@@ -161,26 +159,28 @@ __all__ = [
     "GlobalMomentumRotation", "KSTMomentum",
     # J - Mean Reversion
     "SectorMeanReversion", "RSIMeanReversion", "OvernightGapFade", "CointegrationPairs",
-    "GlobalMeanReversion", "DV2MeanReversion", "FormulaicAlphaMeanRev",
+    "GlobalMeanReversion", "FormulaicAlphaMeanRev",
     # H - Fixed Income
-    "YieldCurveTrade", "CreditSpreadMeanRev", "DurationTiming",
+    "YieldCurveTrade", "CreditSpreadMeanRev",
     # L - Volatility
     "VolRiskPremium", "VolSpreadHarvest", "VolOfVolRegime",
     "VolTermStructure", "VolSpikeRecovery", "CrossAssetVolSignal",
+    "ImpliedRealizedSpread", "VolRegimeClustering",
     # M - Macro
     "DollarCarry", "GoldDollarInverse", "EMRiskPremium", "CommodityMomentum",
-    "RatesRegimeTrade", "InflationBreakevenTrade", "GlobalRotation",
-    "CommodityMacroSignal",
+    "RatesRegimeTrade", "GlobalRotation",
+    "CommodityMacroSignal", "YieldCurveRegime",
     # N - Seasonal
     "SeasonalStrategy", "TurnOfMonth", "PreHolidayDrift",
     # K - Factor
     "LowVolFactor", "MultiFactorComposite", "SizeFactor", "ValueFactor",
-    "RealAssetsFactor", "FormulaicAlphaMomentum",
+    "RealAssetsFactor", "FormulaicAlphaMomentum", "QualityMomentumComposite",
     # O - Tail Risk
-    "TailRiskParity", "CrisisAlphaMomentum", "BlackSwanInsurance",
-    "CrisisRotation", "VIXSpikeRecovery", "TailHedgeOverlay",
+    "TailRiskParity", "BlackSwanInsurance",
+    "TailHedgeOverlay",
     "PreciousMetalsCrisisHedge",
     "DrawdownRecoveryTiming",
+    "VolatilityConvexity",
     # P - Signal Combo / ML
     "Alpha158Ranker",
     "FeatureComboSignal",
@@ -196,7 +196,7 @@ __all__ = [
     "WeeklyMomentumRotation", "MonthlyMacroRegime",
     "MultiTimeframeTrend", "WeeklyMeanReversion",
     # R - Regime Hardening
-    "BearMarketAlpha", "CrisisHedgeAdaptive",
+    "BearMarketAlpha",
     "DefensiveRotationR3", "AdaptiveRiskBudget",
     "RatesTighteningAlpha", "BondEquityHedge",
     "VolExplosionAlpha", "VolRegimeSwitcher",

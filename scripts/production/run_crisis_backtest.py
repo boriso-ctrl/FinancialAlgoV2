@@ -16,7 +16,7 @@ Crisis periods tested:
   2023-2025  — Recent (baseline/recovery)
 
 Usage:
-    python scripts/run_crisis_backtest.py
+    python scripts/production/run_crisis_backtest.py
 """
 
 from __future__ import annotations
@@ -87,7 +87,6 @@ from financial_algo.strategies.mean_reversion import (
 from financial_algo.strategies.fixed_income import (
     YieldCurveTrade,
     CreditSpreadMeanRev,
-    DurationTiming,
 )
 from financial_algo.strategies.volatility_strats import (
     VolRiskPremium,
@@ -103,9 +102,9 @@ from financial_algo.strategies.macro import (
     EMRiskPremium,
     CommodityMomentum,
     RatesRegimeTrade,
-    InflationBreakevenTrade,
     GlobalRotation,
     CommodityMacroSignal,
+    YieldCurveRegime,
 )
 from financial_algo.strategies.seasonal import (
     SeasonalStrategy,
@@ -121,10 +120,7 @@ from financial_algo.strategies.factor import (
 )
 from financial_algo.strategies.tail_risk import (
     TailRiskParity,
-    CrisisAlphaMomentum,
     BlackSwanInsurance,
-    CrisisRotation,
-    VIXSpikeRecovery,
     TailHedgeOverlay,
     PreciousMetalsCrisisHedge,
 )
@@ -155,7 +151,7 @@ from financial_algo.strategies.multi_freq import (
     WeeklyMeanReversion,
 )
 from financial_algo.strategies.regime_hardening import (
-    BearMarketAlpha, CrisisHedgeAdaptive, DefensiveRotationR3,
+    BearMarketAlpha, DefensiveRotationR3,
     AdaptiveRiskBudget, RatesTighteningAlpha, BondEquityHedge,
     VolExplosionAlpha, VolRegimeSwitcher, MultiAssetCTATrend,
     CommodityMacroOverlay,
@@ -351,7 +347,6 @@ def build_strategy_registry():
         "Cat H-FI: Fixed Income": [
             ("H1-YieldCurveTrade",        YieldCurveTrade(),         False),
             ("H2-CreditSpreadMeanRev",    CreditSpreadMeanRev(),     False),
-            ("H3-DurationTiming",         DurationTiming(),          False),
         ],
         "Cat I: Momentum": [
             ("I1-TimeSeriesMomentum",     TimeSeriesMomentum(),      False),
@@ -388,9 +383,9 @@ def build_strategy_registry():
             ("M3-EMRiskPremium",          EMRiskPremium(),           False),
             ("M4-CommodityMomentum",      CommodityMomentum(),       False),
             ("M5-RatesRegimeTrade",       RatesRegimeTrade(),        False),
-            ("M6-InflationBreakeven",     InflationBreakevenTrade(), False),
             ("M7-GlobalRotation",         GlobalRotation(),          False),
             ("M8-CommodityMacroSignal",   CommodityMacroSignal(),    False),
+            ("M9-YieldCurveRegime",       YieldCurveRegime(),        False),
         ],
         "Cat N: Seasonal": [
             ("N1-SeasonalStrategy",       SeasonalStrategy(),        False),
@@ -399,10 +394,7 @@ def build_strategy_registry():
         ],
         "Cat O: Tail Risk": [
             ("O1-TailRiskParity",         TailRiskParity(),          False),
-            ("O2-CrisisAlphaMomentum",    CrisisAlphaMomentum(),     True),
-            ("O3-CrisisRotation",         CrisisRotation(),          True),
             ("O4-BlackSwanInsurance",      BlackSwanInsurance(),      False),
-            ("O5-VIXSpikeRecovery",       VIXSpikeRecovery(),        False),
             ("O6-TailHedgeOverlay",       TailHedgeOverlay(),        True),
             ("O7-PreciousMetalsCrisisHedge", PreciousMetalsCrisisHedge(), False),
         ],
@@ -432,7 +424,6 @@ def build_strategy_registry():
         ],
         "Cat R: Regime Hardening": [
             ("R1-BearMarketAlpha",        BearMarketAlpha(),         True),
-            ("R2-CrisisHedgeAdaptive",    CrisisHedgeAdaptive(),     True),
             ("R3-DefensiveRotation",      DefensiveRotationR3(),     True),
             ("R4-AdaptiveRiskBudget",     AdaptiveRiskBudget(),      False),
             ("R5-RatesTighteningAlpha",   RatesTighteningAlpha(),    False),

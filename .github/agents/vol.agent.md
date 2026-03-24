@@ -101,7 +101,7 @@ You own these strategy categories and their implementation files:
 ### Environment & Commands
 - **Python**: Use `.venv\Scripts\python.exe` (Windows) — never bare `python`
 - **Run tests**: `.venv\Scripts\python.exe -m pytest tests/ -v`
-- **Run backtest**: `.venv\Scripts\python.exe scripts/run_crisis_backtest.py`
+- **Run backtest**: `.venv\Scripts\python.exe scripts/production/run_crisis_backtest.py`
 - **Data cache**: `~/.financial_algo_cache/`
 - **Encoding**: ASCII-safe characters only in print statements
 - **Working directory**: `c:\Users\boris\Documents\GitHub\FinancialAlgoV2`

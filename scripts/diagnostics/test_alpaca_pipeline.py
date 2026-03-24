@@ -5,7 +5,7 @@ Usage:
     $env:ALPACA_API_KEY = "your-key-id"
     $env:ALPACA_SECRET = "your-secret-key"
 
-    .venv\Scripts\python.exe scripts/test_alpaca_pipeline.py
+    .venv\Scripts\python.exe scripts/diagnostics/test_alpaca_pipeline.py
 
 This script:
 1. Checks API connectivity and prints available history window

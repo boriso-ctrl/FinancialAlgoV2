@@ -1,6 +1,6 @@
 """Quick ensemble optimizer — tests multiple configurations to find the best Sharpe.
 
-Run: .venv\Scripts\python.exe scripts/optimize_ensemble.py
+Run: .venv\Scripts\python.exe scripts/diagnostics/optimize_ensemble.py
 """
 from __future__ import annotations
 import sys

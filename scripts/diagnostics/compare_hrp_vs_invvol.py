@@ -4,7 +4,7 @@ Runs the full ensemble with both weighting methods on the full period
 and prints a side-by-side comparison table.
 
 Usage:
-    .venv\\Scripts\\python.exe scripts/compare_hrp_vs_invvol.py
+    .venv\\Scripts\\python.exe scripts/diagnostics/compare_hrp_vs_invvol.py
 """
 
 from __future__ import annotations

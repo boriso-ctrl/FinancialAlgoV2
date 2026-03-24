@@ -141,10 +141,13 @@ class EMRiskPremiumConfig:
     # Credit spread proxy: HYG/LQD ratio
     hyg_ticker: str = "HYG"
     lqd_ticker: str = "LQD"
+    vix_ticker: str = "^VIX"
 
     spread_momentum: int = 21   # 1-month momentum of credit spread ratio
+    credit_health_window: int = 200  # HYG/LQD above 200d SMA = healthy credit
     trend_window: int = 100     # 100-day trend filter on EEM
     em_momentum: int = 63       # 3-month EEM momentum fallback
+    vix_threshold: float = 25.0  # reduce position when VIX > this
 
     leverage: float = 1.0
 
@@ -153,9 +156,11 @@ class EMRiskPremium(Strategy):
     """Long EEM when credit spreads tighten, IEF when widening.
 
     Thesis: EM equities carry a risk premium tied to global credit
-    conditions. When HYG/LQD ratio is rising (spreads tightening),
-    risk appetite improves -- long EEM. When ratio falls (spreads
-    widening), rotate to IEF. Long-only, no shorts.
+    conditions. When HYG/LQD ratio is rising (spreads tightening)
+    AND above its 200-day SMA (structural credit health), risk appetite
+    improves -- long EEM. When ratio falls (spreads widening), rotate
+    to IEF. VIX filter reduces position in high-vol regimes.
+    Long-only, no shorts.
     """
 
     name = "M3-EMRiskPremium"
@@ -174,16 +179,23 @@ class EMRiskPremium(Strategy):
 
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
-        # Credit spread momentum
+        # Credit spread momentum + structural health filter
         if c.hyg_ticker in prices.columns and c.lqd_ticker in prices.columns:
             spread_ratio = prices[c.hyg_ticker] / prices[c.lqd_ticker]
             spread_ratio = spread_ratio.replace([np.inf, -np.inf], np.nan).ffill()
             spread_mom = spread_ratio.pct_change(c.spread_momentum).fillna(0.0)
             credit_improving = pd.notna(spread_mom) & (spread_mom > 0)
+
+            # Credit health: HYG/LQD ratio above 200d SMA
+            spread_sma = spread_ratio.rolling(
+                c.credit_health_window, min_periods=60,
+            ).mean()
+            credit_healthy = spread_ratio >= spread_sma
         else:
             credit_improving = pd.Series(False, index=prices.index)
+            credit_healthy = pd.Series(True, index=prices.index)
 
-        # EEM momentum fallback — own asset momentum as secondary signal
+        # EEM momentum fallback -- own asset momentum as secondary signal
         em_mom = prices[c.em_ticker].pct_change(c.em_momentum).fillna(0.0)
         em_positive = pd.notna(em_mom) & (em_mom > 0)
 
@@ -191,10 +203,21 @@ class EMRiskPremium(Strategy):
         eem_sma = prices[c.em_ticker].rolling(c.trend_window, min_periods=50).mean()
         eem_above_trend = prices[c.em_ticker] >= eem_sma
 
-        # Long EEM when (credit improving OR em momentum positive) AND above trend
-        long_eem = (credit_improving | em_positive) & eem_above_trend
+        # Composite: credit improving AND healthy, OR em momentum, AND trend
+        long_eem = (
+            ((credit_improving & credit_healthy) | em_positive)
+            & eem_above_trend
+        )
 
-        weights[c.em_ticker] = np.where(long_eem, c.leverage, 0.0)
+        # VIX filter: halve position when VIX > threshold
+        if c.vix_ticker in prices.columns:
+            vix = prices[c.vix_ticker]
+            high_vol = pd.notna(vix) & (vix > c.vix_threshold)
+            vol_scale = np.where(high_vol, 0.5, 1.0)
+        else:
+            vol_scale = 1.0
+
+        weights[c.em_ticker] = np.where(long_eem, c.leverage * vol_scale, 0.0)
         safe_col = c.safe_ticker if c.safe_ticker in prices.columns else c.em_ticker
         weights[safe_col] = np.where(long_eem, 0.0, c.leverage)
 
@@ -338,94 +361,6 @@ class RatesRegimeTrade(Strategy):
         weights[c.bond_ticker] = np.where(long_tlt, c.leverage, 0.0)
         weights[c.equity_ticker] = np.where(
             long_spy | long_spy_default, c.leverage, 0.0,
-        )
-
-        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-        return weights
-
-
-# =========================================================================
-# M6 -- Inflation Breakeven Trade
-# =========================================================================
-
-@dataclass
-class InflationBreakevenConfig:
-    """Long TIP / short IEF when breakeven inflation is rising."""
-
-    tip_ticker: str = "TIP"
-    ief_ticker: str = "IEF"
-
-    # TIP/IEF ratio momentum as breakeven proxy
-    momentum_window: int = 21   # 1-month momentum of ratio
-    slow_momentum: int = 63     # 3-month momentum for confirmation
-    rebalance_days: int = 21    # monthly rebalance
-
-    long_weight: float = 1.0    # weight on long leg
-    short_weight: float = -0.5  # weight on short leg (partial hedge)
-
-
-class InflationBreakevenTrade(Strategy):
-    """Long TIP / short IEF when breakeven inflation is rising.
-
-    Thesis: The TIP/IEF ratio proxies breakeven inflation expectations.
-    When the ratio has positive momentum (breakevens rising), inflation
-    expectations are increasing -- long TIPS, short nominal Treasuries.
-    When the ratio is falling (disinflation), reverse the trade.
-    Monthly rebalance to reduce turnover.
-    """
-
-    name = "M6-InflationBreakevenTrade"
-
-    def __init__(self, config: InflationBreakevenConfig | None = None) -> None:
-        self.cfg = config or InflationBreakevenConfig()
-
-    def generate_weights(
-        self,
-        prices: pd.DataFrame,
-        regime: pd.Series | None = None,
-    ) -> pd.DataFrame:
-        c = self.cfg
-        if c.tip_ticker not in prices.columns or c.ief_ticker not in prices.columns:
-            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-
-        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-
-        # Breakeven proxy: TIP/IEF ratio
-        tip = prices[c.tip_ticker]
-        ief = prices[c.ief_ticker]
-        ratio = tip / ief
-        ratio = ratio.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
-
-        # Fast and slow momentum of the ratio
-        fast_mom = ratio.pct_change(c.momentum_window).fillna(0.0)
-        slow_mom = ratio.pct_change(c.slow_momentum).fillna(0.0)
-
-        # Signal: rising breakevens (both fast and slow positive)
-        inflation_rising = (fast_mom > 0) & (slow_mom > 0)
-        inflation_falling = (fast_mom < 0) & (slow_mom < 0)
-
-        # Monthly rebalance mask: only change positions on rebalance days
-        bdays = np.arange(len(prices))
-        rebal_mask = (bdays % c.rebalance_days) == 0
-
-        # Build raw signal, then forward-fill between rebalance dates
-        raw_signal = pd.Series(np.nan, index=prices.index)
-        raw_signal.iloc[rebal_mask & inflation_rising.values] = 1.0
-        raw_signal.iloc[rebal_mask & inflation_falling.values] = -1.0
-        raw_signal.iloc[
-            rebal_mask & ~inflation_rising.values & ~inflation_falling.values
-        ] = 0.0
-        raw_signal = raw_signal.ffill().fillna(0.0)
-
-        # Position: long TIP / short IEF when inflation rising
-        #           long IEF / short TIP when inflation falling
-        weights[c.tip_ticker] = np.where(
-            raw_signal > 0, c.long_weight,
-            np.where(raw_signal < 0, c.short_weight, 0.0),
-        )
-        weights[c.ief_ticker] = np.where(
-            raw_signal > 0, c.short_weight,
-            np.where(raw_signal < 0, c.long_weight, 0.0),
         )
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
@@ -628,6 +563,143 @@ class CommodityMacroSignal(Strategy):
             w_safe = c.leverage / len(safe_avail)
             for t in safe_avail:
                 weights[t] = np.where(~risk_on_confirmed, w_safe, weights[t])
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights
+
+
+# =========================================================================
+# M9 -- Yield Curve Regime
+# =========================================================================
+
+@dataclass
+class YieldCurveRegimeConfig:
+    """Position based on yield-curve slope regime (TLT/IEF ratio proxy)."""
+
+    tlt_ticker: str = "TLT"
+    ief_ticker: str = "IEF"
+
+    # Regime assets
+    equity_ticker: str = "SPY"
+    bank_ticker: str = "XLF"
+    gold_ticker: str = "GLD"
+    dollar_ticker: str = "UUP"
+
+    zscore_window: int = 252       # 1-year lookback for z-score
+    momentum_window: int = 63      # 3-month slope momentum
+    ema_span: int = 21             # EMA smoothing on z-score
+
+    # Regime thresholds
+    steep_z: float = 0.5
+    flat_z: float = -0.5
+    inverted_z: float = -1.5
+
+    leverage: float = 1.0
+
+
+class YieldCurveRegime(Strategy):
+    """Allocate across macro regimes detected from yield-curve slope.
+
+    Thesis: The slope of the yield curve (TLT/IEF ratio as proxy) is
+    one of the most reliable macro signals. Steepening signals economic
+    expansion (risk-on), flattening signals late-cycle stress (risk-off),
+    and inversion signals recession risk (defensive + short equity).
+
+    States:
+      STEEPENING (z > 0.5, slope_mom > 0): SPY 1.0, XLF 0.5
+      FLAT (|z| <= 0.5): SPY 0.5, TLT 0.3, GLD 0.2
+      FLATTENING (z < -0.5, slope_mom < 0): TLT 0.8, GLD 0.4, UUP 0.3
+      INVERTED (z < -1.5): TLT 1.0, GLD 0.5, SPY -0.3
+    """
+
+    name = "M9-YieldCurveRegime"
+
+    def __init__(self, config: YieldCurveRegimeConfig | None = None) -> None:
+        self.cfg = config or YieldCurveRegimeConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        if c.tlt_ticker not in prices.columns or c.ief_ticker not in prices.columns:
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        # Yield-curve slope proxy: TLT/IEF ratio
+        tlt = prices[c.tlt_ticker]
+        ief = prices[c.ief_ticker]
+        slope_ratio = tlt / ief
+        slope_ratio = slope_ratio.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
+
+        # Z-score of slope ratio over 252-day lookback
+        roll = slope_ratio.rolling(c.zscore_window, min_periods=60)
+        roll_std = roll.std().replace(0, np.nan)
+        raw_z = (slope_ratio - roll.mean()) / roll_std
+        raw_z = raw_z.fillna(0.0)
+
+        # Smooth z-score with 21-day EMA to prevent whipsaw
+        z = ema(raw_z, c.ema_span)
+
+        # Slope momentum: 63-day rate of change of the ratio
+        slope_mom = slope_ratio.pct_change(c.momentum_window).fillna(0.0)
+
+        # Regime classification (vectorized, priority: inverted > flattening > steepening > flat)
+        is_inverted = z < c.inverted_z
+        is_flattening = ~is_inverted & (z < c.flat_z) & (slope_mom < 0)
+        is_steepening = (z > c.steep_z) & (slope_mom > 0)
+        is_flat = ~is_inverted & ~is_flattening & ~is_steepening
+
+        # STEEPENING: risk-on
+        has_spy = c.equity_ticker in prices.columns
+        has_xlf = c.bank_ticker in prices.columns
+        if has_spy:
+            weights[c.equity_ticker] = np.where(is_steepening, c.leverage, 0.0)
+        if has_xlf:
+            weights[c.bank_ticker] = np.where(
+                is_steepening, 0.5 * c.leverage, 0.0,
+            )
+
+        # FLAT: balanced
+        if has_spy:
+            weights[c.equity_ticker] = np.where(
+                is_flat, 0.5 * c.leverage, weights[c.equity_ticker],
+            )
+        weights[c.tlt_ticker] = np.where(is_flat, 0.3 * c.leverage, 0.0)
+        has_gld = c.gold_ticker in prices.columns
+        if has_gld:
+            weights[c.gold_ticker] = np.where(
+                is_flat, 0.2 * c.leverage, 0.0,
+            )
+
+        # FLATTENING: risk-off
+        weights[c.tlt_ticker] = np.where(
+            is_flattening, 0.8 * c.leverage, weights[c.tlt_ticker],
+        )
+        if has_gld:
+            weights[c.gold_ticker] = np.where(
+                is_flattening, 0.4 * c.leverage, weights[c.gold_ticker],
+            )
+        has_uup = c.dollar_ticker in prices.columns
+        if has_uup:
+            weights[c.dollar_ticker] = np.where(
+                is_flattening, 0.3 * c.leverage, 0.0,
+            )
+
+        # INVERTED: recession -- defensive + short equity
+        weights[c.tlt_ticker] = np.where(
+            is_inverted, 1.0 * c.leverage, weights[c.tlt_ticker],
+        )
+        if has_gld:
+            weights[c.gold_ticker] = np.where(
+                is_inverted, 0.5 * c.leverage, weights[c.gold_ticker],
+            )
+        if has_spy:
+            weights[c.equity_ticker] = np.where(
+                is_inverted, -0.3 * c.leverage, weights[c.equity_ticker],
+            )
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights

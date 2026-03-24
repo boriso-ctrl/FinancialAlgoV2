@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from financial_algo.indicators import dv2, realized_vol, tsi, zscore
+from financial_algo.indicators import realized_vol, tsi, zscore
 from financial_algo.strategies.base import Strategy
 
 
@@ -439,101 +439,6 @@ class GlobalMeanReversion(Strategy):
         n_active = signals.sum(axis=1).clip(lower=1)
         for t in avail:
             weights[t] = signals[t] * c.leverage / n_active
-
-        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-
-
-# =========================================================================
-# J6 — DV2 Mean-Reversion (Connors/Alvarez oscillator)
-# =========================================================================
-
-@dataclass
-class DV2MeanRevConfig:
-    """Config for DV2 mean-reversion strategy."""
-
-    tickers: list[str] | None = None
-    benchmark: str = "SPY"
-    dv2_oversold: float = 25.0      # buy when DV2 < this
-    dv2_overbought: float = 75.0    # exit when DV2 > this
-    trend_window: int = 200         # price > SMA = allowed to long
-    ma_period: int = 2              # DV2 smoothing window
-    rank_period: int = 252          # DV2 percentile lookback
-    max_positions: int = 5          # max concurrent longs
-    leverage: float = 1.5
-
-    def __post_init__(self) -> None:
-        if self.tickers is None:
-            self.tickers = [
-                "SPY", "QQQ", "IWM", "EFA", "EEM",
-                "XLK", "XLF", "XLI", "XLP", "XLB",
-                "XLE", "GLD", "TLT",
-            ]
-
-
-class DV2MeanReversion(Strategy):
-    """Short-term mean-reversion using the DV2 oscillator.
-
-    Thesis: The DV2 percentile-rank of close/midprice ratio is a robust
-    oversold/overbought indicator (Connors/Alvarez 2009).  Buy oversold
-    assets that remain in uptrend; exit when DV2 normalises.
-
-    H/L proxy: rolling 2-bar max/min of close used in place of true OHLC.
-    """
-
-    name = "J6-DV2MeanReversion"
-
-    def __init__(self, config: DV2MeanRevConfig | None = None) -> None:
-        self.cfg = config or DV2MeanRevConfig()
-
-    def generate_weights(
-        self,
-        prices: pd.DataFrame,
-        regime: pd.Series | None = None,
-    ) -> pd.DataFrame:
-        c = self.cfg
-        avail = [t for t in c.tickers if t in prices.columns]
-        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-        if len(avail) < 2:
-            return weights
-
-        # Trend filter: each asset must close above SMA(trend_window)
-        sma = prices[avail].rolling(c.trend_window).mean()
-        in_uptrend = prices[avail] > sma
-
-        # DV2 for each asset using rolling 2-bar H/L proxy
-        dv2_df = pd.DataFrame(np.nan, index=prices.index, columns=avail)
-        for t in avail:
-            c_t = prices[t]
-            dv2_df[t] = dv2(
-                c_t.rolling(2).max(),
-                c_t.rolling(2).min(),
-                c_t,
-                c.ma_period,
-                c.rank_period,
-            )
-
-        # Signals: buy on oversold + uptrend; exit on overbought or downtrend
-        oversold = (dv2_df < c.dv2_oversold) & in_uptrend
-        exit_cond = (dv2_df > c.dv2_overbought) | ~in_uptrend
-
-        positions = pd.DataFrame(np.nan, index=prices.index, columns=avail)
-        positions[oversold] = 1.0
-        positions[exit_cond] = 0.0
-        positions = positions.ffill().fillna(0.0)
-
-        # Cap concurrent positions by ranking most oversold (lowest DV2)
-        if c.max_positions > 0:
-            dv2_rank = dv2_df.rank(axis=1, ascending=True)
-            active = positions.sum(axis=1)
-            too_many = active > c.max_positions
-            for t in avail:
-                drop = too_many & (dv2_rank[t] > c.max_positions)
-                positions.loc[drop, t] = 0.0
-
-        # Equal weight, normalised to leverage
-        n_active = positions.sum(axis=1).clip(lower=1)
-        for t in avail:
-            weights[t] = positions[t] / n_active * c.leverage
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 

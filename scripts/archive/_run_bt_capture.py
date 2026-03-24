@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 result = subprocess.run(
-    [sys.executable, "scripts/run_crisis_backtest.py"],
+    [sys.executable, "scripts/production/run_crisis_backtest.py"],
     capture_output=True,
     text=True,
     cwd=r"c:\Users\boris\Documents\GitHub\FinancialAlgoV2",

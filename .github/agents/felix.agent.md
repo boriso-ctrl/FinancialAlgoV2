@@ -96,8 +96,8 @@ You work in the **FinancialAlgoV2** repository — a Python-based quantitative t
 - **Python**: Use `.venv\Scripts\python.exe` (Windows) — never bare `python`
 - **Install deps**: `uv pip install -e ".[dev]"` or `pip install -e ".[dev]"`
 - **Run tests**: `.venv\Scripts\python.exe -m pytest tests/ -v`
-- **Run backtest**: `.venv\Scripts\python.exe scripts/run_crisis_backtest.py`
-- **Profile**: `.venv\Scripts\python.exe -m cProfile -s cumulative scripts/run_crisis_backtest.py`
+- **Run backtest**: `.venv\Scripts\python.exe scripts/production/run_crisis_backtest.py`
+- **Profile**: `.venv\Scripts\python.exe -m cProfile -s cumulative scripts/production/run_crisis_backtest.py`
 - **Encoding**: Use ASCII-safe characters only in print statements (Windows cp1252 terminal)
 - **Working directory**: `c:\Users\boris\Documents\GitHub\FinancialAlgoV2`
 

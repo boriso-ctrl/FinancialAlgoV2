@@ -631,3 +631,138 @@ class FormulaicAlphaMomentum(Strategy):
         weights = weights.where(rebal_mask).ffill().fillna(0.0)
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# K6 — Quality-Momentum Composite
+# =========================================================================
+
+@dataclass
+class QualityMomentumCompositeConfig:
+    """Config for quality-momentum composite factor strategy."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM", "GLD", "TLT", "IEF", "UUP",
+        "XLE", "XLK", "XLF", "XLI", "XLB", "XLP", "XLU", "XLY", "XLV",
+        "HYG", "LQD", "SLV", "SHY", "DBC", "DBA", "TIP", "AGG", "EMB",
+        "FXI", "VGK", "EWJ", "INDA", "VNQ", "XBI",
+    ])
+    sharpe_window: int = 126
+    mom_window: int = 252
+    vol_window: int = 63
+    sma_window: int = 200
+    sharpe_wt: float = 0.40
+    mom_wt: float = 0.35
+    inv_vol_wt: float = 0.25
+    long_n: int = 8
+    short_n: int = 3
+    long_weight: float = 0.15
+    short_weight: float = 0.10
+    crash_tlt_weight: float = 0.30
+
+
+class QualityMomentumComposite(Strategy):
+    """Cross-sectional quality + momentum composite factor.
+
+    Thesis: Assets with BOTH high recent risk-adjusted returns (Sharpe)
+    and positive momentum earn the highest weight. This captures the
+    well-documented interaction between quality and momentum factors.
+    A crash filter halves exposure when SPY is below its 200-day SMA.
+
+    Signal:
+    - 126d rolling Sharpe, 252d return, 63d inverse vol per asset.
+    - Rank each cross-sectionally [0,1], composite = weighted sum.
+    - Long top 8 (0.15 each), short bottom 3 (-0.10 each).
+    - Crash filter: if SPY < 200d SMA, halve positions + 0.30 TLT.
+    """
+
+    name = "K6-QualityMomentumComposite"
+
+    def __init__(
+        self, config: QualityMomentumCompositeConfig | None = None,
+    ) -> None:
+        super().__init__()
+        self.cfg = config or QualityMomentumCompositeConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if len(avail) < c.long_n + c.short_n:
+            return weights
+
+        p = prices[avail]
+        ret = p.pct_change().fillna(0.0)
+
+        # --- Signal 1: Rolling Sharpe ratio (126d) ---
+        roll_mean = ret.rolling(c.sharpe_window, min_periods=20).mean()
+        roll_std = ret.rolling(c.sharpe_window, min_periods=20).std().replace(
+            0.0, np.nan,
+        )
+        rolling_sharpe = (roll_mean / roll_std).replace(
+            [np.inf, -np.inf], np.nan,
+        ).fillna(0.0)
+
+        # --- Signal 2: 252-day momentum ---
+        mom = p.pct_change(c.mom_window).fillna(0.0)
+
+        # --- Signal 3: Inverse volatility (63d) ---
+        rvol = ret.rolling(c.vol_window, min_periods=10).std() * np.sqrt(252)
+        rvol = rvol.replace(0.0, np.nan).fillna(0.20)
+        inv_vol = 1.0 / rvol
+        inv_vol = inv_vol.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+        # --- Cross-sectional rank each signal [0, 1] ---
+        sharpe_rank = rolling_sharpe.rank(axis=1, pct=True).fillna(0.5)
+        mom_rank = mom.rank(axis=1, pct=True).fillna(0.5)
+        inv_vol_rank = inv_vol.rank(axis=1, pct=True).fillna(0.5)
+
+        # --- Composite score ---
+        composite = (
+            c.sharpe_wt * sharpe_rank
+            + c.mom_wt * mom_rank
+            + c.inv_vol_wt * inv_vol_rank
+        )
+
+        # --- Rank composite and select long/short ---
+        cs_rank = composite.rank(axis=1, method="average", ascending=True)
+        n_assets = cs_rank.count(axis=1)
+
+        long_thresh = n_assets - c.long_n + 0.5
+        short_thresh = c.short_n + 0.5
+
+        is_long = cs_rank.gt(long_thresh, axis=0)
+        is_short = cs_rank.lt(short_thresh, axis=0)
+
+        # Fixed position sizes
+        raw = pd.DataFrame(0.0, index=p.index, columns=p.columns)
+        raw = raw.where(~is_long, c.long_weight)
+        raw = raw.where(~is_short, -c.short_weight)
+
+        # --- Crash filter: SPY below 200d SMA ---
+        spy_col = "SPY" if "SPY" in prices.columns else avail[0]
+        spy_sma = prices[spy_col].rolling(c.sma_window, min_periods=50).mean()
+        crash = prices[spy_col] < spy_sma
+
+        # Halve all positions during crash
+        raw = raw.where(~crash, raw * 0.5)
+
+        # Add TLT hedge during crash
+        tlt_col = "TLT"
+        if tlt_col in prices.columns:
+            tlt_hedge = pd.Series(0.0, index=prices.index)
+            tlt_hedge = tlt_hedge.where(~crash, c.crash_tlt_weight)
+            if tlt_col in raw.columns:
+                raw[tlt_col] = raw[tlt_col] + tlt_hedge
+            elif tlt_col in weights.columns:
+                weights[tlt_col] = tlt_hedge
+
+        weights.loc[:, avail] = raw
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)

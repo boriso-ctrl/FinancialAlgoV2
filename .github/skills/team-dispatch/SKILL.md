@@ -93,7 +93,7 @@ After each department head returns, Peter:
 
 1. **Records their report** — saves key metrics and file changes
 2. **Runs pytest** to verify no regressions: `.venv\Scripts\python.exe -m pytest tests/ -v`
-3. **Runs a quick backtest** if new strategies were added: `.venv\Scripts\python.exe scripts/run_crisis_backtest.py`
+3. **Runs a quick backtest** if new strategies were added: `.venv\Scripts\python.exe scripts/production/run_crisis_backtest.py`
 4. **Dispatches Felix** (`felix`) for a code quality audit on any new/changed strategy files, using the `strategy-audit` skill
 5. **Dispatches Benchmarker** (`benchmarker`) to compare metrics against baselines
 

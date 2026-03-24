@@ -5,7 +5,7 @@ Baseline: 26-member ensemble (v9).
 Decision criterion: WF Sharpe improvement AND correlation check.
 
 Run:
-    .venv\Scripts\python.exe scripts/eval_init7.py
+    .venv\Scripts\python.exe scripts/diagnostics/eval_init7.py
 """
 from __future__ import annotations
 

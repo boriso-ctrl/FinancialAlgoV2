@@ -5,7 +5,7 @@ heatmaps.  Uses vectorbt's Portfolio simulation engine for fast vectorized
 backtesting across parameter combinations.
 
 Usage:
-    .venv\\Scripts\\python.exe scripts/parameter_sweep.py
+    .venv\\Scripts\\python.exe scripts/diagnostics/parameter_sweep.py
 
 Requirements:
     uv pip install vectorbt

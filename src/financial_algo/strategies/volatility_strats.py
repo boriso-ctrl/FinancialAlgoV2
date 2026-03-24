@@ -339,7 +339,176 @@ class VolTermStructure(Strategy):
 
 
 # =========================================================================
-# L5 -- Vol Spike Recovery (VIX spike fade)
+# L5 -- Vol Context Breakout Quality
+# =========================================================================
+
+@dataclass
+class VolContextBreakoutQualityConfig:
+    """Breakout participation conditioned on volatility-quality context."""
+
+    equity_ticker: str = "SPY"
+    satellite_ticker: str = "QQQ"
+    safe_ticker: str = "TLT"
+    gold_ticker: str = "GLD"
+    credit_risk_ticker: str = "HYG"
+    credit_safe_ticker: str = "LQD"
+
+    breakout_window: int = 63
+    trend_window: int = 50
+    momentum_window: int = 20
+    rv_fast_window: int = 20
+    rv_slow_window: int = 60
+    vov_window: int = 20
+    smooth_span: int = 5
+
+    breakout_buffer: float = 0.01
+    quality_floor: float = 0.25
+
+    max_equity_leverage: float = 1.4
+    min_equity_leverage: float = 0.10
+    hedge_weight_safe: float = 0.45
+    hedge_weight_gold: float = 0.20
+
+
+class VolContextBreakoutQuality(Strategy):
+    """Participate in breakouts only when volatility context quality is supportive.
+
+    Thesis: naive breakout systems overtrade in hostile vol states (stress,
+    fragile credit, and safety bid). This strategy keeps breakout alpha but
+    scales participation continuously using a quality score from vol term
+    structure, vol-of-vol, credit risk appetite, and safe-haven demand.
+    """
+
+    name = "L5-VolContextBreakoutQuality"
+
+    def __init__(
+        self,
+        config: VolContextBreakoutQualityConfig | None = None,
+    ) -> None:
+        self.cfg = config or VolContextBreakoutQualityConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if prices.empty or c.equity_ticker not in prices.columns:
+            return weights
+
+        equity = prices[c.equity_ticker]
+        satellite = prices.get(c.satellite_ticker, equity)
+
+        breakout_ref = equity.rolling(
+            c.breakout_window,
+            min_periods=max(20, c.breakout_window // 3),
+        ).max().shift(1)
+        breakout_strength = (
+            equity / breakout_ref.replace(0, np.nan) - 1.0
+        ).clip(-0.25, 0.25).fillna(0.0)
+
+        trend_ma = equity.rolling(c.trend_window, min_periods=20).mean()
+        trend_strength = (
+            equity / trend_ma.replace(0, np.nan) - 1.0
+        ).clip(-0.20, 0.20).fillna(0.0)
+
+        sat_momentum = satellite.pct_change(c.momentum_window).fillna(0.0)
+
+        breakout_raw = (
+            0.60 * breakout_strength +
+            0.25 * trend_strength +
+            0.15 * sat_momentum.clip(-0.20, 0.20)
+        )
+        breakout_score = (breakout_raw / max(c.breakout_buffer, 1e-6)).clip(-1.5, 1.5)
+        breakout_participation = (breakout_score.clip(lower=0.0) / 1.5).clip(0.0, 1.0)
+
+        rv_fast = realized_vol(equity, c.rv_fast_window).fillna(0.15)
+        rv_slow = realized_vol(equity, c.rv_slow_window).replace(0, np.nan)
+        rv_slow = rv_slow.fillna(rv_fast)
+        term_ratio = (rv_fast / rv_slow).replace([np.inf, -np.inf], np.nan).fillna(1.0)
+        term_quality = ((1.05 - term_ratio) / 0.25).clip(0.0, 1.0)
+
+        rv_delta = rv_fast.diff().abs().fillna(0.0)
+        vov = rv_delta.rolling(c.vov_window, min_periods=5).mean().fillna(0.0)
+        vov_med = vov.rolling(252, min_periods=40).median()
+        vov_med = vov_med.fillna(vov.expanding(min_periods=5).median()).fillna(0.0)
+        vov_ratio = (vov / vov_med.replace(0, np.nan)).replace([np.inf, -np.inf], np.nan)
+        vov_quality = (1.2 - vov_ratio.fillna(1.0)).clip(0.0, 1.0)
+
+        if "^VIX" in prices.columns:
+            vix_ratio = prices["^VIX"] / (rv_fast * 100).replace(0, np.nan)
+            vix_ratio = vix_ratio.replace([np.inf, -np.inf], np.nan).fillna(1.0)
+            vix_quality = ((vix_ratio - 0.90) / 0.30).clip(0.0, 1.0)
+        else:
+            vix_quality = term_quality
+
+        if (
+            c.credit_risk_ticker in prices.columns
+            and c.credit_safe_ticker in prices.columns
+        ):
+            credit_ratio = (
+                prices[c.credit_risk_ticker]
+                / prices[c.credit_safe_ticker].replace(0, np.nan)
+            )
+            credit_mom = credit_ratio.pct_change(c.momentum_window).fillna(0.0)
+            credit_quality = (0.5 + 10.0 * credit_mom).clip(0.0, 1.0)
+        else:
+            credit_quality = pd.Series(0.5, index=prices.index)
+
+        haven_demand = pd.Series(0.0, index=prices.index)
+        if c.safe_ticker in prices.columns:
+            haven_demand = haven_demand + (
+                prices[c.safe_ticker] / equity.replace(0, np.nan)
+            ).pct_change(c.momentum_window).fillna(0.0)
+        if c.gold_ticker in prices.columns:
+            haven_demand = haven_demand + (
+                prices[c.gold_ticker] / equity.replace(0, np.nan)
+            ).pct_change(c.momentum_window).fillna(0.0)
+        haven_quality = (0.5 - 5.0 * haven_demand).clip(0.0, 1.0)
+
+        quality_raw = (
+            0.35 * vix_quality +
+            0.25 * term_quality +
+            0.20 * credit_quality +
+            0.10 * haven_quality +
+            0.10 * vov_quality
+        ).fillna(0.5)
+        quality = ema(quality_raw, c.smooth_span).clip(0.0, 1.0)
+
+        equity_scale = c.min_equity_leverage + (
+            c.max_equity_leverage - c.min_equity_leverage
+        ) * quality
+        target_equity = (breakout_participation * equity_scale).clip(0.0, c.max_equity_leverage)
+
+        if regime is not None:
+            from financial_algo.regimes import Regime
+
+            crisis = regime.isin([Regime.OIL_CRISIS, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS])
+            elevated = regime.isin([Regime.ELEVATED])
+            target_equity = target_equity.where(~elevated, target_equity * 0.70)
+            target_equity = target_equity.where(~crisis, 0.0)
+
+        if c.satellite_ticker in prices.columns:
+            weights[c.equity_ticker] = target_equity * 0.65
+            weights[c.satellite_ticker] = target_equity * 0.35
+        else:
+            weights[c.equity_ticker] = target_equity
+
+        hostile = (quality < c.quality_floor) | (term_ratio > 1.15) | (vov_ratio > 1.4)
+        defensive_scale = ((1.0 - quality).clip(0.0, 1.0) + hostile.astype(float) * 0.40).clip(0.0, 1.0)
+
+        if c.safe_ticker in prices.columns:
+            weights[c.safe_ticker] = c.hedge_weight_safe * defensive_scale
+        if c.gold_ticker in prices.columns:
+            weights[c.gold_ticker] = c.hedge_weight_gold * defensive_scale
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L6 -- Vol Spike Recovery (VIX spike fade)
 # =========================================================================
 
 @dataclass
@@ -674,5 +843,519 @@ class CrossAssetVolSignal(Strategy):
         for ticker in c.risk_on_tickers:
             if ticker in prices.columns:
                 weights[ticker] = weights[ticker] * vol_scale
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L7 -- PCA Eigen-Factor Regime (Flight-to-Quality Signal)
+# =========================================================================
+
+@dataclass
+class PCARigimeConfig:
+    """Config for PCA-based cross-sectional regime detection strategy.
+
+    Uses rolling PCA on a diversified ETF basket. The second principal
+    component (PC2) typically captures flight-to-quality / stress dynamics.
+    When PC2 is strongly negative (risk-off), allocate to safe havens.
+    When PC2 is positive (risk-on), allocate to risk assets.
+    """
+
+    pca_tickers: tuple = (
+        "SPY", "QQQ", "EFA", "EEM", "TLT", "GLD", "XLE", "HYG", "UUP", "IEF",
+    )
+    pca_lookback: int = 252       # rolling window for PCA fit (1 year)
+    pca_refit_freq: int = 21      # refit monthly to limit compute cost
+    stress_threshold: float = -0.5   # PC2 below this -> risk-off
+    riskon_threshold: float = 0.5    # PC2 above this -> risk-on
+    score_smooth: int = 5            # EMA days to smooth raw PC2 score
+
+    safe_tickers: tuple = ("GLD", "TLT", "SHY")
+    risk_tickers: tuple = ("SPY", "QQQ", "EEM")
+    leverage: float = 1.0
+
+
+class PCARigimeStrategy(Strategy):
+    """PCA eigen-factor regime: flight-to-quality detection.
+
+    Thesis: The second principal component (PC2) of a cross-section of
+    broad ETF returns captures the 'flight-to-quality' dynamic. When PC2
+    is strongly negative, capital is flowing to safe havens (risk-off).
+    When PC2 is positive, risk assets are in favour (risk-on).
+
+    PCA is fit on a rolling 252-day window and refitted every 21 trading
+    days (monthly) to adapt to evolving factor structure while controlling
+    computation cost. Sign is anchored so that positive PC2 = positive
+    SPY loading = risk-on (flipped when needed).
+
+    No look-ahead: PCA is fit on returns[t-lookback:t] and the score for
+    day t is computed from returns[t] projected on the fitted components.
+    """
+
+    name = "L7-PCARigimeAlpha"
+
+    def __init__(self, config: PCARigimeConfig | None = None) -> None:
+        self.cfg = config or PCARigimeConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        from sklearn.decomposition import PCA
+        from sklearn.preprocessing import StandardScaler
+
+        c = self.cfg
+        pca_avail = [t for t in c.pca_tickers if t in prices.columns]
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if len(pca_avail) < 5:
+            return weights
+
+        safe_avail = [t for t in c.safe_tickers if t in prices.columns]
+        risk_avail = [t for t in c.risk_tickers if t in prices.columns]
+        if not safe_avail or not risk_avail:
+            return weights
+
+        returns = prices[pca_avail].pct_change().fillna(0.0)
+
+        spy_idx = pca_avail.index("SPY") if "SPY" in pca_avail else 0
+        n = len(prices)
+
+        # Rolling PCA loop -- iterates over refit dates (column-level, not row-level).
+        # Acceptable per vectorization policy: PCA requires sequential fitting.
+        pc2_scores: list[float] = [np.nan] * n
+
+        last_scaler: StandardScaler | None = None
+        last_pca: PCA | None = None
+        last_sign: float = 1.0
+
+        for i in range(c.pca_lookback, n):
+            if (i - c.pca_lookback) % c.pca_refit_freq == 0:
+                window = returns.iloc[i - c.pca_lookback : i].values
+                scaler = StandardScaler()
+                window_std = scaler.fit_transform(window)
+                pca_model = PCA(n_components=2)
+                pca_model.fit(window_std)
+                # Anchor sign: positive PC2 loading for SPY = risk-on
+                sign = (
+                    1.0 if pca_model.components_[1, spy_idx] >= 0 else -1.0
+                )
+                last_scaler = scaler
+                last_pca = pca_model
+                last_sign = sign
+
+            if last_scaler is None:
+                continue
+
+            today_ret = returns.iloc[i].to_numpy().reshape(1, -1)  # pyright: ignore[reportAttributeAccessIssue]
+            today_std = last_scaler.transform(today_ret)
+            raw_score = last_pca.transform(today_std)[0, 1]  # pyright: ignore[reportOptionalMemberAccess, reportIndexIssue]
+            pc2_scores[i] = last_sign * raw_score
+
+        pc2_series = pd.Series(pc2_scores, index=prices.index, dtype=float)
+        pc2_smooth = ema(pc2_series.fillna(0.0), c.score_smooth)
+
+        # Allocate equal weight within each allocation bucket
+        safe_w = c.leverage / max(len(safe_avail), 1)
+        risk_w = c.leverage / max(len(risk_avail), 1)
+
+        stress_mask = pd.notna(pc2_smooth) & (pc2_smooth < c.stress_threshold)
+        riskon_mask = pd.notna(pc2_smooth) & (pc2_smooth > c.riskon_threshold)
+
+        for t in safe_avail:
+            weights.loc[stress_mask, t] = safe_w
+        for t in risk_avail:
+            weights.loc[riskon_mask, t] = risk_w
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L8 -- Return Skewness Signal (contrarian skew fade)
+# =========================================================================
+
+@dataclass
+class ReturnSkewnessConfig:
+    """Config for return-skewness contrarian strategy.
+
+    When recent returns exhibit extreme negative skewness (left-tail
+    clustering), the market is pricing in crash risk beyond what
+    materialises.  Fade the skew extreme by going long.  When returns
+    are extremely positively skewed (euphoria), reduce exposure.
+    """
+
+    equity_ticker: str = "SPY"
+    safe_ticker: str = "TLT"
+    gold_ticker: str = "GLD"
+
+    # Skewness calculation
+    skew_window: int = 60            # rolling window for skewness
+    skew_zscore_lookback: int = 252  # z-score normalisation window
+
+    # Thresholds (z-score of rolling skewness)
+    neg_skew_threshold: float = -1.0   # extreme negative skew -> buy
+    pos_skew_threshold: float = 1.0    # extreme positive skew -> reduce
+
+    # Trend filter
+    trend_window: int = 50
+
+    # Position sizing
+    leverage_neg_skew_up: float = 1.6    # neg skew + uptrend (contrarian + trend)
+    leverage_neg_skew_down: float = 1.0  # neg skew + downtrend (contrarian only)
+    leverage_neutral: float = 0.7        # baseline
+    leverage_pos_skew: float = 0.2       # euphoria -- reduce equity
+    hedge_pos_skew: float = 0.4          # hedge in euphoria
+
+    # Vol-inverse scaling
+    vol_window: int = 20
+    vol_target: float = 0.15
+
+
+class ReturnSkewnessSignal(Strategy):
+    """Contrarian skewness fade: buy negative-skew extremes, sell positive.
+
+    Thesis
+    ------
+    Return distributions exhibit time-varying skewness.  When recent
+    returns are negatively skewed (fat left tail, clustering of losses),
+    the market has over-priced crash risk and tends to mean-revert
+    upward.  When returns are positively skewed (euphoria, blow-off
+    rallies), a correction is more likely.
+
+    This exploits a well-documented behavioral bias: investors overweight
+    recent left-tail events (Barberis & Huang 2008, Bali et al. 2011).
+
+    Signal: z-score of 60-day rolling skewness vs its 252-day history.
+    Extreme negative z -> contrarian long.  Extreme positive z -> reduce.
+    Trend filter prevents fighting strong downtrends on the contrarian
+    leg.  Vol-inverse scaling reduces exposure in high-vol environments.
+    """
+
+    name = "L8-ReturnSkewnessSignal"
+
+    def __init__(self, config: ReturnSkewnessConfig | None = None) -> None:
+        self.cfg = config or ReturnSkewnessConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if c.equity_ticker not in prices.columns:
+            return weights
+
+        equity = prices[c.equity_ticker]
+        daily_ret = equity.pct_change().fillna(0.0)
+
+        # Rolling skewness
+        skew = daily_ret.rolling(c.skew_window, min_periods=30).skew().fillna(0.0)
+
+        # Z-score of skewness for adaptive thresholds
+        skew_mu = skew.rolling(c.skew_zscore_lookback, min_periods=60).mean()
+        skew_std = skew.rolling(
+            c.skew_zscore_lookback, min_periods=60,
+        ).std().replace(0, np.nan)
+        skew_z = ((skew - skew_mu) / skew_std).fillna(0.0)
+        skew_z = skew_z.replace([np.inf, -np.inf], 0.0)
+
+        # Trend filter
+        sma = equity.rolling(c.trend_window, min_periods=20).mean()
+        uptrend = equity >= sma
+
+        # Vol-inverse scaling
+        rv = realized_vol(equity, c.vol_window).fillna(c.vol_target)
+        vol_scale = (c.vol_target / rv.clip(lower=0.05)).clip(0.5, 1.3)
+
+        # Regime classification based on skew z-score
+        neg_extreme = pd.notna(skew_z) & (skew_z < c.neg_skew_threshold)
+        pos_extreme = pd.notna(skew_z) & (skew_z > c.pos_skew_threshold)
+        neutral = ~neg_extreme & ~pos_extreme
+
+        # Negative skew extreme: contrarian long (fade the crash fear)
+        weights.loc[neg_extreme & uptrend, c.equity_ticker] = c.leverage_neg_skew_up
+        weights.loc[neg_extreme & ~uptrend, c.equity_ticker] = c.leverage_neg_skew_down
+
+        # Neutral: baseline
+        weights.loc[neutral, c.equity_ticker] = c.leverage_neutral
+
+        # Positive skew extreme: reduce equity, hedge
+        weights.loc[pos_extreme, c.equity_ticker] = c.leverage_pos_skew
+        if c.safe_ticker in prices.columns:
+            weights.loc[pos_extreme, c.safe_ticker] = c.hedge_pos_skew
+        if c.gold_ticker in prices.columns:
+            weights.loc[pos_extreme, c.gold_ticker] = c.hedge_pos_skew * 0.5
+
+        # Vol-inverse scaling on equity leg only
+        weights[c.equity_ticker] = weights[c.equity_ticker] * vol_scale
+
+        # Regime overlay: reduce in crisis periods
+        if regime is not None:
+            from financial_algo.regimes import Regime
+            crisis_set = {Regime.OIL_CRISIS, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS}
+            is_crisis = regime.isin(crisis_set)
+            weights.loc[is_crisis, c.equity_ticker] *= 0.3
+            if c.safe_ticker in prices.columns:
+                weights.loc[is_crisis, c.safe_ticker] = c.hedge_pos_skew
+            if c.gold_ticker in prices.columns:
+                weights.loc[is_crisis, c.gold_ticker] = c.hedge_pos_skew * 0.5
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L7 — Implied-Realized Spread (VIX premium z-score harvesting)
+# =========================================================================
+
+@dataclass
+class ImpliedRealizedSpreadConfig:
+    """Harvest the spread between implied vol (VIX) and realized vol.
+
+    When the VIX-to-realized-vol ratio z-score is high (strong contango),
+    implied vol is overpriced relative to what materialises.  Harvest by
+    being long equities + short bonds.  When the spread compresses or
+    inverts, rotate to safe havens (TLT, GLD).
+
+    Momentum filter prevents harvesting contango during drawdowns.
+    """
+
+    equity_ticker: str = "SPY"
+    safe_ticker: str = "TLT"
+    gold_ticker: str = "GLD"
+
+    realized_vol_window: int = 20
+    zscore_lookback: int = 126
+    momentum_window: int = 63
+
+    # Z-score thresholds
+    contango_z: float = 1.0
+    backwardation_z: float = -0.5
+
+    # Allocations
+    contango_equity: float = 1.5
+    contango_safe_short: float = -0.3
+    backwardation_safe: float = 1.0
+    backwardation_gold: float = 0.5
+    neutral_equity: float = 0.3
+
+
+class ImpliedRealizedSpread(Strategy):
+    """Harvest the VIX-to-realized-vol spread with z-score timing.
+
+    Thesis
+    ------
+    When the spread between implied vol (VIX) and realized vol (SPY) is
+    abnormally wide, it signals an overpriced insurance premium.  Harvest
+    this by being long equities + short vol proxy.  When the spread
+    compresses or inverts, rotate to safe havens.
+
+    Signal: z-score of the VIX / 20d-realized-vol ratio over a 126-day
+    lookback.  Contango confirmed only when SPY 63-day return > 0
+    (momentum filter).
+    """
+
+    name = "L7-ImpliedRealizedSpread"
+
+    def __init__(self, config: ImpliedRealizedSpreadConfig | None = None) -> None:
+        self.cfg = config or ImpliedRealizedSpreadConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if c.equity_ticker not in prices.columns:
+            return weights
+
+        equity = prices[c.equity_ticker]
+
+        # Realized vol (annualized, as percentage to match VIX units)
+        rv = realized_vol(equity, c.realized_vol_window) * 100
+        rv_safe = rv.replace(0, np.nan)
+
+        # VIX or proxy
+        if "^VIX" in prices.columns:
+            vix = prices["^VIX"].ffill().fillna(20.0)
+        else:
+            vix = rv * 1.3  # conservative proxy
+
+        # VIX / realized vol ratio
+        ratio = vix / rv_safe
+        ratio = ratio.replace([np.inf, -np.inf], np.nan).fillna(1.0)
+
+        # Z-score the ratio over lookback window
+        ratio_mu = ratio.rolling(c.zscore_lookback, min_periods=40).mean()
+        ratio_std = ratio.rolling(
+            c.zscore_lookback, min_periods=40,
+        ).std().replace(0, np.nan)
+        z = ((ratio - ratio_mu) / ratio_std).fillna(0.0)
+        z = z.replace([np.inf, -np.inf], 0.0)
+
+        # Momentum confirmation: SPY 63d return > 0
+        mom_ret = equity.pct_change(c.momentum_window).fillna(0.0)
+        mom_positive = mom_ret > 0
+
+        # Signal classification
+        contango = pd.notna(z) & (z > c.contango_z)
+        backwardation = pd.notna(z) & (z < c.backwardation_z)
+        neutral = ~contango & ~backwardation
+
+        # Contango + momentum: harvest premium (long SPY, short TLT)
+        contango_confirmed = contango & mom_positive
+        contango_no_mom = contango & ~mom_positive
+
+        weights.loc[contango_confirmed, c.equity_ticker] = c.contango_equity
+        if c.safe_ticker in prices.columns:
+            weights.loc[contango_confirmed, c.safe_ticker] = c.contango_safe_short
+
+        # Contango without momentum: reduced — just neutral equity
+        weights.loc[contango_no_mom, c.equity_ticker] = c.neutral_equity
+
+        # Backwardation: flight to quality (TLT + GLD, zero equity)
+        weights.loc[backwardation, c.equity_ticker] = 0.0
+        if c.safe_ticker in prices.columns:
+            weights.loc[backwardation, c.safe_ticker] = c.backwardation_safe
+        if c.gold_ticker in prices.columns:
+            weights.loc[backwardation, c.gold_ticker] = c.backwardation_gold
+
+        # Neutral: minimal SPY
+        weights.loc[neutral, c.equity_ticker] = c.neutral_equity
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# L8 — Vol Regime Clustering (multi-signal state detection)
+# =========================================================================
+
+@dataclass
+class VolRegimeClusteringConfig:
+    """Cluster vol regimes using VIX percentile, vol-of-vol, and realized vol.
+
+    Four states: LOW_VOL, NORMAL, ELEVATED, CRISIS — each with a
+    distinct allocation profile.  All classification is vectorized
+    (no ML, no loops).
+    """
+
+    equity_ticker: str = "SPY"
+    growth_ticker: str = "QQQ"
+    safe_ticker: str = "TLT"
+    gold_ticker: str = "GLD"
+    dollar_ticker: str = "UUP"
+
+    vix_percentile_window: int = 252
+    vov_window: int = 10
+    realized_vol_window: int = 20
+
+    # Percentile thresholds (0-1 scale, applied to rank output)
+    low_vol_pct: float = 0.25
+    elevated_pct: float = 0.75
+    crisis_pct: float = 0.90
+
+    # Realized vol thresholds (annualized decimal)
+    low_rv: float = 0.12
+    elevated_rv: float = 0.20
+    crisis_rv: float = 0.25
+
+    # Allocations per state
+    low_vol_equity: float = 1.5
+    low_vol_growth: float = 0.5
+    normal_equity: float = 0.8
+    normal_safe: float = 0.2
+    elevated_gold: float = 0.5
+    elevated_safe: float = 0.5
+    crisis_safe: float = 0.8
+    crisis_gold: float = 0.4
+    crisis_dollar: float = 0.3
+
+
+class VolRegimeClustering(Strategy):
+    """Cluster vol regimes and allocate to optimal portfolio per state.
+
+    Thesis
+    ------
+    Cluster vol regimes using multiple signals — VIX level percentile
+    (252d), VIX vol-of-vol proxy, and SPY realized vol — to identify
+    four states: Low-Vol Rally, Normal, Elevated Uncertainty, Crisis.
+    Each state maps to an optimal portfolio allocation.
+
+    All state classification is fully vectorized with priority ordering:
+    CRISIS > ELEVATED > LOW_VOL > NORMAL.
+    """
+
+    name = "L8-VolRegimeClustering"
+
+    def __init__(self, config: VolRegimeClusteringConfig | None = None) -> None:
+        self.cfg = config or VolRegimeClusteringConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if c.equity_ticker not in prices.columns:
+            return weights
+
+        equity = prices[c.equity_ticker]
+
+        # VIX or proxy
+        if "^VIX" in prices.columns:
+            vix = prices["^VIX"].ffill().fillna(20.0)
+        else:
+            vix = realized_vol(equity, c.realized_vol_window) * 100
+            vix = vix.ffill().fillna(20.0)
+
+        # VIX percentile rank (rolling 252d)
+        vix_pct = vix.rolling(
+            c.vix_percentile_window, min_periods=60,
+        ).rank(pct=True).fillna(0.5)
+
+        # Realized vol (20d, annualized decimal)
+        rv = realized_vol(equity, c.realized_vol_window).fillna(0.15)
+
+        # State classification (priority: CRISIS > ELEVATED > LOW_VOL > NORMAL)
+        is_crisis = (vix_pct > c.crisis_pct) & (rv > c.crisis_rv)
+        is_elevated = ~is_crisis & (
+            (vix_pct > c.elevated_pct) | (rv > c.elevated_rv)
+        )
+        is_low_vol = ~is_crisis & ~is_elevated & (
+            (vix_pct < c.low_vol_pct) & (rv < c.low_rv)
+        )
+        is_normal = ~is_crisis & ~is_elevated & ~is_low_vol
+
+        # LOW_VOL: risk-on — SPY 1.5x, QQQ 0.5x
+        weights.loc[is_low_vol, c.equity_ticker] = c.low_vol_equity
+        if c.growth_ticker in prices.columns:
+            weights.loc[is_low_vol, c.growth_ticker] = c.low_vol_growth
+
+        # NORMAL: balanced — SPY 0.8x, TLT 0.2x
+        weights.loc[is_normal, c.equity_ticker] = c.normal_equity
+        if c.safe_ticker in prices.columns:
+            weights.loc[is_normal, c.safe_ticker] = c.normal_safe
+
+        # ELEVATED: defensive — GLD 0.5x, TLT 0.5x, SPY 0.0x
+        weights.loc[is_elevated, c.equity_ticker] = 0.0
+        if c.gold_ticker in prices.columns:
+            weights.loc[is_elevated, c.gold_ticker] = c.elevated_gold
+        if c.safe_ticker in prices.columns:
+            weights.loc[is_elevated, c.safe_ticker] = c.elevated_safe
+
+        # CRISIS: full flight to quality — TLT 0.8x, GLD 0.4x, UUP 0.3x
+        weights.loc[is_crisis, c.equity_ticker] = 0.0
+        if c.safe_ticker in prices.columns:
+            weights.loc[is_crisis, c.safe_ticker] = c.crisis_safe
+        if c.gold_ticker in prices.columns:
+            weights.loc[is_crisis, c.gold_ticker] = c.crisis_gold
+        if c.dollar_ticker in prices.columns:
+            weights.loc[is_crisis, c.dollar_ticker] = c.crisis_dollar
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)

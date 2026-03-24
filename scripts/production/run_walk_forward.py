@@ -5,7 +5,7 @@ full ensemble.  Compares in-sample vs out-of-sample metrics to
 detect overfitting.
 
 Usage:
-    .venv\\Scripts\\python.exe scripts/run_walk_forward.py
+    .venv\\Scripts\\python.exe scripts/production/run_walk_forward.py
 """
 
 from __future__ import annotations

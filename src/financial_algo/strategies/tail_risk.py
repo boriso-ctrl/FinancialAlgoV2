@@ -104,78 +104,6 @@ class TailRiskParity(Strategy):
 
 
 # =========================================================================
-# O2 -- Crisis Alpha Momentum
-# =========================================================================
-
-@dataclass
-class CrisisAlphaMomConfig:
-    """Regime-conditional safe-haven and recovery allocation.
-
-    In crisis: long GLD + TLT (safe havens with trend filter).
-    In recovery: long QQQ (capture V-shaped bounce).
-    Otherwise: flat.
-    """
-
-    gold_ticker: str = "GLD"
-    bond_ticker: str = "TLT"
-    equity_ticker: str = "QQQ"
-
-    ema_span: int = 50
-    leverage_haven: float = 0.6
-    leverage_recovery: float = 1.2
-
-
-class CrisisAlphaMomentum(Strategy):
-    """Regime-conditional allocation: safe havens in crisis, equity in recovery.
-
-    Reworked from complex trend-following (which had negative Sharpe) to
-    a simple regime-conditional strategy. Long GLD/TLT during crisis
-    (with trend filter), long QQQ during recovery.
-    """
-
-    name = "O2-CrisisAlphaMomentum"
-
-    def __init__(self, config: CrisisAlphaMomConfig | None = None) -> None:
-        self.cfg = config or CrisisAlphaMomConfig()
-
-    def generate_weights(
-        self,
-        prices: pd.DataFrame,
-        regime: pd.Series | None = None,
-    ) -> pd.DataFrame:
-        if regime is None:
-            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-
-        c = self.cfg
-        crisis = regime.isin({
-            Regime.GENERAL_CRISIS, Regime.WAR_CRISIS, Regime.OIL_CRISIS,
-        })
-        recovery = regime.isin({Regime.RECOVERY})
-
-        tickers = [c.gold_ticker, c.bond_ticker, c.equity_ticker]
-        avail = [t for t in tickers if t in prices.columns]
-        w = pd.DataFrame(0.0, index=prices.index, columns=avail)
-
-        # Crisis: long safe havens with trend filter
-        if c.gold_ticker in avail:
-            gld_ema = ema(prices[c.gold_ticker], c.ema_span)
-            gld_up = prices[c.gold_ticker] > gld_ema
-            w.loc[crisis & gld_up, c.gold_ticker] = c.leverage_haven
-
-        if c.bond_ticker in avail:
-            tlt_ema = ema(prices[c.bond_ticker], c.ema_span)
-            tlt_up = prices[c.bond_ticker] > tlt_ema
-            w.loc[crisis & tlt_up, c.bond_ticker] = c.leverage_haven
-
-        # Recovery: long equity
-        if c.equity_ticker in avail:
-            w.loc[recovery, c.equity_ticker] = c.leverage_recovery
-
-        w = w.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-        return w
-
-
-# =========================================================================
 # O4 -- Black Swan Insurance
 # =========================================================================
 
@@ -251,176 +179,6 @@ class BlackSwanInsurance(Strategy):
             weights.loc[severe, c.equity_short] = -c.severe_short_weight
 
         return weights.fillna(0.0)
-
-
-# =========================================================================
-# O3 -- Crisis Rotation
-# =========================================================================
-
-@dataclass
-class CrisisRotationConfig:
-    """Dynamic allocation based on crisis type.
-
-    Routes capital to the best-suited safe haven depending on
-    whether the crisis is oil-driven, war-driven, or a general crash.
-    """
-
-    gold_ticker: str = "GLD"
-    bond_ticker: str = "TLT"
-    defense_ticker: str = "ITA"
-    equity_ticker: str = "QQQ"
-    energy_ticker: str = "XLE"
-
-    ema_span: int = 50
-
-    oil_crisis_gold: float = 0.5
-    oil_crisis_energy: float = 0.5
-    war_crisis_defense: float = 0.5
-    war_crisis_gold: float = 0.5
-    gen_crisis_gold: float = 0.5
-    gen_crisis_bond: float = 0.5
-    recovery_equity: float = 1.2
-
-
-class CrisisRotation(Strategy):
-    """Dynamic crisis-type rotation: routes to best haven per crisis type.
-
-    Oil crisis: GLD + XLE (oil spikes = inflation hedge + energy momentum).
-    War crisis: ITA + GLD (defense + geopolitical hedge).
-    General crisis: GLD + TLT (classic flight-to-quality).
-    Recovery: QQQ (capture V-shaped bounce).
-    """
-
-    name = "O3-CrisisRotation"
-
-    def __init__(self, config: CrisisRotationConfig | None = None) -> None:
-        self.cfg = config or CrisisRotationConfig()
-
-    def generate_weights(
-        self,
-        prices: pd.DataFrame,
-        regime: pd.Series | None = None,
-    ) -> pd.DataFrame:
-        if regime is None:
-            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-
-        c = self.cfg
-        oil_crisis = regime.isin({Regime.OIL_CRISIS})
-        war_crisis = regime.isin({Regime.WAR_CRISIS})
-        gen_crisis = regime.isin({Regime.GENERAL_CRISIS})
-        recovery = regime.isin({Regime.RECOVERY})
-
-        tickers = [c.gold_ticker, c.bond_ticker, c.defense_ticker,
-                   c.equity_ticker, c.energy_ticker]
-        avail = [t for t in tickers if t in prices.columns]
-        w = pd.DataFrame(0.0, index=prices.index, columns=avail)
-
-        def _trend_up(ticker: str) -> pd.Series:
-            if ticker in prices.columns:
-                return prices[ticker] > ema(prices[ticker], c.ema_span)
-            return pd.Series(False, index=prices.index)
-
-        # Oil crisis: GLD + XLE
-        if c.gold_ticker in avail:
-            w.loc[oil_crisis & _trend_up(c.gold_ticker), c.gold_ticker] = c.oil_crisis_gold
-        if c.energy_ticker in avail:
-            w.loc[oil_crisis & _trend_up(c.energy_ticker), c.energy_ticker] = c.oil_crisis_energy
-
-        # War crisis: ITA + GLD
-        if c.defense_ticker in avail:
-            w.loc[war_crisis & _trend_up(c.defense_ticker), c.defense_ticker] = c.war_crisis_defense
-        if c.gold_ticker in avail:
-            w.loc[war_crisis & _trend_up(c.gold_ticker), c.gold_ticker] = c.war_crisis_gold
-
-        # General crisis: GLD + TLT
-        if c.gold_ticker in avail:
-            w.loc[gen_crisis & _trend_up(c.gold_ticker), c.gold_ticker] = c.gen_crisis_gold
-        if c.bond_ticker in avail:
-            w.loc[gen_crisis & _trend_up(c.bond_ticker), c.bond_ticker] = c.gen_crisis_bond
-
-        # Recovery: QQQ
-        if c.equity_ticker in avail:
-            w.loc[recovery, c.equity_ticker] = c.recovery_equity
-
-        w = w.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-        return w
-
-
-# =========================================================================
-# O5 -- VIX Spike Recovery
-# =========================================================================
-
-@dataclass
-class VIXSpikeRecoveryConfig:
-    """Go long risk assets after vol spikes above crisis level and declines.
-
-    Captures the V-shaped recovery rally that typically follows
-    a volatility spike.
-    """
-
-    equity_ticker: str = "QQQ"
-    secondary_ticker: str = "SPY"
-
-    vol_window: int = 20
-    vol_spike_threshold: float = 0.30
-    vol_recovery_pct: float = 0.25
-    vol_max_current: float = 0.25
-    vol_lookback: int = 20
-    ema_span: int = 20
-
-    leverage_primary: float = 1.5
-    leverage_secondary: float = 0.5
-
-
-class VIXSpikeRecovery(Strategy):
-    """Long risk assets after volatility spikes and starts declining.
-
-    Thesis: After annualised vol spikes above 0.30 and starts
-    declining, equities typically rally 10-20% in the next 2-3 months.
-    This strategy captures that recovery by going leveraged long QQQ + SPY
-    when vol has recently been very high but is now declining.
-    """
-
-    name = "O5-VIXSpikeRecovery"
-
-    def __init__(self, config: VIXSpikeRecoveryConfig | None = None) -> None:
-        self.cfg = config or VIXSpikeRecoveryConfig()
-
-    def generate_weights(
-        self,
-        prices: pd.DataFrame,
-        regime: pd.Series | None = None,
-    ) -> pd.DataFrame:
-        c = self.cfg
-        spy_col = c.equity_ticker if c.equity_ticker in prices.columns else "SPY"
-        vol = realized_vol(prices[spy_col], c.vol_window)
-
-        # Detect vol was recently very high
-        vol_peak = vol.rolling(c.vol_lookback, min_periods=1).max()
-        vol_was_high = vol_peak > c.vol_spike_threshold
-        vol_declining = vol < vol_peak * (1.0 - c.vol_recovery_pct)
-        vol_moderate = vol < c.vol_max_current
-
-        # Recovery signal: vol was high, now declining, not still extreme
-        recovery_signal = vol_was_high & vol_declining & vol_moderate
-
-        # Trend confirmation: equity above short-term EMA
-        eq_ema = ema(prices[spy_col], c.ema_span)
-        trend_up = prices[spy_col] > eq_ema
-
-        signal = recovery_signal & trend_up
-
-        tickers = [c.equity_ticker, c.secondary_ticker]
-        avail = [t for t in tickers if t in prices.columns]
-        w = pd.DataFrame(0.0, index=prices.index, columns=avail)
-
-        if c.equity_ticker in avail:
-            w.loc[signal, c.equity_ticker] = c.leverage_primary
-        if c.secondary_ticker in avail:
-            w.loc[signal, c.secondary_ticker] = c.leverage_secondary
-
-        w = w.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-        return w
 
 
 # =========================================================================
@@ -786,6 +544,130 @@ class DrawdownRecoveryTiming(Strategy):
 
         for t in avail:
             weights.loc[recovery_active, t] = c.per_asset_weight
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights
+
+
+# =========================================================================
+# O8 -- Volatility Convexity
+# =========================================================================
+
+@dataclass
+class VolatilityConvexityConfig:
+    """VIX-tiered safe-haven overlay for crisis convexity.
+
+    Scales into safe havens (GLD, TLT) proportionally to VIX level,
+    adding SPY short and UUP long in extreme stress. Stays flat in
+    calm markets to minimise carry cost.
+
+    VIX tiers (based on 5-day EMA of ^VIX, shifted +1 day):
+      - Normal  (VIX < 20): flat
+      - Elevated (20 <= VIX < 30): GLD 0.3, TLT 0.3
+      - Crisis  (30 <= VIX < 40): GLD 0.6, TLT 0.6, SPY -0.3
+      - Extreme (VIX >= 40): GLD 0.8, TLT 0.8, UUP 0.4, SPY -0.5
+    """
+
+    vix_ticker: str = "^VIX"
+    gold_ticker: str = "GLD"
+    bond_ticker: str = "TLT"
+    dollar_ticker: str = "UUP"
+    equity_ticker: str = "SPY"
+
+    ema_span: int = 5
+
+    # VIX thresholds
+    vix_elevated: float = 20.0
+    vix_crisis: float = 30.0
+    vix_extreme: float = 40.0
+
+    # Elevated weights
+    elevated_gold: float = 0.3
+    elevated_bond: float = 0.3
+
+    # Crisis weights
+    crisis_gold: float = 0.6
+    crisis_bond: float = 0.6
+    crisis_equity_short: float = -0.3
+
+    # Extreme weights
+    extreme_gold: float = 0.8
+    extreme_bond: float = 0.8
+    extreme_dollar: float = 0.4
+    extreme_equity_short: float = -0.5
+
+
+class VolatilityConvexity(Strategy):
+    """VIX-tiered safe-haven overlay that captures convex payoff in crises.
+
+    Thesis: During vol explosions (VIX spike > 30), safe-haven assets
+    (GLD, TLT) exhibit convexity -- their returns accelerate as fear
+    increases. This strategy captures that non-linear payoff by scaling
+    into safe havens proportionally to VIX level during crisis, and
+    staying flat in calm markets (zero carry cost).
+
+    Uses 5-day EMA of VIX shifted by 1 day to avoid look-ahead bias.
+
+    Risk tier: Safe (target Sharpe > 0.5, Max DD < 15%).
+    """
+
+    name = "O8-VolatilityConvexity"
+
+    def __init__(self, config: VolatilityConvexityConfig | None = None) -> None:
+        self.cfg = config or VolatilityConvexityConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        if c.vix_ticker not in prices.columns:
+            return weights
+
+        # Smooth VIX with 5-day EMA, shift +1 day (no look-ahead)
+        vix_raw = prices[c.vix_ticker].ffill().fillna(0.0)
+        vix_ema = ema(vix_raw, c.ema_span).shift(1).fillna(0.0)
+
+        # VIX tier masks (mutually exclusive, highest tier wins)
+        extreme = pd.notna(vix_ema) & (vix_ema >= c.vix_extreme)
+        crisis = pd.notna(vix_ema) & (vix_ema >= c.vix_crisis) & ~extreme
+        elevated = pd.notna(vix_ema) & (vix_ema >= c.vix_elevated) & ~extreme & ~crisis
+
+        # Assign weights per tier (vectorised via np.select)
+        has_gold = c.gold_ticker in prices.columns
+        has_bond = c.bond_ticker in prices.columns
+        has_dollar = c.dollar_ticker in prices.columns
+        has_equity = c.equity_ticker in prices.columns
+
+        conditions = [extreme, crisis, elevated]
+
+        if has_gold:
+            weights[c.gold_ticker] = np.select(
+                conditions,
+                [c.extreme_gold, c.crisis_gold, c.elevated_gold],
+                default=0.0,
+            )
+        if has_bond:
+            weights[c.bond_ticker] = np.select(
+                conditions,
+                [c.extreme_bond, c.crisis_bond, c.elevated_bond],
+                default=0.0,
+            )
+        if has_dollar:
+            weights[c.dollar_ticker] = np.select(
+                conditions,
+                [c.extreme_dollar, 0.0, 0.0],
+                default=0.0,
+            )
+        if has_equity:
+            weights[c.equity_ticker] = np.select(
+                conditions,
+                [c.extreme_equity_short, c.crisis_equity_short, 0.0],
+                default=0.0,
+            )
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights

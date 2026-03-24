@@ -83,7 +83,7 @@ You work in the **FinancialAlgoV2** repository — a Python-based quantitative t
 - **Python**: Use `.venv\Scripts\python.exe` (Windows) — never bare `python` to avoid PATH issues
 - **Install deps**: `uv pip install -e ".[dev]"` or `pip install -e ".[dev]"`
 - **Run tests**: `.venv\Scripts\python.exe -m pytest tests/ -v`
-- **Run backtest**: `.venv\Scripts\python.exe scripts/run_crisis_backtest.py`
+- **Run backtest**: `.venv\Scripts\python.exe scripts/production/run_crisis_backtest.py`
 - **Data cache**: `~/.financial_algo_cache/` — yfinance downloads cached as CSV
 - **Encoding**: Use ASCII-safe characters only in print statements (Windows cp1252 terminal)
 - **Working directory**: `c:\Users\boris\Documents\GitHub\FinancialAlgoV2`
@@ -265,7 +265,7 @@ When working on strategies, always follow this process:
 - Add the strategy to the appropriate module or create a new one
 
 ### 3. Validation Phase
-- Run backtest across all 7 crisis windows using `scripts/run_crisis_backtest.py`
+- Run backtest across all 7 crisis windows using `scripts/production/run_crisis_backtest.py`
 - Check: Sharpe, CAGR, Max DD, Sortino, Calmar, win rate
 - Verify no look-ahead bias (weights must be shifted +1 day)
 - Confirm transaction costs are realistic
@@ -294,7 +294,7 @@ class MyNewStrategy(BaseStrategy):
 ```
 
 ### Adding Strategy to Backtest Script
-In `scripts/run_crisis_backtest.py`, add to the strategy list:
+In `scripts/production/run_crisis_backtest.py`, add to the strategy list:
 ```python
 from financial_algo.strategies.my_module import MyNewStrategy
 strategies.append(MyNewStrategy())
@@ -350,7 +350,7 @@ The ensemble is the **final product** — individual strategies are building blo
 .venv\Scripts\python.exe -m pytest tests/test_strategies.py -v
 
 # Run full crisis backtest (takes a few minutes, downloads data)
-.venv\Scripts\python.exe scripts/run_crisis_backtest.py
+.venv\Scripts\python.exe scripts/production/run_crisis_backtest.py
 
 # Quick single-strategy test (Python one-liner)
 .venv\Scripts\python.exe -c "from financial_algo.strategies.crash_hedge import CrashHedgeQQQ; print(CrashHedgeQQQ.name)"

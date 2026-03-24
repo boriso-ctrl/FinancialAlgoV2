@@ -12,7 +12,7 @@ from financial_algo.backtest import backtest, BacktestConfig
 from financial_algo.strategies.momentum import GlobalMomentumRotation
 from financial_algo.strategies.mean_reversion import GlobalMeanReversion
 from financial_algo.strategies.factor import RealAssetsFactor
-from financial_algo.strategies.macro import InflationBreakevenTrade, GlobalRotation, CommodityMacroSignal
+from financial_algo.strategies.macro import GlobalRotation, CommodityMacroSignal
 from financial_algo.strategies.tail_risk import PreciousMetalsCrisisHedge
 from financial_algo.strategies.crypto_crisis import CryptoContagionHedge
 from financial_algo.strategies.volatility_strats import CrossAssetVolSignal
@@ -58,7 +58,6 @@ strats = [
     ("I5-GlobalMomRotation", GlobalMomentumRotation(), False, False),
     ("J5-GlobalMeanReversion", GlobalMeanReversion(), False, False),
     ("K5-RealAssetsFactor", RealAssetsFactor(), False, False),
-    ("M6-InflationBreakeven", InflationBreakevenTrade(), False, False),
     ("M7-GlobalRotation", GlobalRotation(), False, False),
     ("M8-CommodityMacro", CommodityMacroSignal(), False, False),
     ("O7-PreciousMetalsCH", PreciousMetalsCrisisHedge(), False, False),

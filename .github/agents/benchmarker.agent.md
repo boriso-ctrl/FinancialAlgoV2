@@ -27,7 +27,7 @@ Every strategy modification must be validated against stored baselines. If a cha
 ## Environment & Commands
 
 - **Python**: Use `.venv\Scripts\python.exe` (Windows) — never bare `python`
-- **Run backtest**: `.venv\Scripts\python.exe scripts/run_crisis_backtest.py`
+- **Run backtest**: `.venv\Scripts\python.exe scripts/production/run_crisis_backtest.py`
 - **Working directory**: `c:\Users\boris\Documents\GitHub\FinancialAlgoV2`
 - **Baseline file**: `results/baselines.json` — stores per-strategy, per-window metrics
 - **Encoding**: Use ASCII-safe characters only in print statements (Windows cp1252 terminal)
