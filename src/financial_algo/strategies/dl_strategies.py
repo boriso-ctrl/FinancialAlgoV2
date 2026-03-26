@@ -394,6 +394,13 @@ class LSTMRegimeDetector(Strategy):
         feat_arr = np.nan_to_num(feat_arr, nan=0.0, posinf=0.0, neginf=0.0)
         n_feat = feat_arr.shape[1]
 
+        # Adapt warm-up to short validation slices while preserving
+        # enough history for sequence construction and model fitting.
+        effective_min_train = min(
+            c.min_train_days,
+            max(c.seq_len + 60, int(0.40 * n_days)),
+        )
+
         # --- Build regime labels from SPY drawdown ---
         spy = prices[c.spy_ticker]
         spy_max = spy.rolling(63, min_periods=1).max()
@@ -405,16 +412,16 @@ class LSTMRegimeDetector(Strategy):
 
         # --- Walk-forward loop ---
         model: _LSTMRegimeNet | None = None
-        next_retrain = c.min_train_days
+        next_retrain = effective_min_train
         current_regime = _REGIME_RISK_ON
         regime_counter = 0
 
         risk_on_avail = [t for t in c.risk_on_tickers if t in prices.columns]
         defensive_avail = [t for t in c.defensive_tickers if t in prices.columns]
 
-        rebal_set = set(range(c.min_train_days, n_days, c.rebalance_freq))
+        rebal_set = set(range(effective_min_train, n_days, c.rebalance_freq))
 
-        for day_idx in range(c.min_train_days, n_days):
+        for day_idx in range(effective_min_train, n_days):
             # Retrain?
             if day_idx >= next_retrain:
                 train_end = day_idx

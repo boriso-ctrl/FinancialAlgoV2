@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 import torch
 
+from financial_algo.backtest import BacktestConfig, backtest
 from financial_algo.strategies.dl_strategies import (
     TemporalCNNAlpha,
     TemporalCNNConfig,
@@ -214,7 +215,11 @@ class TestLSTMRegimeDetector:
         cfg = LSTMRegimeConfig(min_train_days=400, epochs=1, retrain_freq=200)
         strat = LSTMRegimeDetector(config=cfg)
         w = strat.generate_weights(prices)
-        assert (w.iloc[:400] == 0).all().all()
+        expected_warmup = min(
+            cfg.min_train_days,
+            max(cfg.seq_len + 60, int(0.40 * len(prices))),
+        )
+        assert (w.iloc[:expected_warmup] == 0).all().all()
 
     def test_build_market_features(self):
         """Check market features are built with correct columns."""
@@ -227,6 +232,61 @@ class TestLSTMRegimeDetector:
                          "credit_z", "spy_dd", "vov", "breadth"}
         assert set(feat.columns) == expected_cols
         assert not feat.isna().any().any()
+
+    def test_short_slice_adaptive_warmup_produces_non_zero_weights(self):
+        """DL2 should trade on short slices even when min_train_days is large."""
+        prices = _make_prices(n=320)
+        cfg = LSTMRegimeConfig(
+            min_train_days=504,
+            epochs=2,
+            retrain_freq=999,
+            rebalance_freq=5,
+        )
+        strat = LSTMRegimeDetector(config=cfg)
+        w = strat.generate_weights(prices)
+
+        active_days = int((w.abs().sum(axis=1) > 0).sum())
+        assert active_days > 0, "Expected non-zero allocations on short slice"
+        assert not np.isinf(w.values).any()
+        assert not w.isna().any().any()
+
+    def test_short_slice_backtest_sharpe_positive_net(self):
+        """Deterministic short-slice validation with net costs should be tradable."""
+        rng = np.random.RandomState(123)
+        n = 340
+        dates = pd.bdate_range("2022-01-03", periods=n)
+        cols = ["SPY", "QQQ", "IWM", "GLD", "TLT", "XLE", "XLK", "XLF", "HYG", "LQD"]
+
+        data = {
+            t: 100.0
+            * np.exp(
+                np.cumsum(
+                    rng.normal(
+                        0.0012 if t in {"SPY", "QQQ", "IWM", "XLE", "XLK", "XLF"} else 0.00005,
+                        0.008 if t in {"SPY", "QQQ", "IWM", "XLE", "XLK", "XLF"} else 0.006,
+                        n,
+                    )
+                )
+            )
+            for t in cols
+        }
+        prices = pd.DataFrame(data, index=dates)
+
+        strat = LSTMRegimeDetector()
+        weights = strat.backtest_weights(prices)
+        bt_cfg = BacktestConfig(
+            tx_cost_bps=5.0,
+            leverage_cost_annual=0.015,
+            short_cost_annual=0.005,
+            initial_capital=1_000_000.0,
+            vol_target=0.20,
+            max_drawdown_trigger=-0.25,
+            drawdown_recovery_rate=0.10,
+        )
+        metrics = backtest(prices, weights, bt_cfg)["metrics"]
+
+        assert (weights.abs().sum(axis=1) > 0).any(), "Expected active DL2 allocations"
+        assert metrics.get("sharpe", 0.0) > 0.20
 
 
 # ── DL-3: AttentionCrossSectionalRanker ──────────────────────────────

@@ -141,12 +141,15 @@ class EMRiskPremiumConfig:
     # Credit spread proxy: HYG/LQD ratio
     hyg_ticker: str = "HYG"
     lqd_ticker: str = "LQD"
+    dollar_ticker: str = "UUP"
     vix_ticker: str = "^VIX"
 
     spread_momentum: int = 21   # 1-month momentum of credit spread ratio
     credit_health_window: int = 200  # HYG/LQD above 200d SMA = healthy credit
-    trend_window: int = 100     # 100-day trend filter on EEM
+    trend_window: int = 120     # medium-term trend filter on EEM
     em_momentum: int = 63       # 3-month EEM momentum fallback
+    uup_momentum: int = 63      # 3-month dollar momentum
+    uup_trend_window: int = 200  # structural dollar regime
     vix_threshold: float = 25.0  # reduce position when VIX > this
 
     leverage: float = 1.0
@@ -203,23 +206,54 @@ class EMRiskPremium(Strategy):
         eem_sma = prices[c.em_ticker].rolling(c.trend_window, min_periods=50).mean()
         eem_above_trend = prices[c.em_ticker] >= eem_sma
 
-        # Composite: credit improving AND healthy, OR em momentum, AND trend
-        long_eem = (
-            ((credit_improving & credit_healthy) | em_positive)
-            & eem_above_trend
-        )
+        # Dollar filter: stronger dollar usually pressures EM risk assets.
+        if c.dollar_ticker in prices.columns:
+            uup = prices[c.dollar_ticker]
+            uup_mom = uup.pct_change(c.uup_momentum).fillna(0.0)
+            uup_sma = uup.rolling(c.uup_trend_window, min_periods=100).mean()
+            dollar_weakening = pd.notna(uup_mom) & (uup_mom < 0)
+            dollar_not_strong = uup <= uup_sma
+        else:
+            dollar_weakening = pd.Series(True, index=prices.index)
+            dollar_not_strong = pd.Series(True, index=prices.index)
 
         # VIX filter: halve position when VIX > threshold
         if c.vix_ticker in prices.columns:
             vix = prices[c.vix_ticker]
             high_vol = pd.notna(vix) & (vix > c.vix_threshold)
-            vol_scale = np.where(high_vol, 0.5, 1.0)
         else:
-            vol_scale = 1.0
+            high_vol = pd.Series(False, index=prices.index)
 
-        weights[c.em_ticker] = np.where(long_eem, c.leverage * vol_scale, 0.0)
-        safe_col = c.safe_ticker if c.safe_ticker in prices.columns else c.em_ticker
-        weights[safe_col] = np.where(long_eem, 0.0, c.leverage)
+        # Regime score for smoother risk-taking and fewer whipsaws.
+        score = (
+            credit_improving.astype(int)
+            + credit_healthy.astype(int)
+            + em_positive.astype(int)
+            + eem_above_trend.astype(int)
+            + dollar_weakening.astype(int)
+        )
+
+        hard_risk_off = high_vol | (~dollar_not_strong)
+        full_risk_on = (score >= 4) & (~hard_risk_off)
+        partial_risk_on = (score == 3) & (~hard_risk_off)
+
+        em_weight = np.where(full_risk_on, c.leverage, np.where(partial_risk_on, 0.5 * c.leverage, 0.0))
+        em_weight = pd.Series(em_weight, index=prices.index).fillna(0.0)
+
+        weights[c.em_ticker] = em_weight
+        safe_col = c.safe_ticker if c.safe_ticker in prices.columns else None
+
+        safe_weight = (c.leverage - em_weight).clip(lower=0.0)
+        if c.dollar_ticker in prices.columns and c.dollar_ticker != c.em_ticker:
+            risk_off_mask = hard_risk_off.astype(float)
+            dollar_defense_weight = safe_weight * risk_off_mask
+            weights[c.dollar_ticker] = dollar_defense_weight
+            residual_safe = safe_weight - dollar_defense_weight
+            if safe_col is not None and safe_col != c.em_ticker:
+                weights[safe_col] = residual_safe
+        else:
+            if safe_col is not None and safe_col != c.em_ticker:
+                weights[safe_col] = safe_weight
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights

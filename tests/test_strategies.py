@@ -150,6 +150,31 @@ class TestPairsStrategies:
         strat = MultiPairPortfolio()
         w = strat.generate_weights(prices)
         assert len(w) == len(prices)
+        assert not w.isna().any().any()
+        assert np.isfinite(w.values).all()
+        # E1 is long-only with explicit gross cap.
+        assert (w >= 0).all().all()
+        assert (w.sum(axis=1) <= 0.91).all()
+
+    def test_multi_pair_portfolio_empty_prices(self):
+        from financial_algo.strategies.pairs import MultiPairPortfolio
+        prices = pd.DataFrame()
+        strat = MultiPairPortfolio()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert w.empty
+
+    def test_multi_pair_portfolio_single_ticker(self):
+        from financial_algo.strategies.pairs import MultiPairPortfolio
+        prices = _make_prices()[["SPY"]]
+        strat = MultiPairPortfolio()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert list(w.columns) == ["SPY"]
+        assert not w.isna().any().any()
+        assert np.isfinite(w.values).all()
+        assert (w == 0.0).all().all()
 
 
 class TestCryptoCrisisStrategies:
@@ -245,6 +270,39 @@ class TestEnsembleStrategy:
             w = ens.generate_weights(prices)
             assert len(w) == len(prices)
             assert not w.isna().any().any(), "Fallback weights contain NaN"
+
+    def test_ensemble_circuit_breaker_power_scaling(self):
+        from financial_algo.strategies.crash_hedge import VolCarry
+        from financial_algo.strategies.ensemble import EnsembleConfig, EnsembleStrategy
+
+        dates = pd.bdate_range("2020-01-01", periods=40)
+        weights = pd.DataFrame({"SPY": 1.0}, index=dates)
+        asset_returns = pd.DataFrame(
+            {"SPY": np.r_[np.full(10, -0.005), np.full(30, -0.02)]},
+            index=dates,
+        )
+
+        cfg_linear = EnsembleConfig(
+            dd_scale_start=-0.15,
+            dd_scale_end=-0.35,
+            dd_scale_power=1.0,
+        )
+        cfg_power = EnsembleConfig(
+            dd_scale_start=-0.15,
+            dd_scale_end=-0.35,
+            dd_scale_power=1.5,
+        )
+
+        ens_linear = EnsembleStrategy([VolCarry()], cfg_linear)
+        ens_power = EnsembleStrategy([VolCarry()], cfg_power)
+
+        w_linear = ens_linear._apply_circuit_breaker(weights.copy(), asset_returns)
+        w_power = ens_power._apply_circuit_breaker(weights.copy(), asset_returns)
+
+        mid_mask = (w_linear["SPY"] > 0.0) & (w_linear["SPY"] < 1.0)
+        assert mid_mask.any()
+        assert (w_power.loc[mid_mask, "SPY"] >= w_linear.loc[mid_mask, "SPY"]).all()
+        assert ((w_power["SPY"] >= 0.0) & (w_power["SPY"] <= 1.0)).all()
 
 
 class TestCrisisSpikeStrategies:
@@ -494,6 +552,39 @@ class TestMeanReversionStrategies:
         prices = _make_prices(n=300)
         strat = GlobalMeanReversion()
         w = strat.generate_weights(prices)
+        assert (w >= 0).all().all()
+
+    def test_drift_reversal_alpha_basic(self):
+        from financial_algo.strategies.mean_reversion import DriftReversalAlpha
+        prices = _make_prices(n=320)
+        strat = DriftReversalAlpha()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+        assert np.isfinite(w.values).all()
+        assert (w >= 0).all().all()
+        # Gross long exposure is capped by config max_gross_leverage.
+        assert (w.sum(axis=1) <= 0.96).all()
+
+    def test_drift_reversal_alpha_empty_prices(self):
+        from financial_algo.strategies.mean_reversion import DriftReversalAlpha
+        prices = pd.DataFrame()
+        strat = DriftReversalAlpha()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert w.empty
+
+    def test_drift_reversal_alpha_single_ticker(self):
+        from financial_algo.strategies.mean_reversion import DriftReversalAlpha
+        prices = _make_prices(n=320)[["SPY"]]
+        strat = DriftReversalAlpha()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert list(w.columns) == ["SPY"]
+        assert not w.isna().any().any()
+        assert np.isfinite(w.values).all()
         assert (w >= 0).all().all()
 
 

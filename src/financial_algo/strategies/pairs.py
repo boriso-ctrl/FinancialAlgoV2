@@ -97,14 +97,25 @@ class MultiPairPortfolio(Strategy):
         prices: pd.DataFrame,
         regime: pd.Series | None = None,
     ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
-        # Market trend filter: SPY above 200d SMA
+        # Market trend + volatility throttle to reduce crisis drawdowns.
         if "SPY" in prices.columns:
-            spy_sma = prices["SPY"].rolling(200).mean()
-            market_ok = (prices["SPY"] > spy_sma).fillna(False)
+            spy = prices["SPY"]
+            spy_sma = spy.rolling(200, min_periods=50).mean()
+            market_up = (spy > spy_sma).fillna(False)
+
+            spy_vol = spy.pct_change().fillna(0.0).rolling(20, min_periods=10).std()
+            spy_vol = (spy_vol * np.sqrt(252)).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+            market_calm = spy_vol <= 0.28
+
+            vol_scale = (0.22 / spy_vol.replace(0.0, np.nan)).clip(lower=0.20, upper=1.0).fillna(0.20)
+            risk_gate = (market_up & market_calm).astype(float) * vol_scale
         else:
-            market_ok = pd.Series(True, index=prices.index)
+            risk_gate = pd.Series(1.0, index=prices.index)
 
         per_pair = 1.0 / max(len(self.pairs), 1)
 
@@ -120,12 +131,22 @@ class MultiPairPortfolio(Strategy):
                 exit_z=pair.exit_z,
             )
 
+            ratio = prices[lt] / prices[st].replace(0.0, np.nan)
+            ratio = ratio.replace([np.inf, -np.inf], np.nan).ffill().bfill()
+            pair_vol = ratio.pct_change().fillna(0.0).rolling(20, min_periods=10).std()
+            pair_vol = (pair_vol * np.sqrt(252)).replace([np.inf, -np.inf], np.nan)
+            pair_scale = (0.18 / pair_vol.replace(0.0, np.nan)).clip(lower=0.4, upper=1.2).fillna(0.4)
+
             # Long-only: go long the relatively cheap leg
-            w = pair.leverage * per_pair
-            long_a = (sig == 1) & market_ok
-            long_b = (sig == -1) & market_ok
+            w = pair.leverage * per_pair * pair_scale * risk_gate
+            long_a = sig == 1
+            long_b = sig == -1
 
             weights[lt] = weights[lt] + np.where(long_a, w, 0.0)
             weights[st] = weights[st] + np.where(long_b, w, 0.0)
+
+        gross = weights.abs().sum(axis=1).replace(0.0, np.nan)
+        gross_cap = (0.45 / gross).clip(upper=1.0).fillna(1.0)
+        weights = weights.mul(gross_cap, axis=0)
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)

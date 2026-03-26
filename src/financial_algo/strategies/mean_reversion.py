@@ -656,34 +656,29 @@ class DriftReversalConfig:
 
     tickers: list[str] = field(default_factory=lambda: [
         "SPY", "QQQ", "IWM", "EFA", "EEM",
-        "GLD", "TLT", "XLE", "XLK", "XLF",
+        "XLK", "XLF", "XLI", "XLY", "XLV",
     ])
-    reversal_window: int = 5       # 5-day return for reversal signal
+    reversal_window: int = 3       # short-horizon return for reversal signal
     drift_window: int = 63         # trailing days for positive-day fraction
-    drift_threshold: float = 0.60  # fraction above which drift regime is ON
-    overextended_pct: float = 0.02 # +2% threshold for short signal
-    oversold_pct: float = -0.02    # -2% threshold for long signal
-    size_scale_denom: float = 0.05 # |5d return| / 0.05 for position sizing
-    max_weight: float = 0.30       # max single position
-    max_gross_leverage: float = 1.5
+    drift_threshold: float = 0.53  # fraction above which drift regime is ON
+    oversold_pct: float = -0.011   # -1.1% threshold for long signal
+    size_scale_denom: float = 0.035  # |3d return| / denom for position sizing
+    max_weight: float = 0.28       # max single position
+    max_gross_leverage: float = 0.80
+    max_positions: int = 3
+    trend_window: int = 200
+    market_vol_window: int = 20
+    market_vol_max: float = 0.20
+    rebalance_freq: int = 3
 
 
 class DriftReversalAlpha(Strategy):
-    """Short-term reversal activated only during drift regimes.
+    """Drift-gated long-only reversal with market risk control.
 
-    Thesis (arXiv:2511.12490): When prices have been consistently
-    positive (>60% positive days in trailing 63d window), short-term
-    reversals become highly predictable. Overextended assets (5d return
-    > +2%) revert down; oversold assets (5d return < -2%) bounce.
-    During non-drift periods, reversal signals are unreliable and
-    positions are flattened.
-
-    Signal:
-    - 5-day return per asset (reversal signal).
-    - drift_ratio = rolling 63-day fraction of positive return days.
-    - Gate: only act when drift_ratio > 0.60.
-    - 5d > +2% -> SHORT; 5d < -2% -> LONG; else flat.
-    - Size by |5d_ret| / 0.05, clamped to 0.30.
+    Thesis: In persistent updrift markets, short pullbacks often mean-revert
+    quickly due to rebalancing and trend-following flows. We therefore buy
+    only oversold assets that remain in drift regimes, but we stay flat when
+    the broad market trend/volatility backdrop is hostile.
     """
 
     name = "J6-DriftReversalAlpha"
@@ -708,32 +703,51 @@ class DriftReversalAlpha(Strategy):
 
         p = prices[avail]
 
-        # 5-day return (reversal signal)
+        # Reversal signal: short-horizon pullback.
         ret_5d = p.pct_change(c.reversal_window).fillna(0.0)
 
-        # Drift regime: fraction of positive return days over trailing window
+        # Drift regime: fraction of positive daily returns over trailing window.
         daily_ret = p.pct_change().fillna(0.0)
         pos_day = (daily_ret > 0).astype(float)
         drift_ratio = pos_day.rolling(c.drift_window, min_periods=21).mean()
         drift_ratio = drift_ratio.fillna(0.0)
 
-        # Gate: only act when drift regime is ON
+        # Market-level risk gate (trend + volatility).
+        if "SPY" in prices.columns:
+            spy = prices["SPY"]
+            spy_sma = spy.rolling(c.trend_window, min_periods=50).mean()
+            market_up = (spy > spy_sma).fillna(False)
+            spy_vol = spy.pct_change().fillna(0.0).rolling(c.market_vol_window, min_periods=10).std()
+            spy_vol = (spy_vol * np.sqrt(252)).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+            spy_peak = spy.cummax().replace(0.0, np.nan)
+            spy_dd = (spy / spy_peak) - 1.0
+            market_ok = market_up & (spy_vol <= c.market_vol_max) & (spy_dd > -0.05)
+        else:
+            market_ok = pd.Series(True, index=prices.index)
+
+        # Only act when local drift and market gate are both ON.
         drift_on = pd.notna(drift_ratio) & (drift_ratio > c.drift_threshold)
+        active = drift_on & market_ok.values[:, np.newaxis]
 
-        # Reversal signals (only during drift regime)
-        overextended = drift_on & (ret_5d > c.overextended_pct)   # SHORT
-        oversold = drift_on & (ret_5d < c.oversold_pct)           # LONG
+        # Oversold entries only (long-only to reduce crash convexity risk).
+        oversold = active & (ret_5d < c.oversold_pct)
 
-        # Position sizing: scale by |5d return| / denom, clamp to max_weight
+        # Size by pullback magnitude.
         size = (ret_5d.abs() / c.size_scale_denom).clip(upper=c.max_weight)
 
-        # Build weights: negative for shorts, positive for longs
-        raw = pd.DataFrame(0.0, index=p.index, columns=avail)
-        raw = raw.where(~overextended, -size)   # short overextended
-        raw = raw.where(~oversold, size)         # long oversold
+        # Keep only strongest pullbacks to reduce turnover and crowding.
+        rank = ret_5d.rank(axis=1, ascending=True, method="average")
+        selected = oversold & (rank <= c.max_positions)
 
-        # Gross leverage cap
-        gross = raw.abs().sum(axis=1)
+        raw = selected.astype(float) * size
+
+        # Weekly rebalance hold to control cost drag.
+        rebal_mask = pd.Series(False, index=prices.index)
+        rebal_mask.iloc[::c.rebalance_freq] = True
+        raw = raw.where(rebal_mask, np.nan, axis=0).ffill().fillna(0.0)
+
+        # Gross leverage cap.
+        gross = raw.sum(axis=1)
         scale_factor = (c.max_gross_leverage / gross.clip(lower=1e-8)).clip(upper=1.0)
         raw = raw.mul(scale_factor, axis=0)
 

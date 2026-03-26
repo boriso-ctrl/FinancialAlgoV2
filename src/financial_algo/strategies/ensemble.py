@@ -47,6 +47,7 @@ class EnsembleConfig:
     # Scale exposure linearly from 1.0 at dd_scale_start to 0.0 at dd_scale_end
     dd_scale_start: float = -0.15   # start scaling down at -15% DD
     dd_scale_end: float = -0.35     # fully flat at -35% DD
+    dd_scale_power: float = 1.5     # >1.0 reduces shallow-DD over-triggering
 
     # Max gross leverage for the ensemble
     max_gross_leverage: float = 5.0
@@ -435,11 +436,17 @@ class EnsembleStrategy(Strategy):
         equity = (1 + port_ret).cumprod()
         dd = _drawdown(equity)
 
-        # Linear scale: 1.0 at dd_scale_start, 0.0 at dd_scale_end
+        # Smooth scale: 1.0 at dd_scale_start, 0.0 at dd_scale_end.
+        # A power > 1.0 makes shallow drawdowns less punitive while
+        # preserving full de-risking in deep drawdowns.
         dd_range = c.dd_scale_end - c.dd_scale_start  # negative
-        scale = ((dd - c.dd_scale_start) / dd_range).clip(0.0, 1.0)
-        # Invert: 1.0 when dd >= dd_scale_start (shallow), 0.0 when dd <= dd_scale_end (deep)
-        scale = 1.0 - scale
+        if dd_range >= 0:
+            return weights
+
+        progress = ((dd - c.dd_scale_start) / dd_range).clip(0.0, 1.0).fillna(0.0)
+        power = c.dd_scale_power if c.dd_scale_power > 0 else 1.0
+        scale = 1.0 - progress.pow(power)
+        scale = scale.clip(0.0, 1.0)
 
         weights = weights.multiply(scale, axis=0)
         return weights
