@@ -1,0 +1,36 @@
+strategy,sharpe,cagr,max_dd,sortino,calmar,window
+E1-MultiPairPortfolio,0.7367,0.029443,,1.0497,0.442,Full Period
+I2-CrossSectionalMomentum,0.7191,0.131394,,0.9966,0.3423,Full Period
+J1-SectorMeanReversion,0.6274,0.068755,,0.8733,0.3211,Full Period
+J3-RSIMeanReversion,0.311,0.029913,,0.4219,0.1111,Full Period
+K1-LowVolFactor,0.5653,0.073332,,0.7612,0.2156,Full Period
+N1-SeasonalStrategy,0.6179,0.074733,,0.8523,0.2493,Full Period
+P1-FeatureComboSignal,0.8976,0.167287,,1.248,0.5715,Full Period
+E1-MultiPairPortfolio,1.1355,0.039042,,1.7152,1.1778,Momentum-2009-2012
+I2-CrossSectionalMomentum,0.4874,0.082211,,0.6858,0.4292,Momentum-2009-2012
+J1-SectorMeanReversion,0.2264,0.020797,,0.31,0.1185,Momentum-2009-2012
+J3-RSIMeanReversion,-0.0658,-0.022869,,-0.0847,-0.085,Momentum-2009-2012
+K1-LowVolFactor,0.4385,0.051317,,0.6061,0.2485,Momentum-2009-2012
+N1-SeasonalStrategy,0.9866,0.115035,,1.3959,0.9203,Momentum-2009-2012
+P1-FeatureComboSignal,1.1056,0.206405,,1.591,0.9999,Momentum-2009-2012
+E1-MultiPairPortfolio,1.5439,0.067546,,2.3265,2.3471,Momentum-2020-2021
+I2-CrossSectionalMomentum,1.9437,0.472478,,2.8623,3.7898,Momentum-2020-2021
+J1-SectorMeanReversion,1.4363,0.235797,,2.0624,1.8127,Momentum-2020-2021
+J3-RSIMeanReversion,0.9562,0.096867,,1.4627,1.8404,Momentum-2020-2021
+K1-LowVolFactor,1.1595,0.152091,,1.6133,1.619,Momentum-2020-2021
+N1-SeasonalStrategy,1.7333,0.238524,,2.8146,3.8833,Momentum-2020-2021
+P1-FeatureComboSignal,1.1878,0.286067,,1.622,1.0676,Momentum-2020-2021
+E1-MultiPairPortfolio,1.8408,0.069352,,2.665,2.6067,MeanRev-2016-2017
+I2-CrossSectionalMomentum,1.2989,0.171474,,1.9497,1.557,MeanRev-2016-2017
+J1-SectorMeanReversion,0.9585,0.080568,,1.3093,1.2754,MeanRev-2016-2017
+J3-RSIMeanReversion,1.198,0.054469,,2.494,1.5364,MeanRev-2016-2017
+K1-LowVolFactor,2.075,0.155642,,3.4029,4.1217,MeanRev-2016-2017
+N1-SeasonalStrategy,2.0325,0.144417,,3.9064,3.6137,MeanRev-2016-2017
+P1-FeatureComboSignal,1.401,0.1928,,2.0041,2.1896,MeanRev-2016-2017
+E1-MultiPairPortfolio,0.9274,0.038089,,1.4022,0.8728,MeanRev-2023-2024
+I2-CrossSectionalMomentum,0.5949,0.083755,,0.8435,0.3462,MeanRev-2023-2024
+J1-SectorMeanReversion,1.4677,0.178637,,2.2014,2.2632,MeanRev-2023-2024
+J3-RSIMeanReversion,0.2821,0.018096,,0.3877,0.2229,MeanRev-2023-2024
+K1-LowVolFactor,1.3958,0.149269,,2.1072,2.0201,MeanRev-2023-2024
+N1-SeasonalStrategy,1.498,0.170682,,2.3328,2.1338,MeanRev-2023-2024
+P1-FeatureComboSignal,0.8446,0.135987,,1.1996,0.9096,MeanRev-2023-2024

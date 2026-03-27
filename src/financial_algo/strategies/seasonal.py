@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 
 from financial_algo.strategies.base import Strategy
@@ -30,13 +31,19 @@ class SeasonalConfig:
     leverage_weak: float = 0.0     # flat or safe in weak months
     safe_weight_weak: float = 0.5  # TLT in weak months
 
+    # New regime filters
+    vol_window: int = 20           # volatility window
+    vol_threshold: float = 0.35    # max vol to trade seasonality
+    trend_window: int = 200        # SMA trend window
+
 
 class SeasonalStrategy(Strategy):
-    """Sell in May, buy in November — riding the Halloween effect.
+    """Sell in May, buy in November with regime filters.
 
     Thesis: Equities historically return more in Nov-Apr than May-Oct.
     Documented in Bouman & Jacobsen (2002), robust across markets and
-    centuries. One of the most persistent calendar anomalies.
+    centuries. Added volatility and trend filters to skip trading during
+    extreme regimes. One of the most persistent calendar anomalies.
     """
 
     name = "N1-SeasonalStrategy"
@@ -56,9 +63,26 @@ class SeasonalStrategy(Strategy):
         for m in c.strong_months:
             strong |= (months == m)
 
+        # Volatility and trend filters
+        if c.equity_ticker in prices.columns:
+            equity = prices[c.equity_ticker]
+            
+            # Volatility filter
+            vol = equity.pct_change().fillna(0.0).rolling(c.vol_window).std() * np.sqrt(252)
+            vol_ok = (vol <= c.vol_threshold).fillna(False)
+            
+            # Trend filter: SPY above 200d SMA
+            sma = equity.rolling(c.trend_window).mean()
+            uptrend = (equity > sma).fillna(False)
+            
+            # Only trade seasonal in normal vol + uptrend
+            season_ok = vol_ok & uptrend
+        else:
+            season_ok = pd.Series(True, index=prices.index)
+
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-        weights.loc[strong, c.equity_ticker] = c.leverage_strong
-        weights.loc[~strong, c.safe_ticker] = c.safe_weight_weak
+        weights.loc[strong & season_ok, c.equity_ticker] = c.leverage_strong
+        weights.loc[~strong & season_ok, c.safe_ticker] = c.safe_weight_weak
 
         return weights.fillna(0.0)
 

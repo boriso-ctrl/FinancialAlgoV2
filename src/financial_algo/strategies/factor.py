@@ -26,6 +26,7 @@ class LowVolConfig:
     vol_window: int = 60
     rebalance_freq: int = 21   # monthly rebalance
     top_n: int = 4             # long top-N lowest vol
+    trend_window: int = 200    # SMA trend filter window
     leverage: float = 1.5
 
     def __post_init__(self) -> None:
@@ -37,11 +38,12 @@ class LowVolConfig:
 
 
 class LowVolFactor(Strategy):
-    """Long the lowest-volatility sector ETFs (rebalanced monthly).
+    """Long the lowest-volatility sector ETFs with trend filter.
 
     Thesis: Low-volatility anomaly — low-vol stocks/sectors deliver
     higher risk-adjusted returns than high-vol ones. Documented by
     Baker, Bradley, Wurgler (2011). Persistent across markets and time.
+    Added trend filter to reduce drawdowns in prolonged downtrends.
     Provides defensive alpha with low drawdowns.
     """
 
@@ -69,10 +71,19 @@ class LowVolFactor(Strategy):
         vol_rank = vols.rank(axis=1, method='first')
         selected = vol_rank <= c.top_n
 
+        # Trend filter: only hold if sector above 200d SMA
+        trends = pd.DataFrame(index=prices.index)
+        for t in avail:
+            sma = prices[t].rolling(c.trend_window).mean()
+            trends[t] = (prices[t] > sma).fillna(False)
+
         # Rebalance at fixed intervals — hold selections between rebalances
         rebal_mask = pd.Series(False, index=prices.index)
         rebal_mask.iloc[::c.rebalance_freq] = True
         selected_held = selected.where(rebal_mask).ffill().fillna(False)
+
+        # Apply trend filter: reduce position sizes in downtrends
+        selected_held = selected_held & trends
 
         # Assign equal weight to selected sectors
         per_weight = c.leverage / c.top_n
@@ -648,32 +659,30 @@ class QualityMomentumCompositeConfig:
         "FXI", "VGK", "EWJ", "INDA", "VNQ", "XBI",
     ])
     sharpe_window: int = 126
-    mom_window: int = 252
+    drift_window: int = 63
+    mom_fast: int = 63
+    mom_slow: int = 252
     vol_window: int = 63
     sma_window: int = 200
-    sharpe_wt: float = 0.40
-    mom_wt: float = 0.35
-    inv_vol_wt: float = 0.25
-    long_n: int = 8
-    short_n: int = 3
-    long_weight: float = 0.15
-    short_weight: float = 0.10
-    crash_tlt_weight: float = 0.30
+    sharpe_wt: float = 0.35
+    drift_wt: float = 0.20
+    mom_wt: float = 0.30
+    inv_vol_wt: float = 0.15
+    long_n: int = 7
+    short_n: int = 2
+    gross_leverage: float = 1.25
+    crash_leverage: float = 0.65
+    max_weight: float = 0.25
+    high_vol_threshold: float = 0.30
+    crash_tlt_weight: float = 0.25
 
 
 class QualityMomentumComposite(Strategy):
     """Cross-sectional quality + momentum composite factor.
 
-    Thesis: Assets with BOTH high recent risk-adjusted returns (Sharpe)
-    and positive momentum earn the highest weight. This captures the
-    well-documented interaction between quality and momentum factors.
-    A crash filter halves exposure when SPY is below its 200-day SMA.
-
-    Signal:
-    - 126d rolling Sharpe, 252d return, 63d inverse vol per asset.
-    - Rank each cross-sectionally [0,1], composite = weighted sum.
-    - Long top 8 (0.15 each), short bottom 3 (-0.10 each).
-    - Crash filter: if SPY < 200d SMA, halve positions + 0.30 TLT.
+    Thesis: assets with persistent positive drift, strong risk-adjusted
+    momentum, and controlled volatility outperform in a diversified basket.
+    Exposure is reduced in stressed market states to avoid crash beta.
     """
 
     name = "K6-QualityMomentumComposite"
@@ -701,68 +710,72 @@ class QualityMomentumComposite(Strategy):
         p = prices[avail]
         ret = p.pct_change().fillna(0.0)
 
-        # --- Signal 1: Rolling Sharpe ratio (126d) ---
         roll_mean = ret.rolling(c.sharpe_window, min_periods=20).mean()
-        roll_std = ret.rolling(c.sharpe_window, min_periods=20).std().replace(
-            0.0, np.nan,
-        )
-        rolling_sharpe = (roll_mean / roll_std).replace(
-            [np.inf, -np.inf], np.nan,
-        ).fillna(0.0)
+        roll_std = ret.rolling(c.sharpe_window, min_periods=20).std().replace(0.0, np.nan)
+        rolling_sharpe = (roll_mean / roll_std).replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-        # --- Signal 2: 252-day momentum ---
-        mom = p.pct_change(c.mom_window).fillna(0.0)
+        drift = (ret > 0.0).astype(float).rolling(c.drift_window, min_periods=20).mean().fillna(0.0)
+        mom_fast = p.pct_change(c.mom_fast).replace([np.inf, -np.inf], np.nan)
+        mom_slow = p.pct_change(c.mom_slow).replace([np.inf, -np.inf], np.nan)
+        mom = (0.6 * mom_fast) + (0.4 * mom_slow)
 
-        # --- Signal 3: Inverse volatility (63d) ---
-        rvol = ret.rolling(c.vol_window, min_periods=10).std() * np.sqrt(252)
+        rvol = ret.rolling(c.vol_window, min_periods=20).std() * np.sqrt(252)
         rvol = rvol.replace(0.0, np.nan).fillna(0.20)
-        inv_vol = 1.0 / rvol
-        inv_vol = inv_vol.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        inv_vol = (1.0 / rvol).replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-        # --- Cross-sectional rank each signal [0, 1] ---
         sharpe_rank = rolling_sharpe.rank(axis=1, pct=True).fillna(0.5)
+        drift_rank = drift.rank(axis=1, pct=True).fillna(0.5)
         mom_rank = mom.rank(axis=1, pct=True).fillna(0.5)
         inv_vol_rank = inv_vol.rank(axis=1, pct=True).fillna(0.5)
 
-        # --- Composite score ---
         composite = (
             c.sharpe_wt * sharpe_rank
+            + c.drift_wt * drift_rank
             + c.mom_wt * mom_rank
             + c.inv_vol_wt * inv_vol_rank
         )
 
-        # --- Rank composite and select long/short ---
-        cs_rank = composite.rank(axis=1, method="average", ascending=True)
-        n_assets = cs_rank.count(axis=1)
+        ema200 = p.rolling(c.sma_window, min_periods=50).mean()
+        trend_up = (p > ema200)
+        trend_dn = (p < ema200)
 
-        long_thresh = n_assets - c.long_n + 0.5
-        short_thresh = c.short_n + 0.5
+        long_score = composite.where(trend_up & (mom > 0.0), np.nan)
+        short_score = composite.where(trend_dn & (mom < 0.0), np.nan)
 
-        is_long = cs_rank.gt(long_thresh, axis=0)
-        is_short = cs_rank.lt(short_thresh, axis=0)
+        long_rank = long_score.rank(axis=1, ascending=False, method="average")
+        short_rank = short_score.rank(axis=1, ascending=True, method="average")
+        is_long = (long_rank <= c.long_n) & pd.notna(long_score)
+        is_short = (short_rank <= c.short_n) & pd.notna(short_score)
+        is_short = is_short & ~is_long
 
-        # Fixed position sizes
-        raw = pd.DataFrame(0.0, index=p.index, columns=p.columns)
-        raw = raw.where(~is_long, c.long_weight)
-        raw = raw.where(~is_short, -c.short_weight)
+        long_raw = is_long.astype(float) * inv_vol * long_score.clip(lower=0.0).fillna(0.0)
+        short_raw = is_short.astype(float) * inv_vol * (1.0 - short_score).clip(lower=0.0).fillna(0.0)
 
-        # --- Crash filter: SPY below 200d SMA ---
+        long_sum = long_raw.sum(axis=1).replace(0.0, np.nan)
+        short_sum = short_raw.sum(axis=1).replace(0.0, np.nan)
+        long_w = long_raw.div(long_sum, axis=0).fillna(0.0)
+        short_w = short_raw.div(short_sum, axis=0).fillna(0.0) * -1.0
+
+        raw = long_w + short_w
+        raw = raw.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
         spy_col = "SPY" if "SPY" in prices.columns else avail[0]
+        spy_ret = prices[spy_col].pct_change().fillna(0.0)
+        spy_vol = spy_ret.rolling(c.vol_window, min_periods=20).std() * np.sqrt(252)
+        spy_vol = spy_vol.replace([np.inf, -np.inf], np.nan).fillna(c.high_vol_threshold)
         spy_sma = prices[spy_col].rolling(c.sma_window, min_periods=50).mean()
-        crash = prices[spy_col] < spy_sma
+        crash = (prices[spy_col] < spy_sma) | (spy_vol > c.high_vol_threshold)
 
-        # Halve all positions during crash
-        raw = raw.where(~crash, raw * 0.5)
+        lev_t = pd.Series(np.where(crash, c.crash_leverage, c.gross_leverage), index=prices.index, dtype=float)
+        gross = raw.abs().sum(axis=1).replace(0.0, np.nan)
+        scaled = raw.div(gross, axis=0).fillna(0.0).mul(lev_t, axis=0)
+        scaled = scaled.clip(lower=-c.max_weight, upper=c.max_weight)
+        scaled = scaled.where(~crash, scaled.clip(lower=0.0), axis=0)
 
-        # Add TLT hedge during crash
-        tlt_col = "TLT"
-        if tlt_col in prices.columns:
-            tlt_hedge = pd.Series(0.0, index=prices.index)
-            tlt_hedge = tlt_hedge.where(~crash, c.crash_tlt_weight)
-            if tlt_col in raw.columns:
-                raw[tlt_col] = raw[tlt_col] + tlt_hedge
-            elif tlt_col in weights.columns:
-                weights[tlt_col] = tlt_hedge
+        if "TLT" in scaled.columns:
+            tlt_overlay = pd.Series(0.0, index=prices.index)
+            tlt_overlay = tlt_overlay.where(~crash, c.crash_tlt_weight)
+            scaled["TLT"] = scaled["TLT"] + tlt_overlay
 
-        weights.loc[:, avail] = raw
+        weights.loc[:, avail] = scaled
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)

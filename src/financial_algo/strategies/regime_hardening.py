@@ -723,51 +723,47 @@ class MultiAssetCTATrend(Strategy):
 # =========================================================================
 
 class CommodityMacroOverlay(Strategy):
-    """R10-CommodityMacroOverlay: activates ONLY during commodity-boom /
-    rate-tightening regimes; otherwise sits flat.
+    """R10-CommodityMacroOverlay with tightening/easing state machine.
 
-    Signal logic (all four conditions must be met on monthly rebalance date):
-      1. XLE 63-day return > +8%          (energy outperforming)
-      2. UUP 63-day return > +1.5%        (dollar strengthening)
-      3. TLT 63-day return < -3%          (rates rising)
-      4. SPY below its 200-day SMA        (equity bear market)
-
-    When active:
-      30% XLE, 20% DBC (or XLE as proxy), 20% UUP, 15% SHY, 15% GLD
-    When inactive:
-      0% all positions (strategy is dormant, doesn't compete with others)
-
-    This pattern fires historically in commodity super-cycles combined with
-    monetary tightening (e.g., 2011, 2016 recovery, 2022) and is DORMANT
-    in normal equity bull markets, 2015 (energy falling), and 2018
-    (bonds rising as safe-haven).
-
-    Risk tier: Safe (max 1.0x leverage, long-only, diversified commodity basket).
+    Thesis: Commodity inflation regimes are strongest when energy leadership,
+    dollar strength, and rising rates align. Outside those windows, stay in a
+    defensive macro sleeve (TLT/GLD/UUP/SHY) rather than idle cash so the
+    strategy remains productive with controlled drawdowns.
     """
 
     name = "R10-CommodityMacroOverlay"
 
     _MOM_LOOKBACK: int = 63           # 3-month signal window
     _SMA_WINDOW: int = 200
-    _XLE_THRESHOLD: float = 0.08      # XLE 3m return > 8%
-    _UUP_THRESHOLD: float = 0.015     # UUP 3m return > 1.5%
-    _TLT_THRESHOLD: float = -0.03     # TLT 3m return < -3%
+    _FAST_MOM: int = 21
+    _XLE_THRESHOLD: float = 0.06      # XLE 3m return > 6%
+    _REL_THRESHOLD: float = 0.04      # XLE/SPY relative 3m return > 4%
+    _UUP_THRESHOLD: float = 0.00      # UUP momentum must be positive
+    _TLT_THRESHOLD: float = -0.01     # TLT momentum negative = tightening
     _MAX_LEVERAGE: float = 1.0
+    _DD_WINDOW: int = 63
 
-    # Target weights when active (must sum to <=1.0)
+    # Tightening commodity regime
     _ACTIVE_WEIGHTS = {
         "XLE": 0.30,
-        "DBC": 0.20,
-        "UUP": 0.20,
+        "DBC": 0.25,
+        "UUP": 0.15,
         "SHY": 0.15,
         "GLD": 0.15,
     }
-    # Fallback if DBC unavailable
-    _FALLBACK_WEIGHTS = {
-        "XLE": 0.40,
-        "UUP": 0.25,
-        "SHY": 0.20,
-        "GLD": 0.15,
+    # Defensive regime
+    _DEFENSIVE_WEIGHTS = {
+        "TLT": 0.40,
+        "GLD": 0.30,
+        "UUP": 0.15,
+        "SHY": 0.15,
+    }
+    # Transition regime
+    _TRANSITION_WEIGHTS = {
+        "TLT": 0.15,
+        "GLD": 0.30,
+        "UUP": 0.15,
+        "SHY": 0.40,
     }
 
     def generate_weights(
@@ -785,33 +781,90 @@ class CommodityMacroOverlay(Strategy):
         m = self._MOM_LOOKBACK
 
         xle_ret = p["XLE"].pct_change(m).fillna(0.0)
+        xle_ret_fast = p["XLE"].pct_change(self._FAST_MOM).fillna(0.0)
         uup_ret = p["UUP"].pct_change(m).fillna(0.0)
         tlt_ret = p["TLT"].pct_change(m).fillna(0.0)
+        spy_ret = p["SPY"].pct_change(m).fillna(0.0)
+        xle_rel = (xle_ret - spy_ret).fillna(0.0)
+
+        if "DBC" in p.columns:
+            dbc_ret = p["DBC"].pct_change(m).fillna(0.0)
+        else:
+            dbc_ret = xle_ret
+
+        if "^VIX" in p.columns:
+            vix = p["^VIX"]
+            stress = pd.notna(vix) & (vix > 26.0)
+        else:
+            stress = pd.Series(False, index=p.index)
+
         sma200   = p["SPY"].rolling(self._SMA_WINDOW, min_periods=50).mean().fillna(p["SPY"])
         spy_bear = p["SPY"] < sma200
 
-        active = (
-            (xle_ret > self._XLE_THRESHOLD) &
-            (uup_ret > self._UUP_THRESHOLD) &
-            (tlt_ret < self._TLT_THRESHOLD) &
-            spy_bear
+        commodity_regime = (
+            (xle_ret > self._XLE_THRESHOLD)
+            & (xle_rel > self._REL_THRESHOLD)
+            & (uup_ret > self._UUP_THRESHOLD)
+            & (tlt_ret < self._TLT_THRESHOLD)
+            & (dbc_ret > 0.02)
+            & ((xle_ret_fast > 0.0) | (dbc_ret > 0.05))
         )
+
+        defensive_regime = (stress | spy_bear) & ~commodity_regime
+        transition_regime = ~commodity_regime & ~defensive_regime
 
         # Monthly rebalancing: evaluate signal at each month-end, carry forward
         months = p.index.to_series().dt.month
         is_month_end = months.diff().shift(-1).fillna(1) != 0
-        # Set active = NaN on non-month-end days, then ffill
-        active_monthly = active.copy().astype(float)
-        active_monthly[~is_month_end] = np.nan
-        active_monthly = active_monthly.ffill().fillna(0.0).astype(bool)
+        cm = commodity_regime.astype(float)
+        df = defensive_regime.astype(float)
+        tr = transition_regime.astype(float)
+        cm[~is_month_end] = np.nan
+        df[~is_month_end] = np.nan
+        tr[~is_month_end] = np.nan
+        cm = cm.ffill().fillna(0.0).astype(bool)
+        df = df.ffill().fillna(0.0).astype(bool)
+        tr = tr.ffill().fillna(1.0).astype(bool)
 
-        # Determine target weights based on asset availability
-        has_dbc = "DBC" in prices.columns
-        target = self._ACTIVE_WEIGHTS if has_dbc else self._FALLBACK_WEIGHTS
+        active_target = dict(self._ACTIVE_WEIGHTS)
+        if "DBC" not in weights.columns:
+            active_target["XLE"] = active_target["XLE"] + active_target.get("DBC", 0.0)
+            active_target.pop("DBC", None)
 
-        for ticker, w in target.items():
+        for ticker, w in active_target.items():
             if ticker in weights.columns:
-                weights[ticker] = np.where(active_monthly, w, 0.0)
+                weights[ticker] = np.where(cm, w, weights[ticker])
+
+        for ticker, w in self._DEFENSIVE_WEIGHTS.items():
+            if ticker in weights.columns:
+                weights[ticker] = np.where(df, w, weights[ticker])
+
+        for ticker, w in self._TRANSITION_WEIGHTS.items():
+            if ticker in weights.columns:
+                weights[ticker] = np.where(tr, w, weights[ticker])
+
+        # Commodity sleeve drawdown control: reduce cyclical risk after deep pullback.
+        comm_proxy = pd.Series(0.0, index=p.index)
+        if "XLE" in p.columns:
+            comm_proxy = comm_proxy + 0.6 * p["XLE"].pct_change().fillna(0.0)
+        if "DBC" in p.columns:
+            comm_proxy = comm_proxy + 0.4 * p["DBC"].pct_change().fillna(0.0)
+        comm_curve = (1.0 + comm_proxy).cumprod()
+        comm_dd = comm_curve / comm_curve.cummax().replace(0.0, np.nan) - 1.0
+        dd_scale = np.where(comm_dd < -0.15, 0.5, np.where(comm_dd < -0.10, 0.75, 1.0))
+        dd_scale = pd.Series(dd_scale, index=p.index)
+
+        cyclical_cols = [t for t in ["XLE", "DBC"] if t in weights.columns]
+        for t in cyclical_cols:
+            weights[t] = weights[t] * dd_scale
+
+        if "SHY" in weights.columns:
+            lost = (self._MAX_LEVERAGE - weights.sum(axis=1)).clip(lower=0.0)
+            weights["SHY"] = weights["SHY"] + lost
+
+        gross = weights.abs().sum(axis=1).replace(0.0, np.nan)
+        scale = (self._MAX_LEVERAGE / gross).clip(upper=1.0).fillna(1.0)
+        weights = weights.multiply(scale, axis=0)
 
         return (
             weights

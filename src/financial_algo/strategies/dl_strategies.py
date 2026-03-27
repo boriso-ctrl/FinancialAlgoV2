@@ -610,19 +610,26 @@ class LSTMRegimeDetector(Strategy):
 class _CrossAssetAttentionNet(nn.Module):
     """Self-attention across assets: (batch, n_assets, n_features) -> (batch, n_assets)."""
 
-    def __init__(self, n_features: int, d_model: int = 16,
-                 n_heads: int = 2) -> None:
+    def __init__(
+        self,
+        n_features: int,
+        d_model: int = 16,
+        n_heads: int = 2,
+        dropout: float = 0.10,
+    ) -> None:
         super().__init__()
         self.input_proj = nn.Linear(n_features, d_model)
         self.attention = nn.MultiheadAttention(
             embed_dim=d_model,
             num_heads=n_heads,
+            dropout=dropout,
             batch_first=True,
         )
         self.norm = nn.LayerNorm(d_model)
         self.fc = nn.Sequential(
             nn.Linear(d_model, 8),
             nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(8, 1),
         )
 
@@ -653,9 +660,15 @@ class AttentionRankerConfig:
     min_train_days: int = 504
     retrain_freq: int = 63
     fwd_horizon: int = 21
-    epochs: int = 30
-    lr: float = 0.003
+    epochs: int = 24
+    lr: float = 0.0025
     batch_size: int = 64
+    weight_decay: float = 5e-4
+    dropout: float = 0.10
+    feature_clip: float = 5.0
+    label_clip: float = 3.0
+    grad_clip_norm: float = 1.0
+    dispersion_threshold: float = 0.05
     long_n: int = 5
     short_n: int = 3
     long_weight: float = 1.2      # total long exposure
@@ -691,13 +704,15 @@ class AttentionCrossSectionalRanker(Strategy):
     ) -> pd.DataFrame:
         c = self.cfg
         avail = [t for t in c.tickers if t in prices.columns]
-        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        n_days = len(prices)
+        n_total_assets = len(prices.columns)
+        weights_arr = np.zeros((n_days, n_total_assets), dtype=np.float64)
         if len(avail) < c.long_n + c.short_n:
-            return weights
+            return pd.DataFrame(weights_arr, index=prices.index, columns=prices.columns)
 
         p = prices[avail]
-        n_days = len(p)
         n_assets = len(avail)
+        avail_col_idx = np.array([prices.columns.get_loc(t) for t in avail], dtype=np.int64)
 
         # --- Compute features ---
         rvol_20d = _realized_vol_df(p, 20)
@@ -728,11 +743,26 @@ class AttentionCrossSectionalRanker(Strategy):
         fwd_ret = fwd_ret.replace([np.inf, -np.inf], np.nan).fillna(0.0).values
         fwd_ret = np.nan_to_num(fwd_ret, nan=0.0, posinf=0.0, neginf=0.0)
 
+        # Volatility-aware exposure scaling uses only historical data.
+        mkt_ret = p.pct_change().mean(axis=1).fillna(0.0)
+        vol_fast = mkt_ret.rolling(20, min_periods=10).std().shift(1)
+        vol_slow = mkt_ret.rolling(63, min_periods=20).std().shift(1)
+        vol_ratio = (vol_fast / vol_slow.replace(0.0, np.nan)).replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(1.0)
+        risk_scale = np.where(
+            vol_ratio.values > 1.35,
+            0.65,
+            np.where(vol_ratio.values < 0.85, 1.10, 1.00),
+        )
+        risk_scale = np.clip(risk_scale, 0.50, 1.15)
+
         # --- Walk-forward ---
-        model: _CrossAssetAttentionNet | None = None
+        model_state: tuple[_CrossAssetAttentionNet, np.ndarray, np.ndarray] | None = None
         next_retrain = c.min_train_days
-        current_long: list[str] = []
-        current_short: list[str] = []
+        current_long_idx = np.array([], dtype=np.int64)
+        current_short_idx = np.array([], dtype=np.int64)
+        current_dispersion = 0.0
 
         rebal_set = set(range(c.min_train_days, n_days, c.rebalance_freq))
 
@@ -741,28 +771,37 @@ class AttentionCrossSectionalRanker(Strategy):
             if day_idx >= next_retrain:
                 train_end = day_idx - c.fwd_horizon
                 if train_end > 100:
-                    model = self._train_model(
+                    model_state = self._train_model(
                         feat_3d, fwd_ret, train_end, n_assets, c,
                     )
                 next_retrain = day_idx + c.retrain_freq
 
             # Rebalance?
-            if day_idx in rebal_set and model is not None:
-                current_long, current_short = self._predict_ranks(
-                    feat_3d, day_idx, avail, model, c,
+            if day_idx in rebal_set and model_state is not None:
+                model, feat_mean, feat_std = model_state
+                current_long_idx, current_short_idx, current_dispersion = self._predict_ranks(
+                    feat_3d,
+                    day_idx,
+                    avail_col_idx,
+                    model,
+                    feat_mean,
+                    feat_std,
+                    c,
                 )
 
             # Assign weights
-            n_long = max(len(current_long), 1)
-            n_short = max(len(current_short), 1)
-            per_long = min(c.long_weight / n_long, c.max_position)
-            per_short = min(c.short_weight / n_short, c.max_position)
+            if current_dispersion >= c.dispersion_threshold:
+                n_long = max(len(current_long_idx), 1)
+                n_short = max(len(current_short_idx), 1)
+                scale = float(risk_scale[day_idx])
+                per_long = min((c.long_weight * scale) / n_long, c.max_position)
+                per_short = min((c.short_weight * scale) / n_short, c.max_position)
+                if len(current_long_idx) > 0:
+                    weights_arr[day_idx, current_long_idx] = per_long
+                if len(current_short_idx) > 0:
+                    weights_arr[day_idx, current_short_idx] = -per_short
 
-            for t in current_long:
-                weights.iloc[day_idx, weights.columns.get_loc(t)] = per_long
-            for t in current_short:
-                weights.iloc[day_idx, weights.columns.get_loc(t)] = -per_short
-
+        weights = pd.DataFrame(weights_arr, index=prices.index, columns=prices.columns)
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
     @staticmethod
@@ -772,27 +811,45 @@ class AttentionCrossSectionalRanker(Strategy):
         train_end: int,
         n_assets: int,
         c: AttentionRankerConfig,
-    ) -> _CrossAssetAttentionNet:
+    ) -> tuple[_CrossAssetAttentionNet, np.ndarray, np.ndarray]:
         """Train attention model on expanding window."""
         n_features = _N_DL3_FEATURES
 
         # Build samples: each sample is one day's cross-section
-        sample_days = list(range(0, train_end, c.training_stride))
+        sample_days = np.arange(0, train_end, c.training_stride, dtype=np.int64)
         if len(sample_days) < 20:
-            return _CrossAssetAttentionNet(n_features)
+            empty_model = _CrossAssetAttentionNet(n_features, dropout=c.dropout)
+            feat_mean = np.zeros((1, 1, n_features), dtype=np.float64)
+            feat_std = np.ones((1, 1, n_features), dtype=np.float64)
+            return empty_model, feat_mean, feat_std
 
         # X: (n_samples, n_assets, n_features)
         # y: (n_samples, n_assets) - cross-sectional target returns
         X_arr = feat_3d[sample_days]
         y_arr = fwd_ret[sample_days]
 
+        feat_mean = np.nanmean(X_arr, axis=(0, 1), keepdims=True)
+        feat_std = np.nanstd(X_arr, axis=(0, 1), keepdims=True)
+        feat_std = np.where(feat_std > 1e-6, feat_std, 1.0)
+        X_arr = np.clip((X_arr - feat_mean) / feat_std, -c.feature_clip, c.feature_clip)
+        X_arr = np.nan_to_num(X_arr, nan=0.0, posinf=0.0, neginf=0.0)
+
+        y_mean = np.nanmean(y_arr, axis=1, keepdims=True)
+        y_std = np.nanstd(y_arr, axis=1, keepdims=True)
+        y_std = np.where(y_std > 1e-6, y_std, 1.0)
+        y_arr = np.clip((y_arr - y_mean) / y_std, -c.label_clip, c.label_clip)
+        y_arr = np.nan_to_num(y_arr, nan=0.0, posinf=0.0, neginf=0.0)
+
         X_train = _safe_tensor(X_arr)
         y_train = _safe_tensor(y_arr)
 
-        model = _CrossAssetAttentionNet(n_features)
-        optimiser = torch.optim.Adam(model.parameters(), lr=c.lr, weight_decay=1e-4)
-        # Use MSE on cross-sectional return predictions
-        loss_fn = nn.MSELoss()
+        model = _CrossAssetAttentionNet(n_features, dropout=c.dropout)
+        optimiser = torch.optim.Adam(
+            model.parameters(),
+            lr=c.lr,
+            weight_decay=c.weight_decay,
+        )
+        loss_fn = nn.SmoothL1Loss(beta=0.5)
 
         model.train()
         n_samples = len(X_train)
@@ -807,31 +864,36 @@ class AttentionCrossSectionalRanker(Strategy):
                 loss = loss_fn(pred, yb)
                 optimiser.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), c.grad_clip_norm)
                 optimiser.step()
 
         model.eval()
-        return model
+        return model, feat_mean, feat_std
 
     @staticmethod
     def _predict_ranks(
         feat_3d: np.ndarray,
         day_idx: int,
-        avail: list[str],
+        avail_col_idx: np.ndarray,
         model: _CrossAssetAttentionNet,
+        feat_mean: np.ndarray,
+        feat_std: np.ndarray,
         c: AttentionRankerConfig,
-    ) -> tuple[list[str], list[str]]:
-        """Predict scores and return top-long and bottom-short lists."""
-        X_t = _safe_tensor(feat_3d[day_idx:day_idx + 1])  # (1, n_assets, n_feat)
+    ) -> tuple[np.ndarray, np.ndarray, float]:
+        """Predict scores and return top-long and bottom-short indices plus dispersion."""
+        X_raw = feat_3d[day_idx:day_idx + 1]
+        X_norm = np.clip((X_raw - feat_mean) / feat_std, -c.feature_clip, c.feature_clip)
+        X_t = _safe_tensor(X_norm)
         with torch.no_grad():
             scores = model(X_t).numpy()[0]  # (n_assets,)
 
-        scored = pd.Series(scores, index=avail)
-        ranked = scored.rank(ascending=False)
+        n_assets = len(avail_col_idx)
+        long_n = min(c.long_n, max(n_assets // 2, 1))
+        short_n = min(c.short_n, max(n_assets // 3, 1))
 
-        long_n = min(c.long_n, len(avail) // 2)
-        short_n = min(c.short_n, len(avail) // 3)
+        order = np.argsort(-scores)
+        top_idx = avail_col_idx[order[:long_n]]
+        bottom_idx = avail_col_idx[order[-short_n:]]
+        dispersion = float(np.nanstd(scores))
 
-        top = ranked[ranked <= long_n].index.tolist()
-        bottom = ranked[ranked > len(avail) - short_n].index.tolist()
-
-        return top, bottom
+        return top_idx, bottom_idx, dispersion

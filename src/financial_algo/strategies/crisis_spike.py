@@ -49,23 +49,31 @@ class CommodityShockConfig:
 
     # Breakout: z-score threshold for detecting upward spike
     zscore_window: int = 60
-    spike_z: float = 1.5       # lower than mean-reversion to catch EARLY
+    # REWORK: Lowered standard spike z-score from 1.5 to 1.2
+    # Catches breakouts earlier before they become extreme
+    spike_z: float = 1.2
 
     # Fast breakout: shorter z-score for catching fast-developing spikes
     fast_zscore_window: int = 20
-    fast_spike_z: float = 2.0           # extreme z-score on fast window
-    fast_momentum_threshold: float = 0.05  # 5% move in 10 days
+    # REWORK: Lowered fast spike z-score from 2.0 to 1.8
+    # More sensitive to rapidly developing spikes
+    fast_spike_z: float = 1.8
+    # REWORK: Increased fast momentum threshold from 0.05 to 0.06 for better specificity
+    fast_momentum_threshold: float = 0.06
 
     # Trend filter: momentum over lookback
     momentum_window: int = 10
-    momentum_threshold: float = 0.03  # 3% move in 10 days
+    # REWORK: Slightly lowered momentum threshold from 0.03 to 0.025
+    momentum_threshold: float = 0.025
 
     # Leverage
     leverage_energy: float = 2.0
     leverage_gold: float = 1.0
 
     # Trail stop: exit when momentum fades
-    exit_momentum_threshold: float = -0.02  # -2% reversal -> exit
+    # REWORK: Less aggressive exit threshold from -0.02 to -0.015
+    # Reduces whipsaw exits on minor momentum reversals
+    exit_momentum_threshold: float = -0.015
 
 
 class CommodityShockRider(Strategy):
@@ -319,8 +327,12 @@ class MultiAssetCrisisLongConfig:
     zscore_window: int = 60
 
     # Dynamic allocation: score assets by strength, allocate to strongest
-    top_n: int = 3           # allocate to top N performing crisis assets
-    leverage_per_asset: float = 1.5
+    top_n: int = 3
+    # REWORK: Increased leverage_per_asset from 1.5 to 2.0x for conviction
+    leverage_per_asset: float = 2.0
+    # REWORK: Strengthened crisis detection threshold from 1.0 to 1.2 z-score
+    # Requires stronger signal to confirm crisis is active
+    crisis_zscore_threshold: float = 1.2
 
 
 class MultiAssetCrisisLong(Strategy):
@@ -358,22 +370,31 @@ class MultiAssetCrisisLong(Strategy):
         if not available:
             return pd.DataFrame(0.0, index=prices.index, columns=[c.equity_ticker])
 
-        # Score each asset by recent momentum
-        momentum = pd.DataFrame(index=prices.index)
-        for t in available:
-            momentum[t] = prices[t].pct_change(c.momentum_window)
-
-        # Rank assets each day (highest momentum = rank 1)
-        ranks = momentum.rank(axis=1, ascending=False)
-
-        # Determine "crisis active" days: at least one asset spiking
-        # (z-score > 1.0 on any crisis asset)
-        crisis_active = pd.Series(False, index=prices.index)
-        any_extreme = pd.Series(False, index=prices.index)
+        # REWORK: Compute conviction scores = z-score * momentum
+        # Strong conviction = high z-score (extreme) AND positive momentum
+        # This replaces pure rank-based allocation with conviction weighting
+        conviction = pd.DataFrame(index=prices.index, columns=available)
         for t in available:
             t_z = zscore(prices[t], c.zscore_window)
-            crisis_active = crisis_active | (t_z >= 1.0)
-            any_extreme = any_extreme | (t_z >= 2.0)
+            t_mom = prices[t].pct_change(c.momentum_window).fillna(0.0)
+            # Conviction only positive when BOTH z-score and momentum are strong
+            # Clip to exclude negative contributions (long-only strategy)
+            conviction[t] = (t_z * t_mom).clip(lower=0.0)
+
+        # Rank assets by conviction each day
+        conviction_ranks = conviction.rank(axis=1, ascending=False)
+
+        # Determine "crisis active" days: at least one asset with strong conviction
+        crisis_active = pd.Series(False, index=prices.index)
+        extreme_spike = pd.Series(False, index=prices.index)
+        
+        for t in available:
+            t_z = zscore(prices[t], c.zscore_window)
+            t_mom = prices[t].pct_change(c.momentum_window).fillna(0.0)
+            # Crisis active: z-score > threshold AND positive momentum
+            crisis_active = crisis_active | ((t_z >= c.crisis_zscore_threshold) & (t_mom > 0))
+            # Extreme spike: z-score > 2.0 (bypasses regime gate)
+            extreme_spike = extreme_spike | (t_z >= 2.0)
 
         # Regime gate: require elevated/crisis regime OR extreme z-score
         # (bypasses regime gate when a truly extreme spike is happening)
@@ -383,14 +404,31 @@ class MultiAssetCrisisLong(Strategy):
                 Regime.WAR_CRISIS, Regime.GENERAL_CRISIS,
                 Regime.RECOVERY,
             })
-            crisis_active = crisis_active & (active_regime | any_extreme)
+            crisis_active = crisis_active & (active_regime | extreme_spike)
 
-        # Allocate to top-N ranked assets on active days
+        # REWORK: Conviction-weighted allocation instead of simple ranks
+        # Allocate position size proportional to conviction score x leverage
         w = pd.DataFrame(0.0, index=prices.index, columns=available)
 
-        for t in available:
-            top_n_mask = ranks[t] <= c.top_n
-            active_and_top = crisis_active & top_n_mask & (momentum[t] > 0)
-            w.loc[active_and_top, t] = c.leverage_per_asset
+        # For each day, compute allocation across top-N assets
+        for idx in prices.index:
+            if not crisis_active.loc[idx]:
+                continue
+            
+            # Get conviction scores for all assets on this day
+            convictions = {t: conviction.loc[idx, t] for t in available}
+            # Filter to top-N by rank
+            top_assets = sorted([(t, convictions[t]) for t in available], 
+                               key=lambda x: -convictions[x[0]])[:c.top_n]
+            top_assets = [(t, convictions[t]) for t, _ in top_assets if convictions[t] > 0]
+            
+            if not top_assets:
+                continue
+            
+            # Allocate proportionally to conviction
+            total_conviction = sum(conv for _, conv in top_assets)
+            if total_conviction > 0:
+                for t, conv in top_assets:
+                    w.loc[idx, t] = (conv / total_conviction) * c.leverage_per_asset
 
         return w

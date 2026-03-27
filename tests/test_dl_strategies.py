@@ -342,6 +342,40 @@ class TestAttentionCrossSectionalRanker:
         post_warmup = w.iloc[350:]
         assert (post_warmup < 0).any().any(), "Expected short positions in DL-3"
 
+    def test_no_lookahead_train_window(self):
+        """Training end index must stay behind inference date by fwd_horizon."""
+        prices = _make_prices(n=620)
+        cfg = AttentionRankerConfig(
+            min_train_days=280,
+            retrain_freq=70,
+            fwd_horizon=21,
+            epochs=1,
+            rebalance_freq=21,
+            training_stride=5,
+        )
+
+        train_end_calls: list[int] = []
+
+        class LeakGuardAttentionRanker(AttentionCrossSectionalRanker):
+            @staticmethod
+            def _train_model(feat_3d, fwd_ret, train_end, n_assets, c):
+                train_end_calls.append(int(train_end))
+                n_features = feat_3d.shape[-1]
+                model = _CrossAssetAttentionNet(n_features)
+                feat_mean = np.zeros((1, 1, n_features), dtype=np.float64)
+                feat_std = np.ones((1, 1, n_features), dtype=np.float64)
+                return model, feat_mean, feat_std
+
+        strat = LeakGuardAttentionRanker(config=cfg)
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert train_end_calls, "Expected at least one training call"
+
+        day_idx = cfg.min_train_days
+        for train_end in train_end_calls:
+            assert train_end <= day_idx - cfg.fwd_horizon
+            day_idx += cfg.retrain_freq
+
 
 # ── Integration ──────────────────────────────────────────────────────
 

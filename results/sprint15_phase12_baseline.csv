@@ -1,0 +1,108 @@
+category,strategy,cagr,sharpe,sortino,max_drawdown,calmar,ann_vol,win_rate,total_return,trades_per_month,crisis_non_negative_count,crisis_avg_sharpe,priority
+Cat L: Volatility,L7-ImpliedRealizedSpread,-0.0135,-0.17,-0.22,-0.3212,-0.04,0.067,0.5147,-0.2491,8.7,2,-0.186667,kill_or_full_rework
+Cat I: Momentum,I10-AdaptiveTrendFilter,-0.0146,-0.14,-0.19,-0.3121,-0.05,0.0812,0.5198,-0.2667,20.4,0,-1.005,kill_or_full_rework
+Cat I: Momentum,I7-DriftRegimeMomentum,-0.0038,-0.06,-0.08,-0.1548,-0.02,0.046,0.4378,-0.0765,0.6,4,-0.286667,kill_or_full_rework
+Cat O: Tail Risk,O9-ATRCrisisAlpha,-0.0041,-0.03,-0.04,-0.2499,-0.02,0.0646,0.5007,-0.0836,3.6,2,-0.255,kill_or_full_rework
+Cat O: Tail Risk,O8-VolatilityConvexity,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,6,0.0,high_priority_rework
+Cat K: Factor,K6-QualityMomentumComposite,-0.0029,0.02,0.03,-0.2453,-0.01,0.1003,0.4859,-0.0592,16.6,2,-0.276667,high_priority_rework
+Cat H: Crisis Spike (Upward),H4-MultiAssetCrisisLong,0.0009,0.05,0.08,-0.2305,0.0,0.088,0.4202,0.0192,9.7,2,-0.336667,high_priority_rework
+Cat R: Regime Hardening,R10-CommodityMacroOverlay,0.0024,0.09,0.13,-0.1549,0.02,0.0322,0.3978,0.0514,0.2,6,0.056667,high_priority_rework
+Cat H-FI: Fixed Income,H1-YieldCurveTrade,0.0098,0.14,0.2,-0.3473,0.03,0.1165,0.437,0.2285,8.2,2,-0.035,high_priority_rework
+Cat C: War/Geopolitical,C2-SafeHavenFlight,0.0092,0.15,0.21,-0.3123,0.03,0.0922,0.4441,0.2124,11.3,3,0.185,high_priority_rework
+Cat E: Pairs Arbitrage,E1-MultiPairPortfolio,0.0096,0.15,0.21,-0.3196,0.03,0.0903,0.4126,0.222,6.0,2,-0.273333,high_priority_rework
+Cat M: Macro,M3-EMRiskPremium,0.0116,0.16,0.23,-0.2989,0.04,0.1204,0.4141,0.276,8.3,4,0.353333,high_priority_rework
+Cat DL: Deep Learning,DL3-AttentionRanker,0.0119,0.16,0.22,-0.3801,0.03,0.1248,0.4178,0.2816,11.1,5,-0.228333,high_priority_rework
+Cat M: Macro,M7-GlobalRotation,0.0141,0.18,0.25,-0.3783,0.04,0.1205,0.4649,0.3441,16.3,3,0.115,high_priority_rework
+Cat O: Tail Risk,O6-TailHedgeOverlay,0.0056,0.18,0.26,-0.1555,0.04,0.035,0.5094,0.1245,2.1,5,0.205,high_priority_rework
+Cat H: Crisis Spike (Upward),H1-CommodityShockRider,0.0167,0.2,0.28,-0.3969,0.04,0.1247,0.4025,0.4169,4.4,3,-0.101667,high_priority_rework
+Cat B: Oil Crisis,B2-OilShockHedge,0.0218,0.22,0.32,-0.4335,0.05,0.1424,0.4318,0.5747,14.7,5,0.326667,high_priority_rework
+Cat H: Crisis Spike (Upward),H2-GoldFearRally,0.0161,0.24,0.36,-0.2395,0.07,0.0795,0.4844,0.3991,3.2,3,-0.056667,high_priority_rework
+Cat J: Mean Reversion,J5-GlobalMeanReversion,0.0232,0.24,0.34,-0.302,0.08,0.1318,0.4378,0.6207,11.1,2,-0.24,high_priority_rework
+Cat B: Oil Crisis,B1-OilMomentumSurge,0.0269,0.25,0.35,-0.3338,0.08,0.158,0.4055,0.7506,11.4,4,0.098333,high_priority_rework
+Cat H: Crisis Spike (Upward),H3-DefenseSpikeBreakout,0.0225,0.26,0.36,-0.2832,0.08,0.1113,0.4138,0.5977,1.8,2,0.001667,high_priority_rework
+Cat P: ML Signal Combo,P3-GMMRegimeClassifier,0.0287,0.26,0.36,-0.3817,0.08,0.1547,0.4121,0.8145,12.7,3,-0.031667,high_priority_rework
+Cat M: Macro,M11-AdaptiveMacroBlend,0.0255,0.27,0.38,-0.3146,0.08,0.1172,0.4364,0.7006,5.5,4,0.241667,high_priority_rework
+Cat O: Tail Risk,O4-BlackSwanInsurance,0.0168,0.28,0.41,-0.1918,0.09,0.068,0.5105,0.4195,0.7,4,0.091667,high_priority_rework
+Cat B: Oil Crisis,B4-EnergyPairs,0.0351,0.31,0.45,-0.2855,0.12,0.1473,0.393,1.0682,6.4,4,0.003333,watch_and_rework
+Cat I: Momentum,I8-TimeSeriesMomDrift,0.028,0.31,0.43,-0.3095,0.09,0.1066,0.4419,0.7897,8.6,4,-0.171667,watch_and_rework
+Cat J: Mean Reversion,J3-RSIMeanReversion,0.0318,0.31,0.44,-0.3383,0.09,0.1296,0.389,0.9331,10.5,4,0.156667,watch_and_rework
+Cat I: Momentum,I5-GlobalMomentumRotation,0.0492,0.37,0.51,-0.3996,0.12,0.1707,0.4223,1.7477,16.6,3,0.188333,watch_and_rework
+Cat J: Mean Reversion,J4-CointegrationPairs,0.0166,0.37,0.52,-0.1629,0.1,0.0471,0.4913,0.4132,4.3,2,-0.366667,watch_and_rework
+Cat I: Momentum,I1-TimeSeriesMomentum,0.0506,0.39,0.54,-0.3268,0.15,0.1576,0.4291,1.8263,13.7,4,-0.128333,watch_and_rework
+Cat N: Seasonal,N2-TurnOfMonth,0.0478,0.4,0.59,-0.3223,0.15,0.1401,0.4479,1.6713,7.8,3,-0.003333,watch_and_rework
+Cat P: ML Signal Combo,G6-MultiSignalConsensus,0.0515,0.41,0.57,-0.3373,0.15,0.1505,0.4347,1.8781,18.6,2,-0.473333,watch_and_rework
+Cat DL: Deep Learning,DL1-TemporalCNNAlpha,0.0547,0.41,0.58,-0.402,0.14,0.1646,0.4011,2.0679,12.5,6,0.171667,watch_and_rework
+Cat M: Macro,M8-CommodityMacroSignal,0.0426,0.42,0.59,-0.3401,0.13,0.1168,0.4632,1.4093,12.9,3,0.128333,watch_and_rework
+Cat K: Factor,K5-RealAssetsFactor,0.05,0.44,0.62,-0.364,0.14,0.1308,0.4454,1.7941,8.8,2,-0.315,watch_and_rework
+Cat B: Oil Crisis,B3-OilMeanReversion,0.049,0.45,0.66,-0.3107,0.16,0.1229,0.4162,1.7395,9.4,4,0.365,watch_and_rework
+Cat I: Momentum,I2-CrossSectionalMomentum,0.0689,0.46,0.64,-0.3416,0.2,0.1811,0.4131,3.0655,15.7,2,-0.045,watch_and_rework
+Cat C: War/Geopolitical,C3-PostWarRecovery,0.0672,0.47,0.67,-0.3852,0.17,0.1661,0.4074,2.9307,11.2,2,-0.125,watch_and_rework
+Cat P: ML Signal Combo,P5-CrossSectionalRanker,0.0673,0.49,0.7,-0.3689,0.18,0.159,0.5178,2.9432,12.8,3,-0.073333,watch_and_rework
+Cat H-FI: Fixed Income,H2-CreditSpreadMeanRev,0.0544,0.5,0.71,-0.2446,0.22,0.1209,0.4308,2.0523,4.1,4,0.311667,watch_and_rework
+Cat C: War/Geopolitical,C1-DefenseRotation,0.0669,0.51,0.74,-0.3778,0.18,0.1485,0.4216,2.9129,14.1,3,0.005,watch_and_rework
+Cat P: ML Signal Combo,P2-XGBoostSignalCombo,0.0777,0.51,0.71,-0.3082,0.25,0.1773,0.4225,3.832,11.7,3,0.146667,watch_and_rework
+Cat J: Mean Reversion,J2-OvernightGapFade,0.0626,0.52,0.78,-0.3479,0.18,0.135,0.3791,2.5916,5.1,5,0.168333,watch_and_rework
+Cat L: Volatility,L9-VIXAdaptiveCarry,0.0587,0.52,0.75,-0.2956,0.2,0.1232,0.4543,2.3232,6.0,2,-0.178333,watch_and_rework
+Cat MF: Multi-Frequency,MF4-WeeklyMeanReversion,0.0712,0.52,0.74,-0.3432,0.21,0.1537,0.4257,3.2581,6.3,4,0.45,watch_and_rework
+Cat C: War/Geopolitical,C4-ArmsRaceMomentum,0.0711,0.53,0.77,-0.2899,0.25,0.1513,0.4332,3.2455,12.2,4,-0.041667,watch_and_rework
+Cat I: Momentum,I3-DualMomentum,0.0783,0.54,0.76,-0.322,0.24,0.1664,0.4246,3.888,14.1,4,0.3,watch_and_rework
+Cat J: Mean Reversion,J6-DriftReversalAlpha,0.0259,0.54,0.83,-0.1006,0.26,0.0499,0.492,0.7137,0.6,5,0.12,watch_and_rework
+Cat F: Crypto Crisis,F1-CryptoFlightToQuality,0.0692,0.55,0.81,-0.3137,0.22,0.1392,0.4255,3.0917,11.5,5,0.65,watch_and_rework
+Cat M: Macro,M5-RatesRegimeTrade,0.0734,0.55,0.77,-0.395,0.19,0.1479,0.4508,3.4437,11.6,3,-0.025,watch_and_rework
+Cat K: Factor,K3-SizeFactor,0.0879,0.56,0.79,-0.365,0.24,0.178,0.4346,4.9006,13.3,4,0.033333,watch_and_rework
+Cat M: Macro,M4-CommodityMomentum,0.0863,0.56,0.8,-0.3667,0.24,0.1772,0.4148,4.7112,12.2,4,0.418333,watch_and_rework
+Cat J: Mean Reversion,J1-SectorMeanReversion,0.0805,0.57,0.81,-0.3386,0.24,0.1589,0.4297,4.1079,9.5,2,-0.028333,watch_and_rework
+Cat D: Crash-Hedge (General),D4-AdaptiveStopTrend,0.0703,0.58,0.84,-0.3141,0.22,0.1333,0.4317,3.182,10.8,3,0.113333,watch_and_rework
+Cat M: Macro,M1b-DollarCarryScoreboard,0.0792,0.59,0.83,-0.2808,0.28,0.1494,0.414,3.9816,8.3,4,0.175,watch_and_rework
+Cat F: Crypto Crisis,F4-CryptoContagionHedge,0.0599,0.6,0.86,-0.2149,0.28,0.1074,0.4234,2.4042,3.3,4,0.203333,optimize_winner
+Cat I: Momentum,I4-MomentumVolScaled,0.0946,0.6,0.84,-0.2826,0.33,0.1779,0.4246,5.7099,15.3,3,0.188333,watch_and_rework
+Cat R: Regime Hardening,R8-VolRegimeSwitcher,0.0836,0.6,0.84,-0.3658,0.23,0.1548,0.425,4.423,8.5,3,0.365,watch_and_rework
+Cat R: Regime Hardening,R5-RatesTighteningAlpha,0.0885,0.62,0.88,-0.3041,0.29,0.1571,0.414,4.965,6.3,3,0.058333,watch_and_rework
+Cat D: Crash-Hedge (General),D1-FourStateTactical,0.1026,0.63,0.89,-0.323,0.32,0.1798,0.4283,6.8217,13.1,2,-0.018333,watch_and_rework
+Cat M: Macro,M9-YieldCurveRegime,0.1027,0.65,0.92,-0.3503,0.29,0.175,0.4287,6.8387,11.6,5,0.155,optimize_winner
+Cat DL: Deep Learning,DL2-LSTMRegimeDetector,0.109,0.66,0.94,-0.3555,0.31,0.1803,0.4089,7.8311,12.4,3,0.333333,watch_and_rework
+Cat M: Macro,M2-GoldDollarInverse,0.112,0.68,1.01,-0.3383,0.33,0.1789,0.4045,8.3595,13.1,5,0.768333,optimize_winner
+Cat N: Seasonal,N3-PreHolidayDrift,0.0717,0.68,1.0,-0.2737,0.26,0.1115,0.5126,3.3019,2.0,2,-0.056667,watch_and_rework
+Cat L: Volatility,L8-VolRegimeClustering,0.1139,0.7,1.01,-0.3304,0.34,0.175,0.4238,8.6894,12.7,3,0.106667,watch_and_rework
+Cat M: Macro,M1-DollarCarry,0.1027,0.7,1.01,-0.307,0.33,0.1569,0.4192,6.8312,8.7,3,0.263333,watch_and_rework
+Cat MF: Multi-Frequency,MF1-WeeklyMomentumRotation,0.1247,0.7,1.01,-0.2748,0.45,0.1933,0.4151,10.8781,14.5,3,0.131667,watch_and_rework
+Cat R: Regime Hardening,R1-BearMarketAlpha,0.1068,0.7,0.98,-0.335,0.32,0.1655,0.4333,7.4763,11.6,2,-0.016667,watch_and_rework
+Cat MF: Multi-Frequency,MF3-MultiTimeframeTrend,0.108,0.71,1.01,-0.3117,0.35,0.1641,0.4354,7.6698,13.7,2,0.18,watch_and_rework
+Cat G: Fundamental/Sentiment,G4-SentimentEnhancedRegime,0.1149,0.72,1.03,-0.2495,0.46,0.1708,0.4341,8.8746,13.4,3,0.148333,watch_and_rework
+Cat Q: Quality Trend,Q2-MultiAssetTrend,0.1232,0.74,1.05,-0.3552,0.35,0.1797,0.4323,10.5516,17.7,3,0.245,watch_and_rework
+Cat M: Macro,M10-MacroSignalScoreboard,0.0927,0.75,1.1,-0.2425,0.38,0.1296,0.4266,5.4737,3.7,5,0.54,optimize_winner
+Cat P: ML Signal Combo,P4-AdaptiveThreshold,0.1341,0.75,1.07,-0.3203,0.42,0.1909,0.4288,13.1471,13.9,3,0.198333,watch_and_rework
+Cat G: Fundamental/Sentiment,G5-CryptoSentimentDivergence,0.1163,0.76,1.1,-0.2943,0.4,0.1608,0.4416,9.1451,6.2,2,0.188333,watch_and_rework
+Cat K: Factor,K2-MultiFactorComposite,0.131,0.77,1.1,-0.2976,0.44,0.1806,0.4247,12.3539,16.2,3,0.146667,watch_and_rework
+Cat G: Fundamental/Sentiment,G3-SentimentDivergence,0.1349,0.78,1.12,-0.3152,0.43,0.1835,0.4331,13.3626,15.5,3,0.053333,watch_and_rework
+Cat G: Fundamental/Sentiment,G1-SentimentCrisisAlpha,0.1265,0.79,1.13,-0.363,0.35,0.1696,0.442,11.2752,14.9,4,0.251667,optimize_winner
+Cat N: Seasonal,N1-SeasonalStrategy,0.1229,0.79,1.16,-0.2851,0.43,0.1628,0.4279,10.4769,9.1,4,0.218333,optimize_winner
+Cat K: Factor,K4-ValueFactor,0.1458,0.81,1.14,-0.2536,0.57,0.1919,0.4137,16.5751,15.1,3,0.345,watch_and_rework
+Cat P: ML Signal Combo,P1-FeatureComboSignal,0.1531,0.83,1.19,-0.355,0.43,0.1935,0.4293,19.0787,14.0,3,0.041667,watch_and_rework
+Cat Q: Quality Trend,Q3-MomentumCrashFilter,0.1434,0.83,1.19,-0.3285,0.44,0.1814,0.4334,15.8136,13.7,2,-0.171667,watch_and_rework
+Cat K: Factor,K1-LowVolFactor,0.16,0.84,1.2,-0.2781,0.58,0.2002,0.4157,21.7693,13.8,2,0.183333,watch_and_rework
+Cat L: Volatility,L5-VolSpikeRecovery,0.0995,0.84,1.2,-0.182,0.55,0.1226,0.5438,6.371,1.3,4,0.316667,optimize_winner
+Cat L: Volatility,L10-DynamicVolRegimeSwitch,0.15,0.84,1.19,-0.3501,0.43,0.1868,0.4249,17.9689,12.3,2,0.203333,watch_and_rework
+Cat Q: Quality Trend,Q1-QualityTrend,0.1432,0.84,1.21,-0.3675,0.39,0.178,0.4282,15.7652,13.0,4,0.385,optimize_winner
+Cat L: Volatility,L2-VolSpreadHarvest,0.1282,0.85,1.19,-0.3564,0.36,0.1568,0.4291,11.6889,4.4,3,0.23,watch_and_rework
+Cat R: Regime Hardening,R7-VolExplosionAlpha,0.1434,0.85,1.2,-0.3273,0.44,0.1772,0.4302,15.8185,10.9,4,0.371667,optimize_winner
+Cat L: Volatility,L3-VolTermStructure,0.1486,0.86,1.24,-0.2452,0.61,0.1808,0.4451,17.5034,16.2,4,0.22,optimize_winner
+Cat R: Regime Hardening,R3-DefensiveRotation,0.1452,0.86,1.23,-0.3156,0.46,0.1749,0.424,16.3833,9.5,3,0.518333,watch_and_rework
+Cat D: Crash-Hedge (General),D3-VolCarry,0.1603,0.89,1.28,-0.3177,0.5,0.1875,0.4393,21.8928,11.9,3,0.183333,watch_and_rework
+Cat F: Crypto Crisis,F3-CryptoGoldDivergence,0.1407,0.89,1.34,-0.3259,0.43,0.1626,0.5016,14.9838,11.7,3,0.308333,watch_and_rework
+Benchmark,BuyHold-SPY,0.1641,0.9,1.27,-0.3299,0.5,0.1897,0.4303,23.5152,11.3,0,0.0,watch_and_rework
+Cat G: Fundamental/Sentiment,G2-FearGreedContrarian,0.1529,0.9,1.27,-0.244,0.63,0.1764,0.4396,19.0067,6.9,4,0.191667,optimize_winner
+Cat O: Tail Risk,O1-TailRiskParity,0.1626,0.9,1.28,-0.3291,0.49,0.1876,0.4275,22.8905,17.5,4,0.318333,optimize_winner
+Cat L: Volatility,L1-VolRiskPremium,0.1734,0.92,1.3,-0.3306,0.52,0.1955,0.4296,27.9833,13.4,3,0.278333,watch_and_rework
+Cat L: Volatility,L4-VolOfVolRegime,0.1786,0.92,1.33,-0.3126,0.57,0.1998,0.4205,30.8396,15.7,3,0.265,watch_and_rework
+Cat L: Volatility,L11-VolRiskPremiumAdaptive,0.1738,0.92,1.31,-0.3316,0.52,0.1954,0.4242,28.2112,13.6,3,0.273333,watch_and_rework
+Cat O: Tail Risk,O7-PreciousMetalsCrisisHedge,0.1417,0.92,1.29,-0.3042,0.47,0.158,0.4317,15.2955,5.0,3,0.178333,watch_and_rework
+Cat F: Crypto Crisis,F2-CryptoRecoverySurge,0.1269,0.93,1.44,-0.3911,0.32,0.1387,0.5323,11.386,5.7,4,0.305,optimize_winner
+Cat D: Crash-Hedge (General),D2-CrashHedgeQQQ,0.1818,0.94,1.34,-0.2482,0.73,0.1982,0.4394,32.7014,12.7,4,0.256667,optimize_winner
+Cat L: Volatility,L6-CrossAssetVolSignal,0.1767,1.01,1.47,-0.3027,0.58,0.1772,0.4417,29.7919,14.9,5,0.416667,optimize_winner
+Cat R: Regime Hardening,R4-AdaptiveRiskBudget,0.1856,1.02,1.45,-0.3044,0.61,0.1835,0.4306,35.0761,11.2,5,0.306667,optimize_winner
+Cat F: Crypto Crisis,F2b-CryptoRecoverySurgeATR,0.156,1.07,1.69,-0.2396,0.65,0.1456,0.5285,20.166,6.0,4,0.32,optimize_winner
+Cat R: Regime Hardening,R6-BondEquityHedge,0.1738,1.07,1.54,-0.2679,0.65,0.1616,0.4376,28.2109,6.7,4,0.478333,optimize_winner
+Cat R: Regime Hardening,R9-MultiAssetCTATrend,0.2089,1.13,1.66,-0.2866,0.73,0.1819,0.5013,53.3038,10.9,2,-0.106667,watch_and_rework
+Cat MF: Multi-Frequency,MF2-MonthlyMacroRegime,0.222,1.24,1.82,-0.2643,0.84,0.1744,0.4384,67.2274,9.2,5,0.645,optimize_winner
+Ensemble,Ensemble-BestOfEach,0.2441,1.33,1.93,-0.1859,1.31,0.1755,0.5038,98.4843,16.5,4,0.6,optimize_winner

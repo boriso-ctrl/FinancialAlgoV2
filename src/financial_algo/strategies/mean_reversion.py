@@ -30,6 +30,7 @@ class SectorMeanRevConfig:
     entry_z: float = 1.5
     exit_z: float = 0.3
     trend_window: int = 200     # only MR in uptrend markets
+    momentum_window: int = 5    # short momentum for rebounding confirmation
 
     leverage: float = 1.0
     max_sectors: int = 3
@@ -43,10 +44,11 @@ class SectorMeanRevConfig:
 
 
 class SectorMeanReversion(Strategy):
-    """Buy oversold sectors when SPY is in uptrend. Long-only.
+    """Buy oversold sectors when SPY is in uptrend with momentum confirmation.
 
     Thesis: Sector/SPY ratios mean-revert at short horizons (5-20 days).
     Only buy dips in bull markets — mean-reversion fails in downtrends.
+    Added momentum confirmation to avoid catching falling knives.
     Vectorized implementation for speed.
     """
 
@@ -77,11 +79,14 @@ class SectorMeanReversion(Strategy):
 
         # Sector MR overlay: add exposure to oversold bouncing sectors
         z_all = pd.DataFrame(index=prices.index)
+        short_mom = pd.DataFrame(index=prices.index)
         for t in avail:
             ratio = prices[t] / benchmark
             z_all[t] = zscore(ratio, c.zscore_window)
+            # Short-term momentum: positive returns indicate rebound
+            short_mom[t] = prices[t].pct_change(c.momentum_window).fillna(0.0) > 0
 
-        short_mom = prices[avail].pct_change(5).fillna(0.0) > 0
+        # Buy oversold sectors showing momentum confirmation
         buy_signal = (z_all < -c.entry_z) & market_uptrend.values[:, np.newaxis] & short_mom.values
 
         z_rank = z_all.rank(axis=1, ascending=True)
@@ -357,12 +362,15 @@ class GlobalMeanRevConfig:
     benchmark: str = "SPY"
 
     zscore_window: int = 130   # ~26 weeks in trading days
-    entry_z: float = -1.5     # long when z < -1.5 (oversold)
-    exit_z: float = 0.0       # exit when z reverts to 0
-
-    trend_window: int = 200   # only buy dips when benchmark in uptrend
-    leverage: float = 1.5
-    max_regions: int = 3      # max concurrent regional longs
+    entry_z: float = -1.2
+    full_size_z: float = -2.2
+    trend_window: int = 200
+    vol_window: int = 40
+    high_vol_threshold: float = 0.30
+    leverage: float = 1.20
+    risk_off_leverage: float = 0.65
+    max_regions: int = 3
+    max_weight: float = 0.45
 
     def __post_init__(self) -> None:
         if self.regional_tickers is None:
@@ -374,12 +382,9 @@ class GlobalMeanRevConfig:
 class GlobalMeanReversion(Strategy):
     """Long oversold regional ETFs vs SPY using 26-week rolling z-score.
 
-    Thesis: Regional equity markets mean-revert relative to the US.
-    When a region underperforms dramatically (z < -1.5 on the
-    region/SPY ratio over 26 weeks), structural rebalancing flows
-    and valuation compression create a reliable bounce. Only buy
-    dips when US market is in an uptrend to avoid piling into
-    global contagion selloffs.
+    Thesis: regional equity dislocations versus the US tend to mean-revert,
+    but entries should be concentrated on deep oversold states and scaled
+    down when market stress is elevated.
     """
 
     name = "J5-GlobalMeanReversion"
@@ -392,6 +397,9 @@ class GlobalMeanReversion(Strategy):
         prices: pd.DataFrame,
         regime: pd.Series | None = None,
     ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
         c = self.cfg
         avail = [t for t in c.regional_tickers if t in prices.columns]
         if c.benchmark not in prices.columns or not avail:
@@ -400,45 +408,51 @@ class GlobalMeanReversion(Strategy):
         benchmark = prices[c.benchmark]
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
-        # Market trend filter: benchmark above 200-day SMA
-        spy_sma = benchmark.rolling(c.trend_window).mean()
+        bench_ret = benchmark.pct_change().fillna(0.0)
+        bench_vol = bench_ret.rolling(c.vol_window, min_periods=10).std() * np.sqrt(252)
+        bench_vol = bench_vol.replace([np.inf, -np.inf], np.nan).fillna(c.high_vol_threshold)
+
+        spy_sma = benchmark.rolling(c.trend_window, min_periods=50).mean()
         market_uptrend = (benchmark > spy_sma).fillna(False)
+        risk_on = market_uptrend & (bench_vol <= c.high_vol_threshold)
 
-        # Compute z-score of each regional/SPY ratio
-        z_all = pd.DataFrame(index=prices.index)
-        for t in avail:
-            ratio = prices[t] / benchmark
-            # Guard division by zero
-            ratio = ratio.replace([np.inf, -np.inf], np.nan).ffill()
-            z_all[t] = zscore(ratio, c.zscore_window)
+        rel = prices[avail].div(benchmark, axis=0)
+        rel = rel.replace([np.inf, -np.inf], np.nan)
+        rel_log = np.log(rel.clip(lower=1e-10))
+        rel_log = rel_log.replace([np.inf, -np.inf], np.nan)
 
-        z_all = z_all.fillna(0.0)
+        mu = rel_log.rolling(c.zscore_window, min_periods=20).mean()
+        sd = rel_log.rolling(c.zscore_window, min_periods=20).std().replace(0.0, np.nan)
+        z_all = rel_log.sub(mu).div(sd)
+        z_all = z_all.replace([np.inf, -np.inf], np.nan)
 
-        # Entry signal: z < entry_z (oversold) AND market uptrend
-        oversold = (z_all < c.entry_z) & market_uptrend.values[:, np.newaxis]
+        # Continuous oversold strength in [0, 1] dampens whipsaw around threshold.
+        span = max(c.entry_z - c.full_size_z, 1e-8)
+        oversold_strength = ((c.entry_z - z_all) / span).clip(lower=0.0, upper=1.0)
+        signal = oversold_strength.where(risk_on, 0.0, axis=0)
 
-        # Exit signal: z > exit_z (reverted)
-        reverted = z_all > c.exit_z
+        # Keep only the deepest dislocations each day.
+        rank = z_all.rank(axis=1, ascending=True, method="average")
+        selected = (rank <= c.max_regions) & (signal > 0.0)
 
-        # Build hold signals with forward-fill logic (vectorized per ticker)
-        signals = pd.DataFrame(np.nan, index=prices.index, columns=avail)
-        signals[oversold] = 1.0
-        signals[reverted] = 0.0
-        signals = signals.ffill().fillna(0.0)
+        reg_ret = prices[avail].pct_change().fillna(0.0)
+        reg_vol = reg_ret.rolling(c.vol_window, min_periods=20).std() * np.sqrt(252)
+        reg_vol = reg_vol.replace(0.0, np.nan).fillna(0.20)
+        inv_vol = (1.0 / reg_vol).replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-        # Limit to max_regions concurrent longs (rank by most oversold)
-        active_count = signals.sum(axis=1)
-        if c.max_regions > 0:
-            z_rank = z_all.rank(axis=1, ascending=True)
-            too_many = active_count > c.max_regions
-            for t in avail:
-                drop = too_many & (z_rank[t] > c.max_regions)
-                signals.loc[drop, t] = 0.0
+        raw = selected.astype(float) * signal * inv_vol
+        gross = raw.sum(axis=1).replace(0.0, np.nan)
+        norm = raw.div(gross, axis=0).fillna(0.0)
 
-        # Assign weights: equal weight among active regions
-        n_active = signals.sum(axis=1).clip(lower=1)
-        for t in avail:
-            weights[t] = signals[t] * c.leverage / n_active
+        lev_t = pd.Series(np.where(risk_on, c.leverage, c.risk_off_leverage), index=prices.index, dtype=float)
+        scaled = norm.mul(lev_t, axis=0).clip(lower=0.0, upper=c.max_weight)
+
+        if "TLT" in prices.columns:
+            tlt_overlay = pd.Series(0.0, index=prices.index)
+            tlt_overlay = tlt_overlay.where(risk_on, c.risk_off_leverage)
+            weights["TLT"] = tlt_overlay
+
+        weights.loc[:, avail] = scaled
 
         return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 

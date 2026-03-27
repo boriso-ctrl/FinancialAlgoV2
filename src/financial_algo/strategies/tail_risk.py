@@ -134,6 +134,10 @@ class BlackSwanConfig:
     severe_safe_weight: float = 0.60
     severe_short_weight: float = 0.40
 
+    # Normal-market return sleeve to reduce insurance bleed
+    normal_risk_tickers: tuple = ("SPY", "QQQ")
+    normal_risk_total: float = 0.70
+
 
 class BlackSwanInsurance(Strategy):
     """Permanent safe-haven allocation that scales up in crisis.
@@ -174,6 +178,14 @@ class BlackSwanInsurance(Strategy):
             weights.loc[crisis, t] = c.crisis_safe_weight / n_safe
             weights.loc[severe, t] = c.severe_safe_weight / n_safe
 
+        # Add a diversified risk sleeve in normal markets to reduce carry drag.
+        normal_risk = [t for t in c.normal_risk_tickers if t in prices.columns]
+        n_risk = len(normal_risk)
+        if n_risk > 0 and c.normal_risk_total > 0:
+            per_risk = c.normal_risk_total / n_risk
+            for t in normal_risk:
+                weights.loc[normal, t] = per_risk
+
         if c.equity_short in prices.columns:
             weights.loc[crisis, c.equity_short] = -c.crisis_short_weight
             weights.loc[severe, c.equity_short] = -c.severe_short_weight
@@ -198,6 +210,7 @@ class TailHedgeOverlayConfig:
     bond_ticker: str = "TLT"
     dollar_ticker: str = "UUP"
     spy_ticker: str = "SPY"
+    qqq_ticker: str = "QQQ"
 
     # Base allocation (always on)
     base_gold: float = 0.015
@@ -209,9 +222,22 @@ class TailHedgeOverlayConfig:
     elevated_dollar: float = 0.03
 
     # Crisis VIX (> 35): maximum allocation
-    crisis_gold: float = 0.10
-    crisis_bond: float = 0.08
+    crisis_gold: float = 0.14
+    crisis_bond: float = 0.11
     crisis_dollar: float = 0.05
+
+    # Crisis equity short for convexity
+    crisis_equity_short: float = -0.08
+
+    # Safe-haven trend bonus when own trend is positive
+    trend_fast_ema: int = 50
+    trend_slow_ema: int = 200
+    trend_bonus_gold: float = 0.015
+    trend_bonus_bond: float = 0.015
+
+    # Calm-market carry sleeve (keeps strategy productive outside stress).
+    calm_spy_weight: float = 0.45
+    calm_qqq_weight: float = 0.25
 
     # Trend filter: extra safe-haven when SPY < 200d SMA
     trend_sma_window: int = 200
@@ -255,7 +281,7 @@ class TailHedgeOverlay(Strategy):
         c = self.cfg
 
         # Determine available tickers
-        avail = [t for t in [c.gold_ticker, c.bond_ticker, c.dollar_ticker]
+        avail = [t for t in [c.gold_ticker, c.bond_ticker, c.dollar_ticker, c.spy_ticker, c.qqq_ticker]
                  if t in prices.columns]
         if not avail:
             return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
@@ -294,12 +320,18 @@ class TailHedgeOverlay(Strategy):
         has_gold = c.gold_ticker in avail
         has_bond = c.bond_ticker in avail
         has_dollar = c.dollar_ticker in avail
+        has_spy = c.spy_ticker in avail
+        has_qqq = c.qqq_ticker in avail
 
         # Base allocation (always on)
         if has_gold:
             weights[c.gold_ticker] = c.base_gold
         if has_bond:
             weights[c.bond_ticker] = c.base_bond
+        if has_spy:
+            weights.loc[base_mask, c.spy_ticker] = c.calm_spy_weight
+        if has_qqq:
+            weights.loc[base_mask, c.qqq_ticker] = c.calm_qqq_weight
 
         # Elevated: override base with larger allocation
         if has_gold:
@@ -316,12 +348,26 @@ class TailHedgeOverlay(Strategy):
             weights.loc[crisis_mask, c.bond_ticker] = c.crisis_bond
         if has_dollar:
             weights.loc[crisis_mask, c.dollar_ticker] = c.crisis_dollar
+        if has_spy:
+            weights.loc[crisis_mask, c.spy_ticker] = c.crisis_equity_short
 
         # Trend filter: add extra safe-haven when SPY < 200d SMA
         if has_gold:
             weights.loc[trend_below, c.gold_ticker] += c.trend_extra_gold
         if has_bond:
             weights.loc[trend_below, c.bond_ticker] += c.trend_extra_bond
+
+        # Add safe-haven trend bonus to improve recovery capture.
+        if has_gold:
+            g_fast = ema(prices[c.gold_ticker], c.trend_fast_ema)
+            g_slow = ema(prices[c.gold_ticker], c.trend_slow_ema)
+            g_up = pd.notna(g_fast) & pd.notna(g_slow) & (g_fast > g_slow)
+            weights.loc[g_up, c.gold_ticker] += c.trend_bonus_gold
+        if has_bond:
+            b_fast = ema(prices[c.bond_ticker], c.trend_fast_ema)
+            b_slow = ema(prices[c.bond_ticker], c.trend_slow_ema)
+            b_up = pd.notna(b_fast) & pd.notna(b_slow) & (b_fast > b_slow)
+            weights.loc[b_up, c.bond_ticker] += c.trend_bonus_bond
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights
@@ -582,6 +628,8 @@ class VolatilityConvexityConfig:
     vix_extreme: float = 40.0
 
     # Elevated weights
+    normal_equity: float = 0.70
+    elevated_equity: float = 0.30
     elevated_gold: float = 0.3
     elevated_bond: float = 0.3
 
@@ -624,17 +672,23 @@ class VolatilityConvexity(Strategy):
         c = self.cfg
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
-        if c.vix_ticker not in prices.columns:
+        # Use real VIX when available, otherwise build a proxy from SPY realized vol.
+        if c.vix_ticker in prices.columns:
+            vix_raw = prices[c.vix_ticker].ffill().fillna(0.0)
+        elif c.equity_ticker in prices.columns:
+            spy_rv = realized_vol(prices[c.equity_ticker], 20).fillna(0.0)
+            vix_raw = (spy_rv * 100.0).clip(lower=10.0, upper=80.0)
+        else:
             return weights
 
-        # Smooth VIX with 5-day EMA, shift +1 day (no look-ahead)
-        vix_raw = prices[c.vix_ticker].ffill().fillna(0.0)
+        # Smooth and shift +1 day to keep signal strictly backward-looking.
         vix_ema = ema(vix_raw, c.ema_span).shift(1).fillna(0.0)
 
         # VIX tier masks (mutually exclusive, highest tier wins)
         extreme = pd.notna(vix_ema) & (vix_ema >= c.vix_extreme)
         crisis = pd.notna(vix_ema) & (vix_ema >= c.vix_crisis) & ~extreme
         elevated = pd.notna(vix_ema) & (vix_ema >= c.vix_elevated) & ~extreme & ~crisis
+        normal = ~extreme & ~crisis & ~elevated
 
         # Assign weights per tier (vectorised via np.select)
         has_gold = c.gold_ticker in prices.columns
@@ -664,9 +718,9 @@ class VolatilityConvexity(Strategy):
             )
         if has_equity:
             weights[c.equity_ticker] = np.select(
-                conditions,
-                [c.extreme_equity_short, c.crisis_equity_short, 0.0],
-                default=0.0,
+                [extreme, crisis, elevated, normal],
+                [c.extreme_equity_short, c.crisis_equity_short, c.elevated_equity, c.normal_equity],
+                default=c.normal_equity,
             )
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
@@ -712,6 +766,8 @@ class ATRCrisisAlphaConfig:
     elevated_dollar: float = 0.05
 
     # Normal period: trend-follow GLD for baseline returns
+    normal_spy_weight: float = 0.50
+    normal_qqq_weight: float = 0.20
     normal_gold_base: float = 0.10   # permanent hedge
     normal_bond_base: float = 0.05   # permanent TLT hedge
     gold_trend_weight: float = 0.20  # extra GLD when trending up
@@ -765,35 +821,40 @@ class ATRCrisisAlpha(Strategy):
         # --- Regime masks ---
         crisis_regimes = {Regime.OIL_CRISIS, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS}
         is_crisis = regime.isin(crisis_regimes)
+        is_elevated = regime.isin({Regime.ELEVATED}) & ~is_crisis
         is_normal_or_recovery = regime.isin({Regime.NORMAL, Regime.RECOVERY})
 
-        # --- Volume / activity filter ---
-        # Use absolute return as activity proxy; acts as a soft
-        # confirmation gate (hold signal for 10 days once triggered).
+        # --- Activity filter ---
+        # Use absolute SPY return as a stress activity proxy.
         if c.spy_ticker in prices.columns:
-            spy_ret = prices[c.spy_ticker].pct_change().fillna(0.0).abs()
-            avg_activity = spy_ret.rolling(c.vol_avg_window, min_periods=1).mean()
-            high_activity = pd.notna(avg_activity) & (
-                spy_ret > avg_activity * c.vol_mult_threshold
-            )
-            vol_filter = (
-                high_activity.astype(float)
-                .rolling(10, min_periods=1)
-                .max()
-                .astype(bool)
-            )
+            spy_abs = prices[c.spy_ticker].pct_change().fillna(0.0).abs()
+            spy_abs_ma = spy_abs.rolling(c.vol_avg_window, min_periods=1).mean()
+            high_activity = pd.notna(spy_abs_ma) & (spy_abs > spy_abs_ma * c.vol_mult_threshold)
+            activity = high_activity.astype(float).rolling(5, min_periods=1).max().astype(bool)
         else:
-            vol_filter = pd.Series(True, index=prices.index)
+            activity = pd.Series(True, index=prices.index)
 
-        # --- Crisis entry (regime primary, vol filter secondary) ---
-        # During crisis regime, always enter at base weight.
-        # Volume filter boosts conviction but doesn't block entry.
-        crisis_active = is_crisis
+        crisis_active = is_crisis & activity
+        elevated_active = is_elevated & activity
 
-        # Elevated regime: partial hedge
-        is_elevated = regime.isin({Regime.ELEVATED})
+        # --- Trend confirmation and ATR scaling ---
+        trend_ok = pd.Series(True, index=prices.index)
+        if c.spy_ticker in prices.columns:
+            spy_fast = ema(prices[c.spy_ticker], c.trend_fast_ema)
+            spy_slow = ema(prices[c.spy_ticker], c.trend_slow_ema)
+            trend_ok = pd.notna(spy_fast) & pd.notna(spy_slow) & (spy_fast < spy_slow)
 
-        # Base crisis weights
+        atr_scale = pd.Series(1.0, index=prices.index)
+        if c.spy_ticker in prices.columns:
+            spy_atr = _close_atr(prices[c.spy_ticker], c.atr_period).fillna(0.0)
+            spy_px = prices[c.spy_ticker].replace(0.0, np.nan)
+            atr_pct = (spy_atr / spy_px).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+            # Scale up in high ATR states and down in calm states.
+            atr_scale = (atr_pct / atr_pct.rolling(60, min_periods=10).median().replace(0.0, np.nan)).clip(0.5, 1.8)
+            atr_scale = atr_scale.replace([np.inf, -np.inf], np.nan).fillna(1.0)
+
+        crisis_scale = (atr_scale * trend_ok.astype(float)).clip(0.0, 1.8)
+
         crisis_map = {
             c.gold_ticker: c.gold_weight,
             c.bond_ticker: c.bond_weight,
@@ -801,78 +862,36 @@ class ATRCrisisAlpha(Strategy):
             c.spy_ticker: c.spy_short,
             c.qqq_ticker: c.qqq_short,
         }
-        for ticker, wt in crisis_map.items():
-            if ticker in prices.columns:
-                weights.loc[crisis_active, ticker] = wt
-
-        # Elevated regime weights
         elevated_map = {
             c.gold_ticker: c.elevated_gold,
             c.bond_ticker: c.elevated_bond,
             c.dollar_ticker: c.elevated_dollar,
         }
+
+        for ticker, wt in crisis_map.items():
+            if ticker in prices.columns:
+                weights.loc[crisis_active, ticker] = wt * crisis_scale[crisis_active]
+
         for ticker, wt in elevated_map.items():
             if ticker in prices.columns:
-                weights.loc[is_elevated, ticker] = wt
+                weights.loc[elevated_active, ticker] = wt
 
-        # --- ATR-based exit overlay ---
-        # Detect crisis start (transition from non-crisis to crisis)
-        crisis_int = is_crisis.astype(int)
-        regime_change = crisis_int.diff().fillna(0.0)
-        crisis_start = regime_change == 1
-
-        held_tickers = [t for t in crisis_map if t in prices.columns]
-        for ticker in held_tickers:
-            p = prices[ticker]
-            atr_val = _close_atr(p, c.atr_period).fillna(0.0)
-
-            # Forward-fill price at each crisis start
-            entry_price = p.where(crisis_start).ffill()
-            entry_price = entry_price.where(is_crisis)
-
-            # Cumulative move since entry
-            cum_move = (p - entry_price).fillna(0.0)
-
-            # Position direction: long = +1, short = -1
-            pos_sign = 1.0 if crisis_map[ticker] > 0 else -1.0
-            pnl_direction = cum_move * pos_sign
-
-            safe_atr = atr_val.clip(lower=1e-8)
-
-            # Profit: scale down; Stop: flatten
-            is_profitable = pd.notna(pnl_direction) & (
-                pnl_direction > c.atr_profit_mult * safe_atr
-            )
-            is_stopped = pd.notna(pnl_direction) & (
-                pnl_direction < -(c.atr_stop_mult * safe_atr)
-            )
-
-            profit_mask = crisis_active & is_profitable
-            stop_mask = crisis_active & is_stopped
-
-            weights.loc[profit_mask, ticker] = (
-                crisis_map[ticker] * c.profit_scale_down
-            )
-            weights.loc[stop_mask, ticker] = 0.0
-
-        # --- Normal / Recovery: permanent hedge + GLD trend-follow ---
+        # --- Normal / Recovery: small permanent hedge and trend-follow gold ---
         if c.gold_ticker in prices.columns:
             weights.loc[is_normal_or_recovery, c.gold_ticker] = c.normal_gold_base
-            # GLD trend-following overlay: add extra when trending up
             gld = prices[c.gold_ticker]
             gld_fast = ema(gld, c.trend_fast_ema)
             gld_slow = ema(gld, c.trend_slow_ema)
-            gld_trend_up = gld_fast > gld_slow
-            trend_mask = is_normal_or_recovery & gld_trend_up
-            weights.loc[trend_mask, c.gold_ticker] += c.gold_trend_weight
+            gld_up = pd.notna(gld_fast) & pd.notna(gld_slow) & (gld_fast > gld_slow)
+            weights.loc[is_normal_or_recovery & gld_up, c.gold_ticker] += c.gold_trend_weight
+
         if c.bond_ticker in prices.columns:
-            # Small permanent TLT hedge in normal
-            normal_only = regime.isin({Regime.NORMAL})
-            weights.loc[normal_only, c.bond_ticker] = np.where(
-                weights.loc[normal_only, c.bond_ticker] == 0.0,
-                c.normal_bond_base,
-                weights.loc[normal_only, c.bond_ticker],
-            )
+            weights.loc[regime.isin({Regime.NORMAL}), c.bond_ticker] = c.normal_bond_base
+
+        if c.spy_ticker in prices.columns:
+            weights.loc[is_normal_or_recovery, c.spy_ticker] = c.normal_spy_weight
+        if c.qqq_ticker in prices.columns:
+            weights.loc[is_normal_or_recovery, c.qqq_ticker] = c.normal_qqq_weight
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights

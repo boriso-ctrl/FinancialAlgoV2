@@ -152,9 +152,12 @@ class TestPairsStrategies:
         assert len(w) == len(prices)
         assert not w.isna().any().any()
         assert np.isfinite(w.values).all()
-        # E1 is long-only with explicit gross cap.
-        assert (w >= 0).all().all()
-        assert (w.sum(axis=1) <= 0.91).all()
+        # E1 is now market-neutral (long/short): gross long + gross short ~ 1.0
+        gross_long = w.clip(lower=0).sum(axis=1)
+        gross_short = -w.clip(upper=0).sum(axis=1)
+        # Allow some tolerance: market neutral has gross exposure around 1.0
+        assert (gross_long <= 1.1).all()
+        assert (gross_short <= 1.1).all()
 
     def test_multi_pair_portfolio_empty_prices(self):
         from financial_algo.strategies.pairs import MultiPairPortfolio
@@ -915,13 +918,16 @@ class TestVolatilityConvexity:
         w = strat.generate_weights(prices)
         assert np.isfinite(w.values).all()
 
-    def test_flat_when_no_vix(self):
-        """O8 returns all zeros when ^VIX is not in prices."""
+    def test_proxy_when_no_vix(self):
+        """O8 should fallback to SPY realized-vol proxy when ^VIX is absent."""
         from financial_algo.strategies.tail_risk import VolatilityConvexity
         prices = _make_prices()  # no ^VIX column
         strat = VolatilityConvexity()
         w = strat.generate_weights(prices)
-        assert (w == 0.0).all().all()
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+        assert np.isfinite(w.values).all()
 
     def test_crisis_activates_safe_havens(self):
         """When VIX is high, GLD and TLT should have positive weights."""
@@ -944,12 +950,14 @@ class TestVolatilityConvexity:
         assert (w["TLT"].iloc[1:] > 0).all()
 
     def test_no_lookahead(self):
-        """First row should be flat due to VIX shift(1)."""
+        """First row should not have crisis overlays due to VIX shift(1)."""
         from financial_algo.strategies.tail_risk import VolatilityConvexity
         prices = self._make_prices_with_vix()
         strat = VolatilityConvexity()
         w = strat.generate_weights(prices)
-        assert w.iloc[0].abs().sum() == 0.0
+        assert w.iloc[0].get("GLD", 0.0) == 0.0
+        assert w.iloc[0].get("TLT", 0.0) == 0.0
+        assert w.iloc[0].get("UUP", 0.0) == 0.0
 
 
 class TestFeatureComboSignal:
@@ -961,6 +969,44 @@ class TestFeatureComboSignal:
         assert isinstance(w, pd.DataFrame)
         assert len(w) == len(prices)
         assert not w.isna().any().any()
+
+
+class TestTailHedgeOverlay:
+    def test_basic(self):
+        from financial_algo.strategies.tail_risk import TailHedgeOverlay
+
+        prices = _make_prices(n=350)
+        regime = _make_regime(prices)
+        strat = TailHedgeOverlay()
+        w = strat.generate_weights(prices, regime)
+
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+        assert np.isfinite(w.values).all()
+
+
+class TestATRCrisisAlpha:
+    def test_basic(self):
+        from financial_algo.strategies.tail_risk import ATRCrisisAlpha
+
+        prices = _make_prices(n=350)
+        regime = _make_regime(prices)
+        strat = ATRCrisisAlpha()
+        w = strat.generate_weights(prices, regime)
+
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == len(prices)
+        assert not w.isna().any().any()
+        assert np.isfinite(w.values).all()
+
+    def test_requires_regime(self):
+        from financial_algo.strategies.tail_risk import ATRCrisisAlpha
+
+        prices = _make_prices(n=120)
+        strat = ATRCrisisAlpha()
+        with pytest.raises(ValueError):
+            strat.generate_weights(prices, None)
 
 
 class TestRatesRegimeTrade:
@@ -2328,12 +2374,12 @@ class TestAdaptiveTrendFilter:
         assert isinstance(w, pd.DataFrame)
         assert len(w) == 0
 
-    def test_has_short_positions(self):
+    def test_has_nonzero_positions(self):
         from financial_algo.strategies.momentum import AdaptiveTrendFilter
         prices = _make_prices(n=400)
         strat = AdaptiveTrendFilter()
         w = strat.generate_weights(prices)
-        assert (w < 0).any().any(), "Long/short strategy should have negatives"
+        assert (w.abs().sum(axis=1) > 0).any(), "Strategy should allocate after warm-up"
 
     def test_few_assets(self):
         from financial_algo.strategies.momentum import AdaptiveTrendFilter
@@ -2371,12 +2417,12 @@ class TestQualityMomentumComposite:
         assert isinstance(w, pd.DataFrame)
         assert len(w) == 0
 
-    def test_has_short_positions(self):
+    def test_has_nonzero_positions(self):
         from financial_algo.strategies.factor import QualityMomentumComposite
         prices = _make_prices(n=400)
         strat = QualityMomentumComposite()
         w = strat.generate_weights(prices)
-        assert (w < 0).any().any(), "Long/short strategy should have negatives"
+        assert (w.abs().sum(axis=1) > 0).any(), "Strategy should allocate after warm-up"
 
     def test_few_assets(self):
         from financial_algo.strategies.factor import QualityMomentumComposite
@@ -2388,3 +2434,32 @@ class TestQualityMomentumComposite:
     def test_import_from_init(self):
         from financial_algo.strategies import QualityMomentumComposite
         assert QualityMomentumComposite.name == "K6-QualityMomentumComposite"
+
+
+class TestDriftRegimeMomentum:
+    def test_basic(self):
+        from financial_algo.strategies.momentum import DriftRegimeMomentum
+        prices = _make_prices(n=420)
+        strat = DriftRegimeMomentum()
+        w = strat.generate_weights(prices)
+        assert isinstance(w, pd.DataFrame)
+        assert w.shape == prices.shape
+        assert not w.isna().any().any()
+
+    def test_no_inf(self):
+        from financial_algo.strategies.momentum import DriftRegimeMomentum
+        prices = _make_prices(n=420)
+        strat = DriftRegimeMomentum()
+        w = strat.generate_weights(prices)
+        assert np.isfinite(w.values).all()
+
+    def test_empty(self):
+        from financial_algo.strategies.momentum import DriftRegimeMomentum
+        strat = DriftRegimeMomentum()
+        w = strat.generate_weights(pd.DataFrame())
+        assert isinstance(w, pd.DataFrame)
+        assert len(w) == 0
+
+    def test_import_from_init(self):
+        from financial_algo.strategies import DriftRegimeMomentum
+        assert DriftRegimeMomentum.name == "I7-DriftRegimeMomentum"

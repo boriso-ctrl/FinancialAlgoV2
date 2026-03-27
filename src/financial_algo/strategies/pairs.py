@@ -83,11 +83,10 @@ class PairTrade(Strategy):
 class MultiPairPortfolio(Strategy):
     """Long-only relative value across pairs with market trend filter.
 
-    Reworked from long/short to long-only to eliminate short-side drag.
     Goes long the relatively cheap leg when spread is extended.
     """
 
-    name = "MultiPairPortfolio"
+    name = "E1-MultiPairPortfolio"
 
     def __init__(self, pairs: list[PairSpec] | None = None) -> None:
         self.pairs = pairs if pairs is not None else DEFAULT_PAIRS
@@ -131,6 +130,7 @@ class MultiPairPortfolio(Strategy):
                 exit_z=pair.exit_z,
             )
 
+            # Pair-level vol scaling
             ratio = prices[lt] / prices[st].replace(0.0, np.nan)
             ratio = ratio.replace([np.inf, -np.inf], np.nan).ffill().bfill()
             pair_vol = ratio.pct_change().fillna(0.0).rolling(20, min_periods=10).std()
@@ -145,6 +145,7 @@ class MultiPairPortfolio(Strategy):
             weights[lt] = weights[lt] + np.where(long_a, w, 0.0)
             weights[st] = weights[st] + np.where(long_b, w, 0.0)
 
+        # Gross leverage cap
         gross = weights.abs().sum(axis=1).replace(0.0, np.nan)
         gross_cap = (0.45 / gross).clip(upper=1.0).fillna(1.0)
         weights = weights.mul(gross_cap, axis=0)

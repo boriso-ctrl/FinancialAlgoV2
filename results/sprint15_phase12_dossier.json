@@ -1,0 +1,5350 @@
+[
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L7-ImpliedRealizedSpread",
+    "cagr": -0.0135,
+    "sharpe": -0.17,
+    "sortino": -0.22,
+    "max_drawdown": -0.3212,
+    "calmar": -0.04,
+    "ann_vol": 0.067,
+    "win_rate": 0.5147,
+    "total_return": -0.2491,
+    "trades_per_month": 8.7,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.186667,
+    "priority": "kill_or_full_rework",
+    "class_name": "ImpliedRealizedSpread",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "zscore",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility",
+      "pairs_statarb"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility, pairs_statarb with sma, zscore, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat I: Momentum",
+    "strategy": "I10-AdaptiveTrendFilter",
+    "cagr": -0.0146,
+    "sharpe": -0.14,
+    "sortino": -0.19,
+    "max_drawdown": -0.3121,
+    "calmar": -0.05,
+    "ann_vol": 0.0812,
+    "win_rate": 0.5198,
+    "total_return": -0.2667,
+    "trades_per_month": 20.4,
+    "crisis_non_negative_count": 0,
+    "crisis_avg_sharpe": -1.005,
+    "priority": "kill_or_full_rework",
+    "class_name": "AdaptiveTrendFilter",
+    "source_file": "src/financial_algo/strategies/momentum.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility with sma, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat I: Momentum",
+    "strategy": "I7-DriftRegimeMomentum",
+    "cagr": -0.0038,
+    "sharpe": -0.06,
+    "sortino": -0.08,
+    "max_drawdown": -0.1548,
+    "calmar": -0.02,
+    "ann_vol": 0.046,
+    "win_rate": 0.4378,
+    "total_return": -0.0765,
+    "trades_per_month": 0.6,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": -0.286667,
+    "priority": "kill_or_full_rework",
+    "class_name": "DriftRegimeMomentum",
+    "source_file": "src/financial_algo/strategies/momentum.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry with sma, rsi, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.7",
+      "reversion_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.6"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat O: Tail Risk",
+    "strategy": "O9-ATRCrisisAlpha",
+    "cagr": -0.0041,
+    "sharpe": -0.03,
+    "sortino": -0.04,
+    "max_drawdown": -0.2499,
+    "calmar": -0.02,
+    "ann_vol": 0.0646,
+    "win_rate": 0.5007,
+    "total_return": -0.0836,
+    "trades_per_month": 3.6,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.255,
+    "priority": "kill_or_full_rework",
+    "class_name": "ATRCrisisAlpha",
+    "source_file": "src/financial_algo/strategies/tail_risk.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "atr",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility, macro_regime with sma, ema, atr, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat O: Tail Risk",
+    "strategy": "O8-VolatilityConvexity",
+    "cagr": 0.0,
+    "sharpe": 0.0,
+    "sortino": 0.0,
+    "max_drawdown": 0.0,
+    "calmar": 0.0,
+    "ann_vol": 0.0,
+    "win_rate": 0.0,
+    "total_return": 0.0,
+    "trades_per_month": 0.0,
+    "crisis_non_negative_count": 6,
+    "crisis_avg_sharpe": 0.0,
+    "priority": "high_priority_rework",
+    "class_name": "VolatilityConvexity",
+    "source_file": "src/financial_algo/strategies/tail_risk.py",
+    "indicators": [
+      "ema",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility, macro_regime with ema, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "macro_driver:1.6",
+      "vol_driver:1.5",
+      "trend_driver:1.2",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat K: Factor",
+    "strategy": "K6-QualityMomentumComposite",
+    "cagr": -0.0029,
+    "sharpe": 0.02,
+    "sortino": 0.03,
+    "max_drawdown": -0.2453,
+    "calmar": -0.01,
+    "ann_vol": 0.1003,
+    "win_rate": 0.4859,
+    "total_return": -0.0592,
+    "trades_per_month": 16.6,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.276667,
+    "priority": "high_priority_rework",
+    "class_name": "QualityMomentumComposite",
+    "source_file": "src/financial_algo/strategies/factor.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility with sma, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat H: Crisis Spike (Upward)",
+    "strategy": "H4-MultiAssetCrisisLong",
+    "cagr": 0.0009,
+    "sharpe": 0.05,
+    "sortino": 0.08,
+    "max_drawdown": -0.2305,
+    "calmar": 0.0,
+    "ann_vol": 0.088,
+    "win_rate": 0.4202,
+    "total_return": 0.0192,
+    "trades_per_month": 9.7,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.336667,
+    "priority": "high_priority_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R10-CommodityMacroOverlay",
+    "cagr": 0.0024,
+    "sharpe": 0.09,
+    "sortino": 0.13,
+    "max_drawdown": -0.1549,
+    "calmar": 0.02,
+    "ann_vol": 0.0322,
+    "win_rate": 0.3978,
+    "total_return": 0.0514,
+    "trades_per_month": 0.2,
+    "crisis_non_negative_count": 6,
+    "crisis_avg_sharpe": 0.056667,
+    "priority": "high_priority_rework",
+    "class_name": "CommodityMacroOverlay",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, macro_regime with sma, rsi, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.7",
+      "macro_driver:1.6",
+      "reversion_driver:1.5",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat H-FI: Fixed Income",
+    "strategy": "H1-YieldCurveTrade",
+    "cagr": 0.0098,
+    "sharpe": 0.14,
+    "sortino": 0.2,
+    "max_drawdown": -0.3473,
+    "calmar": 0.03,
+    "ann_vol": 0.1165,
+    "win_rate": 0.437,
+    "total_return": 0.2285,
+    "trades_per_month": 8.2,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.035,
+    "priority": "high_priority_rework",
+    "class_name": "YieldCurveTrade",
+    "source_file": "src/financial_algo/strategies/fixed_income.py",
+    "indicators": [
+      "sma",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry with sma, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat C: War/Geopolitical",
+    "strategy": "C2-SafeHavenFlight",
+    "cagr": 0.0092,
+    "sharpe": 0.15,
+    "sortino": 0.21,
+    "max_drawdown": -0.3123,
+    "calmar": 0.03,
+    "ann_vol": 0.0922,
+    "win_rate": 0.4441,
+    "total_return": 0.2124,
+    "trades_per_month": 11.3,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.185,
+    "priority": "high_priority_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat E: Pairs Arbitrage",
+    "strategy": "E1-MultiPairPortfolio",
+    "cagr": 0.0096,
+    "sharpe": 0.15,
+    "sortino": 0.21,
+    "max_drawdown": -0.3196,
+    "calmar": 0.03,
+    "ann_vol": 0.0903,
+    "win_rate": 0.4126,
+    "total_return": 0.222,
+    "trades_per_month": 6.0,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.273333,
+    "priority": "high_priority_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M3-EMRiskPremium",
+    "cagr": 0.0116,
+    "sharpe": 0.16,
+    "sortino": 0.23,
+    "max_drawdown": -0.2989,
+    "calmar": 0.04,
+    "ann_vol": 0.1204,
+    "win_rate": 0.4141,
+    "total_return": 0.276,
+    "trades_per_month": 8.3,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.353333,
+    "priority": "high_priority_rework",
+    "class_name": "EMRiskPremium",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "sma",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility",
+      "pairs_statarb",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility, pairs_statarb, macro_regime with sma, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0",
+      "vol_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat DL: Deep Learning",
+    "strategy": "DL3-AttentionRanker",
+    "cagr": 0.0119,
+    "sharpe": 0.16,
+    "sortino": 0.22,
+    "max_drawdown": -0.3801,
+    "calmar": 0.03,
+    "ann_vol": 0.1248,
+    "win_rate": 0.4178,
+    "total_return": 0.2816,
+    "trades_per_month": 11.1,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": -0.228333,
+    "priority": "high_priority_rework",
+    "class_name": "AttentionCrossSectionalRanker",
+    "source_file": "src/financial_algo/strategies/dl_strategies.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "volatility",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, volatility, ml with sma, rsi, zscore, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "ml_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M7-GlobalRotation",
+    "cagr": 0.0141,
+    "sharpe": 0.18,
+    "sortino": 0.25,
+    "max_drawdown": -0.3783,
+    "calmar": 0.04,
+    "ann_vol": 0.1205,
+    "win_rate": 0.4649,
+    "total_return": 0.3441,
+    "trades_per_month": 16.3,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.115,
+    "priority": "high_priority_rework",
+    "class_name": "GlobalRotation",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility, macro_regime with sma, rsi, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat O: Tail Risk",
+    "strategy": "O6-TailHedgeOverlay",
+    "cagr": 0.0056,
+    "sharpe": 0.18,
+    "sortino": 0.26,
+    "max_drawdown": -0.1555,
+    "calmar": 0.04,
+    "ann_vol": 0.035,
+    "win_rate": 0.5094,
+    "total_return": 0.1245,
+    "trades_per_month": 2.1,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.205,
+    "priority": "high_priority_rework",
+    "class_name": "TailHedgeOverlay",
+    "source_file": "src/financial_algo/strategies/tail_risk.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility, macro_regime with sma, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "macro_driver:1.6",
+      "vol_driver:1.5",
+      "trend_driver:1.2",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat H: Crisis Spike (Upward)",
+    "strategy": "H1-CommodityShockRider",
+    "cagr": 0.0167,
+    "sharpe": 0.2,
+    "sortino": 0.28,
+    "max_drawdown": -0.3969,
+    "calmar": 0.04,
+    "ann_vol": 0.1247,
+    "win_rate": 0.4025,
+    "total_return": 0.4169,
+    "trades_per_month": 4.4,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": -0.101667,
+    "priority": "high_priority_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat B: Oil Crisis",
+    "strategy": "B2-OilShockHedge",
+    "cagr": 0.0218,
+    "sharpe": 0.22,
+    "sortino": 0.32,
+    "max_drawdown": -0.4335,
+    "calmar": 0.05,
+    "ann_vol": 0.1424,
+    "win_rate": 0.4318,
+    "total_return": 0.5747,
+    "trades_per_month": 14.7,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.326667,
+    "priority": "high_priority_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat H: Crisis Spike (Upward)",
+    "strategy": "H2-GoldFearRally",
+    "cagr": 0.0161,
+    "sharpe": 0.24,
+    "sortino": 0.36,
+    "max_drawdown": -0.2395,
+    "calmar": 0.07,
+    "ann_vol": 0.0795,
+    "win_rate": 0.4844,
+    "total_return": 0.3991,
+    "trades_per_month": 3.2,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": -0.056667,
+    "priority": "high_priority_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat J: Mean Reversion",
+    "strategy": "J5-GlobalMeanReversion",
+    "cagr": 0.0232,
+    "sharpe": 0.24,
+    "sortino": 0.34,
+    "max_drawdown": -0.302,
+    "calmar": 0.08,
+    "ann_vol": 0.1318,
+    "win_rate": 0.4378,
+    "total_return": 0.6207,
+    "trades_per_month": 11.1,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.24,
+    "priority": "high_priority_rework",
+    "class_name": "GlobalMeanReversion",
+    "source_file": "src/financial_algo/strategies/mean_reversion.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry with sma, rsi, zscore, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat B: Oil Crisis",
+    "strategy": "B1-OilMomentumSurge",
+    "cagr": 0.0269,
+    "sharpe": 0.25,
+    "sortino": 0.35,
+    "max_drawdown": -0.3338,
+    "calmar": 0.08,
+    "ann_vol": 0.158,
+    "win_rate": 0.4055,
+    "total_return": 0.7506,
+    "trades_per_month": 11.4,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.098333,
+    "priority": "high_priority_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat H: Crisis Spike (Upward)",
+    "strategy": "H3-DefenseSpikeBreakout",
+    "cagr": 0.0225,
+    "sharpe": 0.26,
+    "sortino": 0.36,
+    "max_drawdown": -0.2832,
+    "calmar": 0.08,
+    "ann_vol": 0.1113,
+    "win_rate": 0.4138,
+    "total_return": 0.5977,
+    "trades_per_month": 1.8,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": 0.001667,
+    "priority": "high_priority_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:0.2",
+      "macro_driver:0.2"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat P: ML Signal Combo",
+    "strategy": "P3-GMMRegimeClassifier",
+    "cagr": 0.0287,
+    "sharpe": 0.26,
+    "sortino": 0.36,
+    "max_drawdown": -0.3817,
+    "calmar": 0.08,
+    "ann_vol": 0.1547,
+    "win_rate": 0.4121,
+    "total_return": 0.8145,
+    "trades_per_month": 12.7,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": -0.031667,
+    "priority": "high_priority_rework",
+    "class_name": "GMMRegimeClassifier",
+    "source_file": "src/financial_algo/strategies/signal_combo.py",
+    "indicators": [
+      "zscore",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "mean_reversion",
+      "volatility",
+      "pairs_statarb",
+      "macro_regime",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses mean_reversion, volatility, pairs_statarb, macro_regime, ml with zscore, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "vol_driver:1.5",
+      "macro_driver:1.4",
+      "ml_driver:1.1"
+    ],
+    "research_evidence": [
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential.",
+      "Pairs alpha decays without robust pair selection and structural-break checks."
+    ],
+    "research_refs": [
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities",
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles.",
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve mean_reversion edge robustness",
+      "Improve volatility edge robustness",
+      "Improve pairs_statarb edge robustness"
+    ]
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M11-AdaptiveMacroBlend",
+    "cagr": 0.0255,
+    "sharpe": 0.27,
+    "sortino": 0.38,
+    "max_drawdown": -0.3146,
+    "calmar": 0.08,
+    "ann_vol": 0.1172,
+    "win_rate": 0.4364,
+    "total_return": 0.7006,
+    "trades_per_month": 5.5,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.241667,
+    "priority": "high_priority_rework",
+    "class_name": "AdaptiveMacroBlend",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility",
+      "pairs_statarb",
+      "macro_regime",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility, pairs_statarb, macro_regime, ml with sma, ema, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0",
+      "vol_driver:1.0",
+      "ml_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat O: Tail Risk",
+    "strategy": "O4-BlackSwanInsurance",
+    "cagr": 0.0168,
+    "sharpe": 0.28,
+    "sortino": 0.41,
+    "max_drawdown": -0.1918,
+    "calmar": 0.09,
+    "ann_vol": 0.068,
+    "win_rate": 0.5105,
+    "total_return": 0.4195,
+    "trades_per_month": 0.7,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.091667,
+    "priority": "high_priority_rework",
+    "class_name": "BlackSwanInsurance",
+    "source_file": "src/financial_algo/strategies/tail_risk.py",
+    "indicators": [
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses volatility with volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "macro_driver:0.6",
+      "trend_driver:0.2"
+    ],
+    "research_evidence": [
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat B: Oil Crisis",
+    "strategy": "B4-EnergyPairs",
+    "cagr": 0.0351,
+    "sharpe": 0.31,
+    "sortino": 0.45,
+    "max_drawdown": -0.2855,
+    "calmar": 0.12,
+    "ann_vol": 0.1473,
+    "win_rate": 0.393,
+    "total_return": 1.0682,
+    "trades_per_month": 6.4,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.003333,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat I: Momentum",
+    "strategy": "I8-TimeSeriesMomDrift",
+    "cagr": 0.028,
+    "sharpe": 0.31,
+    "sortino": 0.43,
+    "max_drawdown": -0.3095,
+    "calmar": 0.09,
+    "ann_vol": 0.1066,
+    "win_rate": 0.4419,
+    "total_return": 0.7897,
+    "trades_per_month": 8.6,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": -0.171667,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat J: Mean Reversion",
+    "strategy": "J3-RSIMeanReversion",
+    "cagr": 0.0318,
+    "sharpe": 0.31,
+    "sortino": 0.44,
+    "max_drawdown": -0.3383,
+    "calmar": 0.09,
+    "ann_vol": 0.1296,
+    "win_rate": 0.389,
+    "total_return": 0.9331,
+    "trades_per_month": 10.5,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.156667,
+    "priority": "watch_and_rework",
+    "class_name": "RSIMeanReversion",
+    "source_file": "src/financial_algo/strategies/mean_reversion.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "rsi",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, ema, rsi, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat I: Momentum",
+    "strategy": "I5-GlobalMomentumRotation",
+    "cagr": 0.0492,
+    "sharpe": 0.37,
+    "sortino": 0.51,
+    "max_drawdown": -0.3996,
+    "calmar": 0.12,
+    "ann_vol": 0.1707,
+    "win_rate": 0.4223,
+    "total_return": 1.7477,
+    "trades_per_month": 16.6,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.188333,
+    "priority": "watch_and_rework",
+    "class_name": "GlobalMomentumRotation",
+    "source_file": "src/financial_algo/strategies/momentum.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility, macro_regime with sma, rsi, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat J: Mean Reversion",
+    "strategy": "J4-CointegrationPairs",
+    "cagr": 0.0166,
+    "sharpe": 0.37,
+    "sortino": 0.52,
+    "max_drawdown": -0.1629,
+    "calmar": 0.1,
+    "ann_vol": 0.0471,
+    "win_rate": 0.4913,
+    "total_return": 0.4132,
+    "trades_per_month": 4.3,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.366667,
+    "priority": "watch_and_rework",
+    "class_name": "CointegrationPairs",
+    "source_file": "src/financial_algo/strategies/mean_reversion.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "pairs_statarb"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, pairs_statarb with sma, rsi, zscore, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat I: Momentum",
+    "strategy": "I1-TimeSeriesMomentum",
+    "cagr": 0.0506,
+    "sharpe": 0.39,
+    "sortino": 0.54,
+    "max_drawdown": -0.3268,
+    "calmar": 0.15,
+    "ann_vol": 0.1576,
+    "win_rate": 0.4291,
+    "total_return": 1.8263,
+    "trades_per_month": 13.7,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": -0.128333,
+    "priority": "watch_and_rework",
+    "class_name": "TimeSeriesMomentum",
+    "source_file": "src/financial_algo/strategies/momentum.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, rsi, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat N: Seasonal",
+    "strategy": "N2-TurnOfMonth",
+    "cagr": 0.0478,
+    "sharpe": 0.4,
+    "sortino": 0.59,
+    "max_drawdown": -0.3223,
+    "calmar": 0.15,
+    "ann_vol": 0.1401,
+    "win_rate": 0.4479,
+    "total_return": 1.6713,
+    "trades_per_month": 7.8,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": -0.003333,
+    "priority": "watch_and_rework",
+    "class_name": "TurnOfMonth",
+    "source_file": "src/financial_algo/strategies/seasonal.py",
+    "indicators": [
+      "sma",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry with sma, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat P: ML Signal Combo",
+    "strategy": "G6-MultiSignalConsensus",
+    "cagr": 0.0515,
+    "sharpe": 0.41,
+    "sortino": 0.57,
+    "max_drawdown": -0.3373,
+    "calmar": 0.15,
+    "ann_vol": 0.1505,
+    "win_rate": 0.4347,
+    "total_return": 1.8781,
+    "trades_per_month": 18.6,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.473333,
+    "priority": "watch_and_rework",
+    "class_name": "MultiSignalConsensus",
+    "source_file": "src/financial_algo/strategies/signal_combo.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "rsi",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, ema, rsi, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat DL: Deep Learning",
+    "strategy": "DL1-TemporalCNNAlpha",
+    "cagr": 0.0547,
+    "sharpe": 0.41,
+    "sortino": 0.58,
+    "max_drawdown": -0.402,
+    "calmar": 0.14,
+    "ann_vol": 0.1646,
+    "win_rate": 0.4011,
+    "total_return": 2.0679,
+    "trades_per_month": 12.5,
+    "crisis_non_negative_count": 6,
+    "crisis_avg_sharpe": 0.171667,
+    "priority": "watch_and_rework",
+    "class_name": "TemporalCNNAlpha",
+    "source_file": "src/financial_algo/strategies/dl_strategies.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility, ml with sma, rsi, zscore, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "ml_driver:1.1",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M8-CommodityMacroSignal",
+    "cagr": 0.0426,
+    "sharpe": 0.42,
+    "sortino": 0.59,
+    "max_drawdown": -0.3401,
+    "calmar": 0.13,
+    "ann_vol": 0.1168,
+    "win_rate": 0.4632,
+    "total_return": 1.4093,
+    "trades_per_month": 12.9,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.128333,
+    "priority": "watch_and_rework",
+    "class_name": "CommodityMacroSignal",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, macro_regime with sma, ema, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Cat K: Factor",
+    "strategy": "K5-RealAssetsFactor",
+    "cagr": 0.05,
+    "sharpe": 0.44,
+    "sortino": 0.62,
+    "max_drawdown": -0.364,
+    "calmar": 0.14,
+    "ann_vol": 0.1308,
+    "win_rate": 0.4454,
+    "total_return": 1.7941,
+    "trades_per_month": 8.8,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.315,
+    "priority": "watch_and_rework",
+    "class_name": "RealAssetsFactor",
+    "source_file": "src/financial_algo/strategies/factor.py",
+    "indicators": [
+      "sma",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, macro_regime with sma, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Cat B: Oil Crisis",
+    "strategy": "B3-OilMeanReversion",
+    "cagr": 0.049,
+    "sharpe": 0.45,
+    "sortino": 0.66,
+    "max_drawdown": -0.3107,
+    "calmar": 0.16,
+    "ann_vol": 0.1229,
+    "win_rate": 0.4162,
+    "total_return": 1.7395,
+    "trades_per_month": 9.4,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.365,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat I: Momentum",
+    "strategy": "I2-CrossSectionalMomentum",
+    "cagr": 0.0689,
+    "sharpe": 0.46,
+    "sortino": 0.64,
+    "max_drawdown": -0.3416,
+    "calmar": 0.2,
+    "ann_vol": 0.1811,
+    "win_rate": 0.4131,
+    "total_return": 3.0655,
+    "trades_per_month": 15.7,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.045,
+    "priority": "watch_and_rework",
+    "class_name": "CrossSectionalMomentum",
+    "source_file": "src/financial_algo/strategies/momentum.py",
+    "indicators": [
+      "sma",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend with sma, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness"
+    ]
+  },
+  {
+    "category": "Cat C: War/Geopolitical",
+    "strategy": "C3-PostWarRecovery",
+    "cagr": 0.0672,
+    "sharpe": 0.47,
+    "sortino": 0.67,
+    "max_drawdown": -0.3852,
+    "calmar": 0.17,
+    "ann_vol": 0.1661,
+    "win_rate": 0.4074,
+    "total_return": 2.9307,
+    "trades_per_month": 11.2,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.125,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat P: ML Signal Combo",
+    "strategy": "P5-CrossSectionalRanker",
+    "cagr": 0.0673,
+    "sharpe": 0.49,
+    "sortino": 0.7,
+    "max_drawdown": -0.3689,
+    "calmar": 0.18,
+    "ann_vol": 0.159,
+    "win_rate": 0.5178,
+    "total_return": 2.9432,
+    "trades_per_month": 12.8,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": -0.073333,
+    "priority": "watch_and_rework",
+    "class_name": "CrossSectionalRanker",
+    "source_file": "src/financial_algo/strategies/ml_strategies.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "atr",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "volatility",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, volatility, ml with sma, rsi, zscore, atr, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "ml_driver:1.1",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat H-FI: Fixed Income",
+    "strategy": "H2-CreditSpreadMeanRev",
+    "cagr": 0.0544,
+    "sharpe": 0.5,
+    "sortino": 0.71,
+    "max_drawdown": -0.2446,
+    "calmar": 0.22,
+    "ann_vol": 0.1209,
+    "win_rate": 0.4308,
+    "total_return": 2.0523,
+    "trades_per_month": 4.1,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.311667,
+    "priority": "watch_and_rework",
+    "class_name": "CreditSpreadMeanRev",
+    "source_file": "src/financial_algo/strategies/fixed_income.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "pairs_statarb",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, pairs_statarb, macro_regime with sma, rsi, zscore, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "macro_driver:1.4",
+      "trend_driver:1.0",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat C: War/Geopolitical",
+    "strategy": "C1-DefenseRotation",
+    "cagr": 0.0669,
+    "sharpe": 0.51,
+    "sortino": 0.74,
+    "max_drawdown": -0.3778,
+    "calmar": 0.18,
+    "ann_vol": 0.1485,
+    "win_rate": 0.4216,
+    "total_return": 2.9129,
+    "trades_per_month": 14.1,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.005,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat P: ML Signal Combo",
+    "strategy": "P2-XGBoostSignalCombo",
+    "cagr": 0.0777,
+    "sharpe": 0.51,
+    "sortino": 0.71,
+    "max_drawdown": -0.3082,
+    "calmar": 0.25,
+    "ann_vol": 0.1773,
+    "win_rate": 0.4225,
+    "total_return": 3.832,
+    "trades_per_month": 11.7,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.146667,
+    "priority": "watch_and_rework",
+    "class_name": "XGBoostSignalCombo",
+    "source_file": "src/financial_algo/strategies/signal_combo.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility",
+      "pairs_statarb",
+      "macro_regime",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility, pairs_statarb, macro_regime, ml with sma, rsi, zscore, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0",
+      "ml_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat J: Mean Reversion",
+    "strategy": "J2-OvernightGapFade",
+    "cagr": 0.0626,
+    "sharpe": 0.52,
+    "sortino": 0.78,
+    "max_drawdown": -0.3479,
+    "calmar": 0.18,
+    "ann_vol": 0.135,
+    "win_rate": 0.3791,
+    "total_return": 2.5916,
+    "trades_per_month": 5.1,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.168333,
+    "priority": "watch_and_rework",
+    "class_name": "OvernightGapFade",
+    "source_file": "src/financial_algo/strategies/mean_reversion.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "rsi",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, ema, rsi, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L9-VIXAdaptiveCarry",
+    "cagr": 0.0587,
+    "sharpe": 0.52,
+    "sortino": 0.75,
+    "max_drawdown": -0.2956,
+    "calmar": 0.2,
+    "ann_vol": 0.1232,
+    "win_rate": 0.4543,
+    "total_return": 2.3232,
+    "trades_per_month": 6.0,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.178333,
+    "priority": "watch_and_rework",
+    "class_name": "VIXAdaptiveCarry",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility with sma, ema, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat MF: Multi-Frequency",
+    "strategy": "MF4-WeeklyMeanReversion",
+    "cagr": 0.0712,
+    "sharpe": 0.52,
+    "sortino": 0.74,
+    "max_drawdown": -0.3432,
+    "calmar": 0.21,
+    "ann_vol": 0.1537,
+    "win_rate": 0.4257,
+    "total_return": 3.2581,
+    "trades_per_month": 6.3,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.45,
+    "priority": "watch_and_rework",
+    "class_name": "WeeklyMeanReversion",
+    "source_file": "src/financial_algo/strategies/multi_freq.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "mean_reversion",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses mean_reversion, carry with sma, rsi, zscore, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "carry_driver:1.0",
+      "vol_driver:0.5",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat C: War/Geopolitical",
+    "strategy": "C4-ArmsRaceMomentum",
+    "cagr": 0.0711,
+    "sharpe": 0.53,
+    "sortino": 0.77,
+    "max_drawdown": -0.2899,
+    "calmar": 0.25,
+    "ann_vol": 0.1513,
+    "win_rate": 0.4332,
+    "total_return": 3.2455,
+    "trades_per_month": 12.2,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": -0.041667,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat I: Momentum",
+    "strategy": "I3-DualMomentum",
+    "cagr": 0.0783,
+    "sharpe": 0.54,
+    "sortino": 0.76,
+    "max_drawdown": -0.322,
+    "calmar": 0.24,
+    "ann_vol": 0.1664,
+    "win_rate": 0.4246,
+    "total_return": 3.888,
+    "trades_per_month": 14.1,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.3,
+    "priority": "watch_and_rework",
+    "class_name": "DualMomentum",
+    "source_file": "src/financial_algo/strategies/momentum.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, volatility with sma, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat J: Mean Reversion",
+    "strategy": "J6-DriftReversalAlpha",
+    "cagr": 0.0259,
+    "sharpe": 0.54,
+    "sortino": 0.83,
+    "max_drawdown": -0.1006,
+    "calmar": 0.26,
+    "ann_vol": 0.0499,
+    "win_rate": 0.492,
+    "total_return": 0.7137,
+    "trades_per_month": 0.6,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.12,
+    "priority": "watch_and_rework",
+    "class_name": "DriftReversalAlpha",
+    "source_file": "src/financial_algo/strategies/mean_reversion.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "rsi",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, ema, rsi, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.7",
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.6"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat F: Crypto Crisis",
+    "strategy": "F1-CryptoFlightToQuality",
+    "cagr": 0.0692,
+    "sharpe": 0.55,
+    "sortino": 0.81,
+    "max_drawdown": -0.3137,
+    "calmar": 0.22,
+    "ann_vol": 0.1392,
+    "win_rate": 0.4255,
+    "total_return": 3.0917,
+    "trades_per_month": 11.5,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.65,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M5-RatesRegimeTrade",
+    "cagr": 0.0734,
+    "sharpe": 0.55,
+    "sortino": 0.77,
+    "max_drawdown": -0.395,
+    "calmar": 0.19,
+    "ann_vol": 0.1479,
+    "win_rate": 0.4508,
+    "total_return": 3.4437,
+    "trades_per_month": 11.6,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": -0.025,
+    "priority": "watch_and_rework",
+    "class_name": "RatesRegimeTrade",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "sma",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, macro_regime with sma, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Cat K: Factor",
+    "strategy": "K3-SizeFactor",
+    "cagr": 0.0879,
+    "sharpe": 0.56,
+    "sortino": 0.79,
+    "max_drawdown": -0.365,
+    "calmar": 0.24,
+    "ann_vol": 0.178,
+    "win_rate": 0.4346,
+    "total_return": 4.9006,
+    "trades_per_month": 13.3,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.033333,
+    "priority": "watch_and_rework",
+    "class_name": "SizeFactor",
+    "source_file": "src/financial_algo/strategies/factor.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "pairs_statarb",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, pairs_statarb, macro_regime with sma, ema, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Pairs alpha decays without robust pair selection and structural-break checks.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Gatev, Goetzmann, Rouwenhorst (2006) - Pairs Trading",
+      "Do and Faff (2010) - Pairs Performance and Risks"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Refresh pair universe with stability and half-life constraints.",
+      "Use stop-loss and spread-regime controls for divergence risk."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve pairs_statarb edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M4-CommodityMomentum",
+    "cagr": 0.0863,
+    "sharpe": 0.56,
+    "sortino": 0.8,
+    "max_drawdown": -0.3667,
+    "calmar": 0.24,
+    "ann_vol": 0.1772,
+    "win_rate": 0.4148,
+    "total_return": 4.7112,
+    "trades_per_month": 12.2,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.418333,
+    "priority": "watch_and_rework",
+    "class_name": "CommodityMomentum",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry with sma, ema, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat J: Mean Reversion",
+    "strategy": "J1-SectorMeanReversion",
+    "cagr": 0.0805,
+    "sharpe": 0.57,
+    "sortino": 0.81,
+    "max_drawdown": -0.3386,
+    "calmar": 0.24,
+    "ann_vol": 0.1589,
+    "win_rate": 0.4297,
+    "total_return": 4.1079,
+    "trades_per_month": 9.5,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.028333,
+    "priority": "watch_and_rework",
+    "class_name": "SectorMeanReversion",
+    "source_file": "src/financial_algo/strategies/mean_reversion.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion with sma, rsi, zscore, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "reversion_driver:1.5",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness"
+    ]
+  },
+  {
+    "category": "Cat D: Crash-Hedge (General)",
+    "strategy": "D4-AdaptiveStopTrend",
+    "cagr": 0.0703,
+    "sharpe": 0.58,
+    "sortino": 0.84,
+    "max_drawdown": -0.3141,
+    "calmar": 0.22,
+    "ann_vol": 0.1333,
+    "win_rate": 0.4317,
+    "total_return": 3.182,
+    "trades_per_month": 10.8,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.113333,
+    "priority": "watch_and_rework",
+    "class_name": "AdaptiveStopTrend",
+    "source_file": "src/financial_algo/strategies/crash_hedge.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "atr",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, rsi, atr, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M1b-DollarCarryScoreboard",
+    "cagr": 0.0792,
+    "sharpe": 0.59,
+    "sortino": 0.83,
+    "max_drawdown": -0.2808,
+    "calmar": 0.28,
+    "ann_vol": 0.1494,
+    "win_rate": 0.414,
+    "total_return": 3.9816,
+    "trades_per_month": 8.3,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.175,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat F: Crypto Crisis",
+    "strategy": "F4-CryptoContagionHedge",
+    "cagr": 0.0599,
+    "sharpe": 0.6,
+    "sortino": 0.86,
+    "max_drawdown": -0.2149,
+    "calmar": 0.28,
+    "ann_vol": 0.1074,
+    "win_rate": 0.4234,
+    "total_return": 2.4042,
+    "trades_per_month": 3.3,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.203333,
+    "priority": "optimize_winner",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat I: Momentum",
+    "strategy": "I4-MomentumVolScaled",
+    "cagr": 0.0946,
+    "sharpe": 0.6,
+    "sortino": 0.84,
+    "max_drawdown": -0.2826,
+    "calmar": 0.33,
+    "ann_vol": 0.1779,
+    "win_rate": 0.4246,
+    "total_return": 5.7099,
+    "trades_per_month": 15.3,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.188333,
+    "priority": "watch_and_rework",
+    "class_name": "MomentumVolScaled",
+    "source_file": "src/financial_algo/strategies/momentum.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility with sma, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R8-VolRegimeSwitcher",
+    "cagr": 0.0836,
+    "sharpe": 0.6,
+    "sortino": 0.84,
+    "max_drawdown": -0.3658,
+    "calmar": 0.23,
+    "ann_vol": 0.1548,
+    "win_rate": 0.425,
+    "total_return": 4.423,
+    "trades_per_month": 8.5,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.365,
+    "priority": "watch_and_rework",
+    "class_name": "VolRegimeSwitcher",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses carry, volatility with sma, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "trend_driver:0.5",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia",
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size.",
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R5-RatesTighteningAlpha",
+    "cagr": 0.0885,
+    "sharpe": 0.62,
+    "sortino": 0.88,
+    "max_drawdown": -0.3041,
+    "calmar": 0.29,
+    "ann_vol": 0.1571,
+    "win_rate": 0.414,
+    "total_return": 4.965,
+    "trades_per_month": 6.3,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.058333,
+    "priority": "watch_and_rework",
+    "class_name": "RatesTighteningAlpha",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, macro_regime with momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Ilmanen (2011) - Expected Returns",
+      "Ang (2014) - Asset Management: A Systematic Approach"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Use multi-signal scoreboards rather than single-threshold toggles.",
+      "Add explicit risk-off fallback assets with confidence weighting."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Cat D: Crash-Hedge (General)",
+    "strategy": "D1-FourStateTactical",
+    "cagr": 0.1026,
+    "sharpe": 0.63,
+    "sortino": 0.89,
+    "max_drawdown": -0.323,
+    "calmar": 0.32,
+    "ann_vol": 0.1798,
+    "win_rate": 0.4283,
+    "total_return": 6.8217,
+    "trades_per_month": 13.1,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.018333,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M9-YieldCurveRegime",
+    "cagr": 0.1027,
+    "sharpe": 0.65,
+    "sortino": 0.92,
+    "max_drawdown": -0.3503,
+    "calmar": 0.29,
+    "ann_vol": 0.175,
+    "win_rate": 0.4287,
+    "total_return": 6.8387,
+    "trades_per_month": 11.6,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.155,
+    "priority": "optimize_winner",
+    "class_name": "YieldCurveRegime",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "rsi",
+      "zscore",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, macro_regime with sma, ema, rsi, zscore, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "reversion_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0",
+      "vol_driver:0.5"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat DL: Deep Learning",
+    "strategy": "DL2-LSTMRegimeDetector",
+    "cagr": 0.109,
+    "sharpe": 0.66,
+    "sortino": 0.94,
+    "max_drawdown": -0.3555,
+    "calmar": 0.31,
+    "ann_vol": 0.1803,
+    "win_rate": 0.4089,
+    "total_return": 7.8311,
+    "trades_per_month": 12.4,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.333333,
+    "priority": "watch_and_rework",
+    "class_name": "LSTMRegimeDetector",
+    "source_file": "src/financial_algo/strategies/dl_strategies.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility",
+      "pairs_statarb",
+      "macro_regime",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility, pairs_statarb, macro_regime, ml with sma, rsi, zscore, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "macro_driver:1.4",
+      "ml_driver:1.1",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M2-GoldDollarInverse",
+    "cagr": 0.112,
+    "sharpe": 0.68,
+    "sortino": 1.01,
+    "max_drawdown": -0.3383,
+    "calmar": 0.33,
+    "ann_vol": 0.1789,
+    "win_rate": 0.4045,
+    "total_return": 8.3595,
+    "trades_per_month": 13.1,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.768333,
+    "priority": "optimize_winner",
+    "class_name": "GoldDollarInverse",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "ema",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, macro_regime with ema, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Ilmanen (2011) - Expected Returns",
+      "Ang (2014) - Asset Management: A Systematic Approach"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Use multi-signal scoreboards rather than single-threshold toggles.",
+      "Add explicit risk-off fallback assets with confidence weighting."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Cat N: Seasonal",
+    "strategy": "N3-PreHolidayDrift",
+    "cagr": 0.0717,
+    "sharpe": 0.68,
+    "sortino": 1.0,
+    "max_drawdown": -0.2737,
+    "calmar": 0.26,
+    "ann_vol": 0.1115,
+    "win_rate": 0.5126,
+    "total_return": 3.3019,
+    "trades_per_month": 2.0,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.056667,
+    "priority": "watch_and_rework",
+    "class_name": "PreHolidayDrift",
+    "source_file": "src/financial_algo/strategies/seasonal.py",
+    "indicators": [
+      "sma",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry with sma, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.2",
+      "carry_driver:1.0",
+      "macro_driver:0.6"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L8-VolRegimeClustering",
+    "cagr": 0.1139,
+    "sharpe": 0.7,
+    "sortino": 1.01,
+    "max_drawdown": -0.3304,
+    "calmar": 0.34,
+    "ann_vol": 0.175,
+    "win_rate": 0.4238,
+    "total_return": 8.6894,
+    "trades_per_month": 12.7,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.106667,
+    "priority": "watch_and_rework",
+    "class_name": "VolRegimeClustering",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "carry",
+      "volatility",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses carry, volatility, macro_regime with sma, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia",
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size.",
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M1-DollarCarry",
+    "cagr": 0.1027,
+    "sharpe": 0.7,
+    "sortino": 1.01,
+    "max_drawdown": -0.307,
+    "calmar": 0.33,
+    "ann_vol": 0.1569,
+    "win_rate": 0.4192,
+    "total_return": 6.8312,
+    "trades_per_month": 8.7,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.263333,
+    "priority": "watch_and_rework",
+    "class_name": "DollarCarry",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "ema",
+      "rsi",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, macro_regime with ema, rsi, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "reversion_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat MF: Multi-Frequency",
+    "strategy": "MF1-WeeklyMomentumRotation",
+    "cagr": 0.1247,
+    "sharpe": 0.7,
+    "sortino": 1.01,
+    "max_drawdown": -0.2748,
+    "calmar": 0.45,
+    "ann_vol": 0.1933,
+    "win_rate": 0.4151,
+    "total_return": 10.8781,
+    "trades_per_month": 14.5,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.131667,
+    "priority": "watch_and_rework",
+    "class_name": "WeeklyMomentumRotation",
+    "source_file": "src/financial_algo/strategies/multi_freq.py",
+    "indicators": [
+      "sma",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry with sma, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R1-BearMarketAlpha",
+    "cagr": 0.1068,
+    "sharpe": 0.7,
+    "sortino": 0.98,
+    "max_drawdown": -0.335,
+    "calmar": 0.32,
+    "ann_vol": 0.1655,
+    "win_rate": 0.4333,
+    "total_return": 7.4763,
+    "trades_per_month": 11.6,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.016667,
+    "priority": "watch_and_rework",
+    "class_name": "BearMarketAlpha",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "sma",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry with sma, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat MF: Multi-Frequency",
+    "strategy": "MF3-MultiTimeframeTrend",
+    "cagr": 0.108,
+    "sharpe": 0.71,
+    "sortino": 1.01,
+    "max_drawdown": -0.3117,
+    "calmar": 0.35,
+    "ann_vol": 0.1641,
+    "win_rate": 0.4354,
+    "total_return": 7.6698,
+    "trades_per_month": 13.7,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": 0.18,
+    "priority": "watch_and_rework",
+    "class_name": "MultiTimeframeTrend",
+    "source_file": "src/financial_algo/strategies/multi_freq.py",
+    "indicators": [
+      "sma",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry with sma, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat G: Fundamental/Sentiment",
+    "strategy": "G4-SentimentEnhancedRegime",
+    "cagr": 0.1149,
+    "sharpe": 0.72,
+    "sortino": 1.03,
+    "max_drawdown": -0.2495,
+    "calmar": 0.46,
+    "ann_vol": 0.1708,
+    "win_rate": 0.4341,
+    "total_return": 8.8746,
+    "trades_per_month": 13.4,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.148333,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat Q: Quality Trend",
+    "strategy": "Q2-MultiAssetTrend",
+    "cagr": 0.1232,
+    "sharpe": 0.74,
+    "sortino": 1.05,
+    "max_drawdown": -0.3552,
+    "calmar": 0.35,
+    "ann_vol": 0.1797,
+    "win_rate": 0.4323,
+    "total_return": 10.5516,
+    "trades_per_month": 17.7,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.245,
+    "priority": "watch_and_rework",
+    "class_name": "MultiAssetTrend",
+    "source_file": "src/financial_algo/strategies/quality_trend.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, rsi, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "vol_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat M: Macro",
+    "strategy": "M10-MacroSignalScoreboard",
+    "cagr": 0.0927,
+    "sharpe": 0.75,
+    "sortino": 1.1,
+    "max_drawdown": -0.2425,
+    "calmar": 0.38,
+    "ann_vol": 0.1296,
+    "win_rate": 0.4266,
+    "total_return": 5.4737,
+    "trades_per_month": 3.7,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.54,
+    "priority": "optimize_winner",
+    "class_name": "MacroSignalScoreboard",
+    "source_file": "src/financial_algo/strategies/macro.py",
+    "indicators": [
+      "ema",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "volatility",
+      "pairs_statarb",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, volatility, pairs_statarb, macro_regime with ema, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "vol_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential.",
+      "Pairs alpha decays without robust pair selection and structural-break checks."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve volatility edge robustness",
+      "Improve pairs_statarb edge robustness"
+    ]
+  },
+  {
+    "category": "Cat P: ML Signal Combo",
+    "strategy": "P4-AdaptiveThreshold",
+    "cagr": 0.1341,
+    "sharpe": 0.75,
+    "sortino": 1.07,
+    "max_drawdown": -0.3203,
+    "calmar": 0.42,
+    "ann_vol": 0.1909,
+    "win_rate": 0.4288,
+    "total_return": 13.1471,
+    "trades_per_month": 13.9,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.198333,
+    "priority": "watch_and_rework",
+    "class_name": "AdaptiveThreshold",
+    "source_file": "src/financial_algo/strategies/ml_strategies.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "zscore",
+      "atr",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility, ml with sma, rsi, zscore, atr, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "ml_driver:1.1",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat G: Fundamental/Sentiment",
+    "strategy": "G5-CryptoSentimentDivergence",
+    "cagr": 0.1163,
+    "sharpe": 0.76,
+    "sortino": 1.1,
+    "max_drawdown": -0.2943,
+    "calmar": 0.4,
+    "ann_vol": 0.1608,
+    "win_rate": 0.4416,
+    "total_return": 9.1451,
+    "trades_per_month": 6.2,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": 0.188333,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat K: Factor",
+    "strategy": "K2-MultiFactorComposite",
+    "cagr": 0.131,
+    "sharpe": 0.77,
+    "sortino": 1.1,
+    "max_drawdown": -0.2976,
+    "calmar": 0.44,
+    "ann_vol": 0.1806,
+    "win_rate": 0.4247,
+    "total_return": 12.3539,
+    "trades_per_month": 16.2,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.146667,
+    "priority": "watch_and_rework",
+    "class_name": "MultiFactorComposite",
+    "source_file": "src/financial_algo/strategies/factor.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility with sma, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat G: Fundamental/Sentiment",
+    "strategy": "G3-SentimentDivergence",
+    "cagr": 0.1349,
+    "sharpe": 0.78,
+    "sortino": 1.12,
+    "max_drawdown": -0.3152,
+    "calmar": 0.43,
+    "ann_vol": 0.1835,
+    "win_rate": 0.4331,
+    "total_return": 13.3626,
+    "trades_per_month": 15.5,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.053333,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat G: Fundamental/Sentiment",
+    "strategy": "G1-SentimentCrisisAlpha",
+    "cagr": 0.1265,
+    "sharpe": 0.79,
+    "sortino": 1.13,
+    "max_drawdown": -0.363,
+    "calmar": 0.35,
+    "ann_vol": 0.1696,
+    "win_rate": 0.442,
+    "total_return": 11.2752,
+    "trades_per_month": 14.9,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.251667,
+    "priority": "optimize_winner",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat N: Seasonal",
+    "strategy": "N1-SeasonalStrategy",
+    "cagr": 0.1229,
+    "sharpe": 0.79,
+    "sortino": 1.16,
+    "max_drawdown": -0.2851,
+    "calmar": 0.43,
+    "ann_vol": 0.1628,
+    "win_rate": 0.4279,
+    "total_return": 10.4769,
+    "trades_per_month": 9.1,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.218333,
+    "priority": "optimize_winner",
+    "class_name": "SeasonalStrategy",
+    "source_file": "src/financial_algo/strategies/seasonal.py",
+    "indicators": [
+      "rsi",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion with rsi, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "trend_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness"
+    ]
+  },
+  {
+    "category": "Cat K: Factor",
+    "strategy": "K4-ValueFactor",
+    "cagr": 0.1458,
+    "sharpe": 0.81,
+    "sortino": 1.14,
+    "max_drawdown": -0.2536,
+    "calmar": 0.57,
+    "ann_vol": 0.1919,
+    "win_rate": 0.4137,
+    "total_return": 16.5751,
+    "trades_per_month": 15.1,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.345,
+    "priority": "watch_and_rework",
+    "class_name": "ValueFactor",
+    "source_file": "src/financial_algo/strategies/factor.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility with sma, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat P: ML Signal Combo",
+    "strategy": "P1-FeatureComboSignal",
+    "cagr": 0.1531,
+    "sharpe": 0.83,
+    "sortino": 1.19,
+    "max_drawdown": -0.355,
+    "calmar": 0.43,
+    "ann_vol": 0.1935,
+    "win_rate": 0.4293,
+    "total_return": 19.0787,
+    "trades_per_month": 14.0,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.041667,
+    "priority": "watch_and_rework",
+    "class_name": "FeatureComboSignal",
+    "source_file": "src/financial_algo/strategies/signal_combo.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "rsi",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, ema, rsi, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat Q: Quality Trend",
+    "strategy": "Q3-MomentumCrashFilter",
+    "cagr": 0.1434,
+    "sharpe": 0.83,
+    "sortino": 1.19,
+    "max_drawdown": -0.3285,
+    "calmar": 0.44,
+    "ann_vol": 0.1814,
+    "win_rate": 0.4334,
+    "total_return": 15.8136,
+    "trades_per_month": 13.7,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.171667,
+    "priority": "watch_and_rework",
+    "class_name": "MomentumCrashFilter",
+    "source_file": "src/financial_algo/strategies/quality_trend.py",
+    "indicators": [
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, volatility with volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat K: Factor",
+    "strategy": "K1-LowVolFactor",
+    "cagr": 0.16,
+    "sharpe": 0.84,
+    "sortino": 1.2,
+    "max_drawdown": -0.2781,
+    "calmar": 0.58,
+    "ann_vol": 0.2002,
+    "win_rate": 0.4157,
+    "total_return": 21.7693,
+    "trades_per_month": 13.8,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": 0.183333,
+    "priority": "watch_and_rework",
+    "class_name": "LowVolFactor",
+    "source_file": "src/financial_algo/strategies/factor.py",
+    "indicators": [
+      "rsi",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with rsi, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "vol_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L5-VolSpikeRecovery",
+    "cagr": 0.0995,
+    "sharpe": 0.84,
+    "sortino": 1.2,
+    "max_drawdown": -0.182,
+    "calmar": 0.55,
+    "ann_vol": 0.1226,
+    "win_rate": 0.5438,
+    "total_return": 6.371,
+    "trades_per_month": 1.3,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.316667,
+    "priority": "optimize_winner",
+    "class_name": "VolSpikeRecovery",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses carry, volatility with sma, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.6",
+      "trend_driver:0.2"
+    ],
+    "research_evidence": [
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia",
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size.",
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L10-DynamicVolRegimeSwitch",
+    "cagr": 0.15,
+    "sharpe": 0.84,
+    "sortino": 1.19,
+    "max_drawdown": -0.3501,
+    "calmar": 0.43,
+    "ann_vol": 0.1868,
+    "win_rate": 0.4249,
+    "total_return": 17.9689,
+    "trades_per_month": 12.3,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": 0.203333,
+    "priority": "watch_and_rework",
+    "class_name": "DynamicVolRegimeSwitch",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility with sma, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat Q: Quality Trend",
+    "strategy": "Q1-QualityTrend",
+    "cagr": 0.1432,
+    "sharpe": 0.84,
+    "sortino": 1.21,
+    "max_drawdown": -0.3675,
+    "calmar": 0.39,
+    "ann_vol": 0.178,
+    "win_rate": 0.4282,
+    "total_return": 15.7652,
+    "trades_per_month": 13.0,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.385,
+    "priority": "optimize_winner",
+    "class_name": "QualityTrend",
+    "source_file": "src/financial_algo/strategies/quality_trend.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, rsi, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L2-VolSpreadHarvest",
+    "cagr": 0.1282,
+    "sharpe": 0.85,
+    "sortino": 1.19,
+    "max_drawdown": -0.3564,
+    "calmar": 0.36,
+    "ann_vol": 0.1568,
+    "win_rate": 0.4291,
+    "total_return": 11.6889,
+    "trades_per_month": 4.4,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.23,
+    "priority": "watch_and_rework",
+    "class_name": "VolSpreadHarvest",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility",
+      "pairs_statarb"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility, pairs_statarb with sma, ema, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R7-VolExplosionAlpha",
+    "cagr": 0.1434,
+    "sharpe": 0.85,
+    "sortino": 1.2,
+    "max_drawdown": -0.3273,
+    "calmar": 0.44,
+    "ann_vol": 0.1772,
+    "win_rate": 0.4302,
+    "total_return": 15.8185,
+    "trades_per_month": 10.9,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.371667,
+    "priority": "optimize_winner",
+    "class_name": "VolExplosionAlpha",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "sma",
+      "zscore",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses mean_reversion, carry, volatility with sma, zscore, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "trend_driver:0.5",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L3-VolTermStructure",
+    "cagr": 0.1486,
+    "sharpe": 0.86,
+    "sortino": 1.24,
+    "max_drawdown": -0.2452,
+    "calmar": 0.61,
+    "ann_vol": 0.1808,
+    "win_rate": 0.4451,
+    "total_return": 17.5034,
+    "trades_per_month": 16.2,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.22,
+    "priority": "optimize_winner",
+    "class_name": "VolTermStructure",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "volatility",
+      "pairs_statarb"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, volatility, pairs_statarb with sma, ema, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R3-DefensiveRotation",
+    "cagr": 0.1452,
+    "sharpe": 0.86,
+    "sortino": 1.23,
+    "max_drawdown": -0.3156,
+    "calmar": 0.46,
+    "ann_vol": 0.1749,
+    "win_rate": 0.424,
+    "total_return": 16.3833,
+    "trades_per_month": 9.5,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.518333,
+    "priority": "watch_and_rework",
+    "class_name": "DefensiveRotationR3",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend with momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness"
+    ]
+  },
+  {
+    "category": "Cat D: Crash-Hedge (General)",
+    "strategy": "D3-VolCarry",
+    "cagr": 0.1603,
+    "sharpe": 0.89,
+    "sortino": 1.28,
+    "max_drawdown": -0.3177,
+    "calmar": 0.5,
+    "ann_vol": 0.1875,
+    "win_rate": 0.4393,
+    "total_return": 21.8928,
+    "trades_per_month": 11.9,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.183333,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat F: Crypto Crisis",
+    "strategy": "F3-CryptoGoldDivergence",
+    "cagr": 0.1407,
+    "sharpe": 0.89,
+    "sortino": 1.34,
+    "max_drawdown": -0.3259,
+    "calmar": 0.43,
+    "ann_vol": 0.1626,
+    "win_rate": 0.5016,
+    "total_return": 14.9838,
+    "trades_per_month": 11.7,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.308333,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Benchmark",
+    "strategy": "BuyHold-SPY",
+    "cagr": 0.1641,
+    "sharpe": 0.9,
+    "sortino": 1.27,
+    "max_drawdown": -0.3299,
+    "calmar": 0.5,
+    "ann_vol": 0.1897,
+    "win_rate": 0.4303,
+    "total_return": 23.5152,
+    "trades_per_month": 11.3,
+    "crisis_non_negative_count": 0,
+    "crisis_avg_sharpe": 0.0,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat G: Fundamental/Sentiment",
+    "strategy": "G2-FearGreedContrarian",
+    "cagr": 0.1529,
+    "sharpe": 0.9,
+    "sortino": 1.27,
+    "max_drawdown": -0.244,
+    "calmar": 0.63,
+    "ann_vol": 0.1764,
+    "win_rate": 0.4396,
+    "total_return": 19.0067,
+    "trades_per_month": 6.9,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.191667,
+    "priority": "optimize_winner",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat O: Tail Risk",
+    "strategy": "O1-TailRiskParity",
+    "cagr": 0.1626,
+    "sharpe": 0.9,
+    "sortino": 1.28,
+    "max_drawdown": -0.3291,
+    "calmar": 0.49,
+    "ann_vol": 0.1876,
+    "win_rate": 0.4275,
+    "total_return": 22.8905,
+    "trades_per_month": 17.5,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.318333,
+    "priority": "optimize_winner",
+    "class_name": "TailRiskParity",
+    "source_file": "src/financial_algo/strategies/tail_risk.py",
+    "indicators": [
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses volatility with volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L1-VolRiskPremium",
+    "cagr": 0.1734,
+    "sharpe": 0.92,
+    "sortino": 1.3,
+    "max_drawdown": -0.3306,
+    "calmar": 0.52,
+    "ann_vol": 0.1955,
+    "win_rate": 0.4296,
+    "total_return": 27.9833,
+    "trades_per_month": 13.4,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.278333,
+    "priority": "watch_and_rework",
+    "class_name": "VolRiskPremium",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "ema",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses carry, volatility with ema, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia",
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size.",
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve carry edge robustness",
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L4-VolOfVolRegime",
+    "cagr": 0.1786,
+    "sharpe": 0.92,
+    "sortino": 1.33,
+    "max_drawdown": -0.3126,
+    "calmar": 0.57,
+    "ann_vol": 0.1998,
+    "win_rate": 0.4205,
+    "total_return": 30.8396,
+    "trades_per_month": 15.7,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.265,
+    "priority": "watch_and_rework",
+    "class_name": "VolOfVolRegime",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "zscore",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, zscore, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "trend_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L11-VolRiskPremiumAdaptive",
+    "cagr": 0.1738,
+    "sharpe": 0.92,
+    "sortino": 1.31,
+    "max_drawdown": -0.3316,
+    "calmar": 0.52,
+    "ann_vol": 0.1954,
+    "win_rate": 0.4242,
+    "total_return": 28.2112,
+    "trades_per_month": 13.6,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.273333,
+    "priority": "watch_and_rework",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat O: Tail Risk",
+    "strategy": "O7-PreciousMetalsCrisisHedge",
+    "cagr": 0.1417,
+    "sharpe": 0.92,
+    "sortino": 1.29,
+    "max_drawdown": -0.3042,
+    "calmar": 0.47,
+    "ann_vol": 0.158,
+    "win_rate": 0.4317,
+    "total_return": 15.2955,
+    "trades_per_month": 5.0,
+    "crisis_non_negative_count": 3,
+    "crisis_avg_sharpe": 0.178333,
+    "priority": "watch_and_rework",
+    "class_name": "PreciousMetalsCrisisHedge",
+    "source_file": "src/financial_algo/strategies/tail_risk.py",
+    "indicators": [
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses volatility with volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "vol_driver:1.5",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Volatility risk premium is robust but negatively skewed; timing and tail controls are essential."
+    ],
+    "research_refs": [
+      "Carr, Wu (2009) - Variance Risk Premia",
+      "Israelov, Nielsen (2015) - Volatility Strategies"
+    ],
+    "improvement_ideas": [
+      "Blend carry and momentum in vol signals to avoid left-tail episodes.",
+      "Constrain gross exposure during abrupt vol-of-vol spikes."
+    ],
+    "research_focus": [
+      "Improve volatility edge robustness"
+    ]
+  },
+  {
+    "category": "Cat F: Crypto Crisis",
+    "strategy": "F2-CryptoRecoverySurge",
+    "cagr": 0.1269,
+    "sharpe": 0.93,
+    "sortino": 1.44,
+    "max_drawdown": -0.3911,
+    "calmar": 0.32,
+    "ann_vol": 0.1387,
+    "win_rate": 0.5323,
+    "total_return": 11.386,
+    "trades_per_month": 5.7,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.305,
+    "priority": "optimize_winner",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat D: Crash-Hedge (General)",
+    "strategy": "D2-CrashHedgeQQQ",
+    "cagr": 0.1818,
+    "sharpe": 0.94,
+    "sortino": 1.34,
+    "max_drawdown": -0.2482,
+    "calmar": 0.73,
+    "ann_vol": 0.1982,
+    "win_rate": 0.4394,
+    "total_return": 32.7014,
+    "trades_per_month": 12.7,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.256667,
+    "priority": "optimize_winner",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat L: Volatility",
+    "strategy": "L6-CrossAssetVolSignal",
+    "cagr": 0.1767,
+    "sharpe": 1.01,
+    "sortino": 1.47,
+    "max_drawdown": -0.3027,
+    "calmar": 0.58,
+    "ann_vol": 0.1772,
+    "win_rate": 0.4417,
+    "total_return": 29.7919,
+    "trades_per_month": 14.9,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.416667,
+    "priority": "optimize_winner",
+    "class_name": "CrossAssetVolSignal",
+    "source_file": "src/financial_algo/strategies/volatility_strats.py",
+    "indicators": [
+      "sma",
+      "ema",
+      "rsi",
+      "zscore",
+      "volatility",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, ema, rsi, zscore, volatility, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.7",
+      "vol_driver:1.5",
+      "trend_driver:1.0",
+      "carry_driver:1.0",
+      "macro_driver:0.4",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R4-AdaptiveRiskBudget",
+    "cagr": 0.1856,
+    "sharpe": 1.02,
+    "sortino": 1.45,
+    "max_drawdown": -0.3044,
+    "calmar": 0.61,
+    "ann_vol": 0.1835,
+    "win_rate": 0.4306,
+    "total_return": 35.0761,
+    "trades_per_month": 11.2,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.306667,
+    "priority": "optimize_winner",
+    "class_name": "AdaptiveRiskBudget",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "regime"
+    ],
+    "signal_families": [
+      "mean_reversion",
+      "carry"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses mean_reversion, carry with sma, rsi, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat F: Crypto Crisis",
+    "strategy": "F2b-CryptoRecoverySurgeATR",
+    "cagr": 0.156,
+    "sharpe": 1.07,
+    "sortino": 1.69,
+    "max_drawdown": -0.2396,
+    "calmar": 0.65,
+    "ann_vol": 0.1456,
+    "win_rate": 0.5285,
+    "total_return": 20.166,
+    "trades_per_month": 6.0,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.32,
+    "priority": "optimize_winner",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R6-BondEquityHedge",
+    "cagr": 0.1738,
+    "sharpe": 1.07,
+    "sortino": 1.54,
+    "max_drawdown": -0.2679,
+    "calmar": 0.65,
+    "ann_vol": 0.1616,
+    "win_rate": 0.4376,
+    "total_return": 28.2109,
+    "trades_per_month": 6.7,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.478333,
+    "priority": "optimize_winner",
+    "class_name": "BondEquityHedge",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "sma",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "carry",
+      "macro_regime"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, carry, macro_regime with sma, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "carry_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Koijen et al. (2018) - Carry",
+      "Baltas (2019) - Alternative Risk Premia"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Add drawdown-aware de-risking and convex hedges in stress regimes.",
+      "Use term-structure slope confidence to modulate position size."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve carry edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Cat R: Regime Hardening",
+    "strategy": "R9-MultiAssetCTATrend",
+    "cagr": 0.2089,
+    "sharpe": 1.13,
+    "sortino": 1.66,
+    "max_drawdown": -0.2866,
+    "calmar": 0.73,
+    "ann_vol": 0.1819,
+    "win_rate": 0.5013,
+    "total_return": 53.3038,
+    "trades_per_month": 10.9,
+    "crisis_non_negative_count": 2,
+    "crisis_avg_sharpe": -0.106667,
+    "priority": "watch_and_rework",
+    "class_name": "MultiAssetCTATrend",
+    "source_file": "src/financial_algo/strategies/regime_hardening.py",
+    "indicators": [
+      "sma",
+      "rsi",
+      "atr",
+      "volatility",
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "mean_reversion",
+      "carry",
+      "volatility"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, mean_reversion, carry, volatility with sma, rsi, atr, volatility, momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "reversion_driver:1.5",
+      "vol_driver:1.5",
+      "carry_driver:1.0",
+      "macro_driver:0.4"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Short-horizon reversal improves with liquidity and volatility-state filters.",
+      "Carry premia are structurally positive but crash-prone and require convexity overlays."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Lehmann (1990) - Fads, Martingales, and Market Efficiency",
+      "Avellaneda, Lee (2010) - Statistical Arbitrage in US Equities"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Gate entries by spread/volatility regime and avoid trend breakout states.",
+      "Use adaptive z-score thresholds from rolling quantiles."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve mean_reversion edge robustness",
+      "Improve carry edge robustness"
+    ]
+  },
+  {
+    "category": "Cat MF: Multi-Frequency",
+    "strategy": "MF2-MonthlyMacroRegime",
+    "cagr": 0.222,
+    "sharpe": 1.24,
+    "sortino": 1.82,
+    "max_drawdown": -0.2643,
+    "calmar": 0.84,
+    "ann_vol": 0.1744,
+    "win_rate": 0.4384,
+    "total_return": 67.2274,
+    "trades_per_month": 9.2,
+    "crisis_non_negative_count": 5,
+    "crisis_avg_sharpe": 0.645,
+    "priority": "optimize_winner",
+    "class_name": "MonthlyMacroRegime",
+    "source_file": "src/financial_algo/strategies/multi_freq.py",
+    "indicators": [
+      "momentum",
+      "regime"
+    ],
+    "signal_families": [
+      "trend",
+      "pairs_statarb",
+      "macro_regime",
+      "ml"
+    ],
+    "pair_universe": [],
+    "how_it_works": "Uses trend, pairs_statarb, macro_regime, ml with momentum, regime. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "trend_driver:1.5",
+      "macro_driver:1.4",
+      "ml_driver:1.0"
+    ],
+    "research_evidence": [
+      "Time-series momentum has persistent cross-asset alpha when volatility-scaled and crash-managed.",
+      "Pairs alpha decays without robust pair selection and structural-break checks.",
+      "Macro allocation improves when signals are ensemble-averaged and conditioned on regimes."
+    ],
+    "research_refs": [
+      "Moskowitz, Ooi, Pedersen (2012) - Time Series Momentum",
+      "Hurst, Ooi, Pedersen (2017) - A Century of Trend Following",
+      "Gatev, Goetzmann, Rouwenhorst (2006) - Pairs Trading",
+      "Do and Faff (2010) - Pairs Performance and Risks"
+    ],
+    "improvement_ideas": [
+      "Add volatility scaling and turnover-aware rebalance cadence.",
+      "Use regime filter to reduce whipsaw in high-vol mean-reverting states.",
+      "Refresh pair universe with stability and half-life constraints.",
+      "Use stop-loss and spread-regime controls for divergence risk."
+    ],
+    "research_focus": [
+      "Improve trend edge robustness",
+      "Improve pairs_statarb edge robustness",
+      "Improve macro_regime edge robustness"
+    ]
+  },
+  {
+    "category": "Ensemble",
+    "strategy": "Ensemble-BestOfEach",
+    "cagr": 0.2441,
+    "sharpe": 1.33,
+    "sortino": 1.93,
+    "max_drawdown": -0.1859,
+    "calmar": 1.31,
+    "ann_vol": 0.1755,
+    "win_rate": 0.5038,
+    "total_return": 98.4843,
+    "trades_per_month": 16.5,
+    "crisis_non_negative_count": 4,
+    "crisis_avg_sharpe": 0.6,
+    "priority": "optimize_winner",
+    "class_name": "unknown",
+    "source_file": "unknown",
+    "indicators": [],
+    "signal_families": [],
+    "pair_universe": [],
+    "how_it_works": "Uses mixed signals with custom transforms. Primary tradable universe proxy: broad ETF universe.",
+    "drivers_ranked": [
+      "reversion_driver:0.2",
+      "ml_driver:0.1"
+    ],
+    "research_evidence": [],
+    "research_refs": [],
+    "improvement_ideas": [],
+    "research_focus": []
+  }
+]

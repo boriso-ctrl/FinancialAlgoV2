@@ -125,7 +125,11 @@ class OilShockHedgeConfig:
 
     energy_leverage: float = 0.7
     gold_leverage: float = 0.7
+    baseline_energy: float = 0.25
+    baseline_gold: float = 0.25
     shock_tilt: float = 0.3
+    crisis_regime_boost: float = 1.35
+    elevated_regime_boost: float = 1.15
 
     vol_window: int = 20
     target_vol: float = 0.15
@@ -174,16 +178,27 @@ class OilShockHedge(Strategy):
         # --- Oil momentum for directional tilt ---
         oil = prices[c.oil_ticker]
         oil_ret = oil.pct_change(20).fillna(0.0)
+        oil_shock_intensity = (oil_ret.abs() / 0.10).clip(0.0, 2.0)
         oil_strong = oil_ret > 0.05
         oil_weak = oil_ret < -0.05
 
-        # Base weights: always-on trend-following
-        xle_w = xle_trend.astype(float) * c.energy_leverage * xle_vs
-        gld_w = gld_trend.astype(float) * c.gold_leverage * gld_vs
+        # Base weights: balanced always-on sleeve + trend-following overlay.
+        xle_w = c.baseline_energy + xle_trend.astype(float) * c.energy_leverage * xle_vs
+        gld_w = c.baseline_gold + gld_trend.astype(float) * c.gold_leverage * gld_vs
 
         # Shock tilt: boost the trending side during oil shocks
-        xle_w = xle_w + (oil_strong & xle_trend).astype(float) * c.shock_tilt * xle_vs
-        gld_w = gld_w + (oil_weak & gld_trend).astype(float) * c.shock_tilt * gld_vs
+        xle_w = xle_w + (oil_strong & xle_trend).astype(float) * c.shock_tilt * oil_shock_intensity * xle_vs
+        gld_w = gld_w + (oil_weak & gld_trend).astype(float) * c.shock_tilt * oil_shock_intensity * gld_vs
+
+        if regime is not None:
+            regime_mult = pd.Series(1.0, index=prices.index)
+            regime_mult[regime.isin({Regime.OIL_CRISIS})] = c.crisis_regime_boost
+            regime_mult[regime.isin({Regime.ELEVATED, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS})] = c.elevated_regime_boost
+            xle_w = xle_w * regime_mult
+            gld_w = gld_w * regime_mult
+
+        xle_w = xle_w.clip(0.0, 2.5)
+        gld_w = gld_w.clip(0.0, 2.5)
 
         w = pd.DataFrame(0.0, index=prices.index, columns=[c.energy_ticker, c.hedge_ticker])
         w[c.energy_ticker] = xle_w

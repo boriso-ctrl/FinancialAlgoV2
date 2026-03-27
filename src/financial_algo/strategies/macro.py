@@ -36,11 +36,19 @@ class DollarCarryConfig:
 
 
 class DollarCarry(Strategy):
-    """Use dollar momentum as a risk-on/risk-off regime signal.
+    """Use dollar regime with gradual transitions (not binary) for risk-on/risk-off.
 
-    Thesis: A weakening dollar (UUP declining) signals risk appetite
-    and global growth, favoring equities. A strengthening dollar signals
-    risk aversion. Classic macro trade used by global macro funds.
+    Thesis: A weakening dollar signals risk appetite; strengthening dollar
+    signals risk aversion. But dollar doesn't move in discrete jumps -- it
+    trends. Implement three states:
+      1. FULL RISK-OFF: dollar 200d SMA + rising 20d momentum (strong dollar)
+         → minimize equity, max safe TLT
+      2. PARTIAL HEDGE: dollar in transition zone
+         → moderate equity + TLT blend
+      3. FULL RISK-ON: dollar 200d SMA and falling momentum (weak dollar)
+         → max equity, minimize TLT
+    
+    This reduces whipsaw vs binary thresholds, captures multi-week trends.
     """
 
     name = "M1-DollarCarry"
@@ -58,18 +66,76 @@ class DollarCarry(Strategy):
             return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
         uup = prices[c.dollar_ticker]
-        uup_ema = ema(uup, c.ema_span)
+        
+        # --- Dollar trend signals ---
+        # 200-day SMA: structural dollar regime (short-term noise filter)
+        uup_sma200 = uup.rolling(200, min_periods=100).mean()
+        dollar_above_sma = uup >= uup_sma200
+        
+        # 20-day momentum: dollar direction (is it rising or falling?)
+        uup_mom20 = uup.pct_change(20).fillna(0.0)
+        dollar_strengthening = pd.notna(uup_mom20) & (uup_mom20 > 0.005)  # >0.5% in 20 days = rising
+        
+        # Distance from 200d SMA (pct): how extreme is the current regime?
+        # Positive = above SMA (stronger dollar), negative = below SMA (weaker dollar)
+        sma_distance_pct = ((uup - uup_sma200) / uup_sma200).clip(-0.08, 0.08)
 
-        # Dollar momentum: negative = dollar weakening = risk on
-        dollar_mom = uup_ema.pct_change(c.momentum_window)
-        dollar_weakening = dollar_mom < 0
+        # --- Three-state regime scoring ---
+        # Risk-off intensity (-1 to 0): stronger dollar = risk aversion
+        dollar_risk_off_signal = np.where(dollar_above_sma, 1.0, -1.0)  # +1 = strong, -1 = weak
+        dollar_risk_off_signal = dollar_risk_off_signal * (1.0 + sma_distance_pct * 2).clip(0.5, 1.5)
+        
+        # Momentum acceleration (-1 to 0): rising dollar = increasing risk-off pressure
+        momentum_multiplier = np.where(dollar_strengthening, 1.3, 0.7)
+        final_risk_off_score = dollar_risk_off_signal * momentum_multiplier
+
+        # Clip to [-1, 1] scale
+        final_risk_off_score = np.clip(final_risk_off_score, -1.0, 1.0)
+
+        # --- Allocation logic with hysteresis ---
+        # Avoid extreme whipsaw: use smoothed score via simple lag
+        risk_off_smooth = pd.Series(final_risk_off_score, index=prices.index).ewm(span=5).mean()
+        
+        # Define regime zones
+        # full_risk_off_score > 0.5
+        full_risk_off = risk_off_smooth > 0.5
+        # full_risk_on_score < -0.5
+        full_risk_on = risk_off_smooth < -0.5
+        # partial zone: -0.5 to 0.5
+        partial_hedge = (~full_risk_off) & (~full_risk_on)
 
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
-        weights.loc[dollar_weakening, c.equity_ticker] = c.leverage_risk_on
-        weights.loc[~dollar_weakening, c.safe_ticker] = c.safe_weight
+        # Full risk-off: 100% TLT (safe haven)
+        if c.safe_ticker in prices.columns:
+            weights[c.safe_ticker] = np.where(full_risk_off, c.leverage_risk_on, 0.0)
+        
+        # Full risk-on: 150% long equities (risk-on leverage)
+        if c.equity_ticker in prices.columns:
+            weights[c.equity_ticker] = np.where(full_risk_on, c.leverage_risk_on, 0.0)
 
-        return weights.fillna(0.0)
+        # Partial hedge: blend both (50/50 or adjusted by score)
+        # Use the risk_off_smooth score to weight the blend
+        blend_factor = (risk_off_smooth.clip(-0.5, 0.5) + 0.5) / 1.0  # Map [-0.5, 0.5] to [0, 1]
+        
+        if c.equity_ticker in prices.columns:
+            equity_w_partial = (1.0 - blend_factor * 0.7) * c.leverage_risk_on  # 0.7 max hedge intensity
+            weights[c.equity_ticker] = np.where(
+                partial_hedge,
+                equity_w_partial,
+                weights[c.equity_ticker],
+            )
+        
+        if c.safe_ticker in prices.columns:
+            safe_w_partial = blend_factor * 0.7 * c.leverage_risk_on
+            weights[c.safe_ticker] = np.where(
+                partial_hedge,
+                safe_w_partial,
+                weights[c.safe_ticker],
+            )
+
+        weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights
 
 
 # =========================================================================
@@ -156,14 +222,17 @@ class EMRiskPremiumConfig:
 
 
 class EMRiskPremium(Strategy):
-    """Long EEM when credit spreads tighten, IEF when widening.
+    """Long EEM when credit+dollar+equity signals align (multi-signal confluence).
 
-    Thesis: EM equities carry a risk premium tied to global credit
-    conditions. When HYG/LQD ratio is rising (spreads tightening)
-    AND above its 200-day SMA (structural credit health), risk appetite
-    improves -- long EEM. When ratio falls (spreads widening), rotate
-    to IEF. VIX filter reduces position in high-vol regimes.
-    Long-only, no shorts.
+    Thesis: EM equities carry a risk premium tied to global credit, dollar flows, 
+    and equity momentum. Trades fail when signals conflict (e.g., spreads tightening 
+    but dollar strengthening). Implement signal *consensus* scoring:
+      - Must have credit improving (HYG/LQD rising)
+      - Must have weak dollar (UUP falling or below SMA)
+      - Must have EEM positive momentum
+      - All three signals in alignment = high confidence entry
+    
+    Reduce false positives by requiring 2+ signals before entering.
     """
 
     name = "M3-EMRiskPremium"
@@ -182,78 +251,90 @@ class EMRiskPremium(Strategy):
 
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
-        # Credit spread momentum + structural health filter
+        # *** Signal 1: Credit Spread Health ***
+        # Higher confidence when HYG/LQD ratio is RISING and above structural avg
         if c.hyg_ticker in prices.columns and c.lqd_ticker in prices.columns:
             spread_ratio = prices[c.hyg_ticker] / prices[c.lqd_ticker]
             spread_ratio = spread_ratio.replace([np.inf, -np.inf], np.nan).ffill()
+            
+            # Momentum: is spread ratio improving (rising)?
             spread_mom = spread_ratio.pct_change(c.spread_momentum).fillna(0.0)
             credit_improving = pd.notna(spread_mom) & (spread_mom > 0)
 
-            # Credit health: HYG/LQD ratio above 200d SMA
-            spread_sma = spread_ratio.rolling(
-                c.credit_health_window, min_periods=60,
-            ).mean()
+            # Structural health: is ratio above its 200d SMA?
+            spread_sma = spread_ratio.rolling(c.credit_health_window, min_periods=60).mean()
             credit_healthy = spread_ratio >= spread_sma
+            
+            # Combined credit score: +1 for each confirmation
+            credit_signal = credit_improving.astype(int) + credit_healthy.astype(int)
         else:
-            credit_improving = pd.Series(False, index=prices.index)
-            credit_healthy = pd.Series(True, index=prices.index)
+            credit_signal = pd.Series(0, index=prices.index)
 
-        # EEM momentum fallback -- own asset momentum as secondary signal
-        em_mom = prices[c.em_ticker].pct_change(c.em_momentum).fillna(0.0)
-        em_positive = pd.notna(em_mom) & (em_mom > 0)
-
-        # Trend filter: EEM above 100-day SMA (shorter = faster reaction)
-        eem_sma = prices[c.em_ticker].rolling(c.trend_window, min_periods=50).mean()
-        eem_above_trend = prices[c.em_ticker] >= eem_sma
-
-        # Dollar filter: stronger dollar usually pressures EM risk assets.
+        # *** Signal 2: Dollar Weakness ***
+        # Weak dollar (UUP falling) is good for EM. Use SMA + momentum combo.
         if c.dollar_ticker in prices.columns:
             uup = prices[c.dollar_ticker]
-            uup_mom = uup.pct_change(c.uup_momentum).fillna(0.0)
+            
+            # Structural weakness: UUP below 200d SMA
             uup_sma = uup.rolling(c.uup_trend_window, min_periods=100).mean()
-            dollar_weakening = pd.notna(uup_mom) & (uup_mom < 0)
-            dollar_not_strong = uup <= uup_sma
+            dollar_structurally_weak = uup <= uup_sma
+            
+            # Momentum weakness: UUP falling on 20d basis
+            uup_mom = uup.pct_change(20).fillna(0.0)
+            dollar_momentum_weak = pd.notna(uup_mom) & (uup_mom < -0.005)  # Falling >0.5%
+            
+            # Combined dollar score: +1 for each confirmation
+            dollar_signal = dollar_structurally_weak.astype(int) + dollar_momentum_weak.astype(int)
         else:
-            dollar_weakening = pd.Series(True, index=prices.index)
-            dollar_not_strong = pd.Series(True, index=prices.index)
+            dollar_signal = pd.Series(0, index=prices.index)
 
-        # VIX filter: halve position when VIX > threshold
+        # *** Signal 3: EEM Momentum ***
+        # EEM itself should have positive momentum as tertiary confirmation
+        em_mom = prices[c.em_ticker].pct_change(c.em_momentum).fillna(0.0)
+        em_positive = pd.notna(em_mom) & (em_mom > 0.0)
+
+        # EEM above 100d SMA (in uptrend, not oversold)
+        eem_sma = prices[c.em_ticker].rolling(c.trend_window, min_periods=50).mean()
+        eem_above_trend = prices[c.em_ticker] >= eem_sma
+        
+        # Combined EEM score
+        eem_signal = em_positive.astype(int) + eem_above_trend.astype(int)
+
+        # *** Signal 4: VIX Risk Gauge ***
+        # During high vol, EM gets hit even if fundamentals improve
         if c.vix_ticker in prices.columns:
             vix = prices[c.vix_ticker]
             high_vol = pd.notna(vix) & (vix > c.vix_threshold)
         else:
             high_vol = pd.Series(False, index=prices.index)
 
-        # Regime score for smoother risk-taking and fewer whipsaws.
-        score = (
-            credit_improving.astype(int)
-            + credit_healthy.astype(int)
-            + em_positive.astype(int)
-            + eem_above_trend.astype(int)
-            + dollar_weakening.astype(int)
+        # *** Consensus Scoring ***
+        # Total "alignment score": 0-6 (credit 0-2, dollar 0-2, EEM 0-2)
+        total_alignment = credit_signal + dollar_signal + eem_signal
+        
+        # Confidence tiers:
+        # 5-6 signals = FULL_RISK_ON (100% EEM)
+        # 3-4 signals = PARTIAL_RISK_ON (50% EEM, rest in safe)
+        # 0-2 signals = RISK_OFF (0% EM, go to IEF/safe)
+        full_risk_on = (total_alignment >= 5) & (~high_vol)
+        partial_risk_on = (total_alignment >= 3) & (total_alignment < 5) & (~high_vol)
+        risk_off = high_vol | (total_alignment < 3)
+
+        em_weight = np.where(
+            full_risk_on,
+            c.leverage,
+            np.where(partial_risk_on, 0.5 * c.leverage, 0.0),
         )
-
-        hard_risk_off = high_vol | (~dollar_not_strong)
-        full_risk_on = (score >= 4) & (~hard_risk_off)
-        partial_risk_on = (score == 3) & (~hard_risk_off)
-
-        em_weight = np.where(full_risk_on, c.leverage, np.where(partial_risk_on, 0.5 * c.leverage, 0.0))
         em_weight = pd.Series(em_weight, index=prices.index).fillna(0.0)
 
         weights[c.em_ticker] = em_weight
+        
+        # Park in safe asset (IEF or equiv) when not in EEM
         safe_col = c.safe_ticker if c.safe_ticker in prices.columns else None
-
         safe_weight = (c.leverage - em_weight).clip(lower=0.0)
-        if c.dollar_ticker in prices.columns and c.dollar_ticker != c.em_ticker:
-            risk_off_mask = hard_risk_off.astype(float)
-            dollar_defense_weight = safe_weight * risk_off_mask
-            weights[c.dollar_ticker] = dollar_defense_weight
-            residual_safe = safe_weight - dollar_defense_weight
-            if safe_col is not None and safe_col != c.em_ticker:
-                weights[safe_col] = residual_safe
-        else:
-            if safe_col is not None and safe_col != c.em_ticker:
-                weights[safe_col] = safe_weight
+        
+        if safe_col is not None and safe_col != c.em_ticker:
+            weights[safe_col] = safe_weight
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights
@@ -275,12 +356,18 @@ class CommodityMomConfig:
 
 
 class CommodityMomentum(Strategy):
-    """Long XLE/GLD when they have positive 6-month momentum + above 200d SMA.
+    """Long commodities with positive momentum when real rates trend is favorable.
 
-    Thesis: Commodities exhibit strong momentum driven by supply/demand
-    cycles. Only go long when both momentum is positive AND price is
-    above its 200-day SMA. Long-only, no shorts. Equal-weight qualifying
-    assets; park in IEF when nothing qualifies.
+    Thesis: Commodity momentum is powerful, but breaks down when *real interest rates*
+    are rising sharply (hurts carry). Gate long entries with:
+      1. Positive 6-month momentum (XLE, GLD)
+      2. Price above 200d SMA (structural uptrend)
+      3. **Real rates regime**: TLT above 200d SMA OR TLT not falling sharply
+         (indicates falling nominal rates → favorable for commodities)
+    
+    Commodity carry insight: When TLT rises (rates fall), it's often a sign of
+    risk-off OR increased real inflation (both help commodities). When TLT falls
+    sharply (rates up + real rates compressed), commodity carry becomes less attractive.
     """
 
     name = "M4-CommodityMomentum"
@@ -302,6 +389,7 @@ class CommodityMomentum(Strategy):
 
         p = prices[avail]
 
+        # *** Signal 1: Commodity Momentum ***
         # 6-month momentum
         mom = p.pct_change(c.lookback).fillna(0.0)
         # 200-day SMA trend filter
@@ -310,19 +398,55 @@ class CommodityMomentum(Strategy):
         # Qualify: positive momentum AND above 200d SMA
         qualify = (mom > 0) & (p >= sma200)
 
+        # *** Signal 2: Real Rates Regime Filter ***
+        # When nominal bond yields (TLT) are rising sharply, real rates compressing
+        # may reduce commodity carry attractiveness. Be conservative.
+        # When TLT is falling (yields down), risk-off + potential inflation = good for commodities
+        real_rates_favorable = pd.Series(True, index=prices.index)
+        
+        if "TLT" in prices.columns:
+            tlt = prices["TLT"]
+            
+            # TLT 21d momentum (short-term rate direction)
+            tlt_mom_short = tlt.pct_change(21).fillna(0.0)
+            # TLT 63d momentum (medium-term rate direction)
+            tlt_mom_long = tlt.pct_change(63).fillna(0.0)
+            
+            # TLT 200d SMA (structural rates regime)
+            tlt_sma = tlt.rolling(c.trend_window, min_periods=100).mean()
+            tlt_above_sma = tlt >= tlt_sma
+            
+            # Favorable real rates: TLT not crashing (yields falling) or at least trending sideways above SMA
+            # Unfavorable: TLT sharp decline + below SMA (rates rising sharply)
+            unfavorable_rates = (tlt_mom_short < -0.02) & (tlt_mom_long < -0.02) & (~tlt_above_sma)
+            real_rates_favorable = ~unfavorable_rates
+
+        # *** Signal 3: Volatility/Stress Filter ***
+        # During extreme stress (VIX > 35), commodities can spike down despite momentum
+        # Use a simple vol proxy: if any commodity is crashing (-5%+ in 1 day), reduce exposure
+        extreme_stress = pd.Series(False, index=prices.index)
+        
+        if "^VIX" in prices.columns:
+            vix = prices["^VIX"]
+            extreme_stress = pd.notna(vix) & (vix > 35.0)
+
+        # *** Combined Qualification ***
+        # Require: positive momentum + above SMA + real rates favorable + no extreme stress
+        final_qualify = qualify & real_rates_favorable.values.reshape(-1, 1) & (~extreme_stress.values.reshape(-1, 1))
+
         # Count qualifying assets per day
-        n_qualify = qualify.sum(axis=1).replace(0, np.nan)
+        n_qualify = final_qualify.sum(axis=1).replace(0, np.nan)
 
         # Equal-weight qualifying assets
         for t in avail:
             weights[t] = np.where(
-                qualify[t],
+                final_qualify[t],
                 c.leverage / n_qualify.fillna(1.0),
                 0.0,
             )
 
         # Park in safe asset when nothing qualifies
-        nothing_qualifies = qualify.sum(axis=1) == 0
+        nothing_qualifies = final_qualify.sum(axis=1) == 0
         safe_col = c.safe_ticker if c.safe_ticker in prices.columns else avail[0]
         weights[safe_col] = np.where(
             nothing_qualifies,
@@ -407,26 +531,37 @@ class RatesRegimeTrade(Strategy):
 
 @dataclass
 class GlobalRotationConfig:
-    """Rotate among global equity regions by 6-month momentum + vol scaling."""
+    """Macro-aware regional rotation with explicit defensive sleeve."""
 
     region_tickers: tuple = ("SPY", "VGK", "EWJ", "FXI", "INDA", "EEM")
-    safe_tickers: tuple = ("TLT", "GLD")
+    safe_tickers: tuple = ("TLT", "GLD", "UUP")
 
-    momentum_window: int = 126    # 6-month momentum
-    vol_window: int = 63          # 3-month vol for scaling
-    top_n: int = 3                # pick top-N regions by momentum
-    target_vol: float = 0.15      # target annualised vol per position
+    momentum_window: int = 126     # 6-month momentum
+    fast_momentum: int = 42        # 2-month momentum for regime transitions
+    trend_window: int = 200        # long-term trend filter
+    drawdown_window: int = 63      # 3-month drawdown check
+    top_n: int = 2                 # concentrated winners only
     leverage: float = 1.0
+
+    # Macro filters
+    dollar_ticker: str = "UUP"
+    bond_ticker: str = "TLT"
+    vix_ticker: str = "^VIX"
+    vix_risk_off: float = 24.0
+
+    # Equity sleeve budget by regime (rest goes to safe assets)
+    region_budget_risk_on: float = 0.55
+    region_budget_transition: float = 0.35
+    region_budget_risk_off: float = 0.10
 
 
 class GlobalRotation(Strategy):
-    """Rotate among global equity regions by 6-month momentum with vol scaling.
+    """Rotate across regions only when macro backdrop allows equity risk.
 
-    Thesis: International equity returns exhibit persistent momentum at
-    the 6-month horizon driven by macro cycles, capital flows, and
-    relative monetary policy. Rotate into the strongest regions, vol-scale
-    for equal risk contribution. Go to TLT+GLD when all regions have
-    negative momentum (global risk-off). Long-only.
+    Thesis: Regional momentum works best when dollar stress is low and rates
+    are not tightening aggressively. Cap equity sleeve and maintain a
+    persistent defensive allocation (TLT/GLD/UUP) to preserve low correlation
+    versus broad equity beta.
     """
 
     name = "M7-GlobalRotation"
@@ -440,61 +575,80 @@ class GlobalRotation(Strategy):
         regime: pd.Series | None = None,
     ) -> pd.DataFrame:
         c = self.cfg
+        if prices.empty:
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
         avail = [t for t in c.region_tickers if t in prices.columns]
         if not avail:
             return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-        p = prices[avail]
+        p = prices[avail].ffill()
 
-        # 6-month momentum
-        mom = p.pct_change(c.momentum_window).fillna(0.0)
+        mom_slow = p.pct_change(c.momentum_window).fillna(0.0)
+        mom_fast = p.pct_change(c.fast_momentum).fillna(0.0)
+        trend = p.rolling(c.trend_window, min_periods=80).mean()
+        trend_ok = p >= trend
 
-        # Annualised volatility for scaling
-        daily_ret = p.pct_change().fillna(0.0)
-        ann_vol = daily_ret.rolling(c.vol_window, min_periods=20).std() * np.sqrt(252)
-        ann_vol = ann_vol.replace(0, np.nan).fillna(c.target_vol)
+        roll_max = p.rolling(c.drawdown_window, min_periods=20).max()
+        region_dd = (p / roll_max.replace(0.0, np.nan) - 1.0).fillna(0.0)
+        dd_ok = region_dd > -0.12
 
-        # Vol-scaled weight factor
-        vol_scale = (c.target_vol / ann_vol).clip(upper=3.0)
+        # Blend horizons: prioritize slow momentum while reacting faster to turns.
+        score = (0.7 * mom_slow + 0.3 * mom_fast).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        rank = score.rank(axis=1, ascending=False, method="first")
+        selected = (rank <= c.top_n) & (score > 0.0) & trend_ok & dd_ok
 
-        # Rank by momentum, pick top-N with positive momentum
-        mom_rank = mom.rank(axis=1, ascending=False)
-        positive_mom = mom > 0
-        selected = (mom_rank <= c.top_n) & positive_mom
+        macro_flags = pd.DataFrame(index=prices.index)
+        if c.dollar_ticker in prices.columns:
+            uup_mom = prices[c.dollar_ticker].pct_change(c.momentum_window).fillna(0.0)
+            macro_flags["dollar"] = pd.notna(uup_mom) & (uup_mom > 0.0)
+        else:
+            macro_flags["dollar"] = False
 
-        # Count of selected per day
-        n_selected = selected.sum(axis=1).replace(0, np.nan)
+        if c.bond_ticker in prices.columns:
+            tlt = prices[c.bond_ticker].ffill()
+            tlt_sma = tlt.rolling(c.trend_window, min_periods=80).mean()
+            macro_flags["rates"] = (tlt < tlt_sma) & (tlt.pct_change(42).fillna(0.0) < 0.0)
+        else:
+            macro_flags["rates"] = False
 
-        # Equal-weight among selected, scaled by vol
-        for t in avail:
-            raw_w = np.where(
-                selected[t],
-                c.leverage * vol_scale[t] / n_selected.fillna(1.0),
-                0.0,
-            )
-            weights[t] = raw_w
+        if c.vix_ticker in prices.columns:
+            vix = prices[c.vix_ticker]
+            macro_flags["vix"] = pd.notna(vix) & (vix > c.vix_risk_off)
+        else:
+            macro_flags["vix"] = False
 
-        # Cap total leverage at c.leverage
-        total_w = weights[avail].sum(axis=1)
-        scale_down = np.where(
-            pd.notna(total_w) & (total_w > c.leverage),
-            c.leverage / total_w.replace(0, 1.0),
-            1.0,
-        )
-        for t in avail:
-            weights[t] = weights[t] * scale_down
+        stress_score = macro_flags.astype(int).sum(axis=1)
+        risk_off = stress_score >= 2
+        transition = stress_score == 1
+        risk_on = stress_score == 0
 
-        # Safe-haven allocation when ALL regions have negative momentum
-        all_negative = (mom <= 0).all(axis=1)
+        budget = pd.Series(c.region_budget_transition, index=prices.index)
+        budget = budget.where(~risk_on, c.region_budget_risk_on)
+        budget = budget.where(~risk_off, c.region_budget_risk_off)
+
+        selected_float = selected.astype(float)
+        n_selected = selected_float.sum(axis=1).replace(0.0, np.nan)
+        region_alloc = selected_float.div(n_selected, axis=0).fillna(0.0).multiply(budget, axis=0)
+        weights.loc[:, avail] = region_alloc
+
+        residual = (c.leverage - weights[avail].sum(axis=1)).clip(lower=0.0)
         safe_avail = [t for t in c.safe_tickers if t in prices.columns]
         if safe_avail:
-            safe_w = c.leverage / len(safe_avail)
+            # Defensive sleeve is regime-aware to limit equity beta and drawdowns.
+            safe_base = pd.DataFrame(0.0, index=prices.index, columns=safe_avail)
+            if "TLT" in safe_base.columns:
+                safe_base["TLT"] = np.where(risk_off, 0.45, np.where(transition, 0.35, 0.30))
+            if "GLD" in safe_base.columns:
+                safe_base["GLD"] = np.where(risk_off, 0.35, np.where(transition, 0.30, 0.30))
+            if "UUP" in safe_base.columns:
+                safe_base["UUP"] = np.where(risk_off, 0.20, np.where(transition, 0.15, 0.0))
+
+            safe_norm = safe_base.sum(axis=1).replace(0.0, np.nan)
+            safe_alloc = safe_base.div(safe_norm, axis=0).fillna(0.0).multiply(residual, axis=0)
             for t in safe_avail:
-                weights[t] = np.where(all_negative, safe_w, weights[t])
-            # Zero out region weights on all-negative days
-            for t in avail:
-                weights[t] = np.where(all_negative, 0.0, weights[t])
+                weights[t] = safe_alloc[t]
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights
@@ -978,10 +1132,12 @@ class AdaptiveMacroBlendConfig:
     accuracy_lag: int = 21      # lag to avoid look-ahead
 
     # Allocation thresholds
-    risk_on_threshold: float = 0.3
-    risk_off_threshold: float = -0.3
+    risk_on_threshold: float = 0.25
+    risk_off_threshold: float = -0.25
 
-    leverage: float = 0.8
+    leverage: float = 0.85
+    trend_window: int = 200
+    drawdown_window: int = 63
 
 
 class AdaptiveMacroBlend(Strategy):
@@ -992,8 +1148,8 @@ class AdaptiveMacroBlend(Strategy):
     currently "working" get higher weight; signals that stopped working
     fade out.
 
-    Look-ahead bias guard: accuracy at time t uses signal[t-63:t-21] vs
-    actual returns[t-42:t], so no future data is accessed.
+    Look-ahead guard: accuracy uses lagged signals versus realized returns.
+    No negative shifts are used in the signal accuracy path.
     """
 
     name = "M11-AdaptiveMacroBlend"
@@ -1093,16 +1249,17 @@ class AdaptiveMacroBlend(Strategy):
             return weights
 
         spy = prices[c.spy_ticker]
-        # fwd_ret[d] = spy[d+21]/spy[d] - 1  (via shift(-21))
-        fwd_ret = spy.shift(-c.forward_return_days) / spy - 1
-        fwd_ret = fwd_ret.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        # Realized 21-day return available at time t.
+        horizon_ret = spy.pct_change(c.forward_return_days).fillna(0.0)
 
-        # Rolling accuracy: corr(signal, fwd_ret) over 42 days, lagged 21d
+        # Rolling accuracy: corr(lagged signal, realized return), then lag again.
         accuracy_cols: dict[str, pd.Series] = {}
         for col in sig_df.columns:
-            raw_corr = sig_df[col].rolling(
+            signal_lagged = sig_df[col].shift(c.forward_return_days)
+            raw_corr = signal_lagged.rolling(
                 c.accuracy_window, min_periods=20,
-            ).corr(fwd_ret)
+            ).corr(horizon_ret)
+            raw_corr = raw_corr.where(signal_lagged.notna(), 0.0)
             accuracy_cols[col] = raw_corr.shift(c.accuracy_lag).fillna(0.0)
 
         accuracy_df = pd.DataFrame(accuracy_cols, index=prices.index)
@@ -1116,35 +1273,110 @@ class AdaptiveMacroBlend(Strategy):
         weighted_score = (weighted_sum / total_weight).fillna(0.0)
         weighted_score = weighted_score.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
+        # Macro filters: tightening regime pushes allocation toward defensive sleeve.
+        if c.uup_ticker in prices.columns:
+            uup_mom = prices[c.uup_ticker].pct_change(c.dollar_momentum).fillna(0.0)
+            dollar_strong = pd.notna(uup_mom) & (uup_mom > 0.0)
+        else:
+            dollar_strong = pd.Series(False, index=prices.index)
+
+        if c.tlt_ticker in prices.columns:
+            tlt = prices[c.tlt_ticker]
+            tlt_sma = tlt.rolling(c.trend_window, min_periods=80).mean()
+            easing_bias = tlt >= tlt_sma
+        else:
+            easing_bias = pd.Series(False, index=prices.index)
+
+        if c.vix_ticker in prices.columns:
+            vix = prices[c.vix_ticker]
+            vix_high = pd.notna(vix) & (vix > c.vix_bear)
+        else:
+            vix_high = pd.Series(False, index=prices.index)
+
+        macro_tightening = dollar_strong & (~easing_bias)
+
+        # Equity sleeve drawdown scaling for smoother risk reduction.
+        daily = prices.pct_change().fillna(0.0)
+        eq_proxy = 0.0
+        if c.spy_ticker in daily.columns:
+            eq_proxy = eq_proxy + 0.6 * daily[c.spy_ticker]
+        if c.eem_ticker in daily.columns:
+            eq_proxy = eq_proxy + 0.25 * daily[c.eem_ticker]
+        if c.xle_ticker in daily.columns:
+            eq_proxy = eq_proxy + 0.15 * daily[c.xle_ticker]
+        eq_proxy = pd.Series(eq_proxy, index=prices.index).fillna(0.0)
+        eq_curve = (1.0 + eq_proxy).cumprod()
+        eq_dd = eq_curve / eq_curve.cummax().replace(0.0, np.nan) - 1.0
+        dd_scale = np.where(eq_dd < -0.12, 0.4, np.where(eq_dd < -0.08, 0.7, 1.0))
+        dd_scale = pd.Series(dd_scale, index=prices.index)
+
         # --- Allocation ---
         lev = c.leverage
-        risk_on = pd.notna(weighted_score) & (weighted_score > c.risk_on_threshold)
-        risk_off = pd.notna(weighted_score) & (weighted_score < c.risk_off_threshold)
+        risk_on = (
+            pd.notna(weighted_score)
+            & (weighted_score > c.risk_on_threshold)
+            & (~macro_tightening)
+            & (~vix_high)
+        )
+        risk_off = (
+            pd.notna(weighted_score)
+            & ((weighted_score < c.risk_off_threshold) | vix_high | macro_tightening)
+        )
         neutral = ~risk_on & ~risk_off
 
-        # Risk-on: SPY 0.5, EEM 0.2, XLE 0.1
+        # Risk-on: capped equity sleeve + macro hedges.
         if c.spy_ticker in prices.columns:
-            weights[c.spy_ticker] = np.where(risk_on, 0.5 * lev, weights[c.spy_ticker])
+            weights[c.spy_ticker] = np.where(
+                risk_on,
+                0.25 * lev * dd_scale,
+                weights[c.spy_ticker],
+            )
         if c.eem_ticker in prices.columns:
-            weights[c.eem_ticker] = np.where(risk_on, 0.2 * lev, weights[c.eem_ticker])
+            weights[c.eem_ticker] = np.where(
+                risk_on,
+                0.15 * lev * dd_scale,
+                weights[c.eem_ticker],
+            )
         if c.xle_ticker in prices.columns:
-            weights[c.xle_ticker] = np.where(risk_on, 0.1 * lev, weights[c.xle_ticker])
-
-        # Neutral: SPY 0.2, TLT 0.3, GLD 0.2
-        if c.spy_ticker in prices.columns:
-            weights[c.spy_ticker] = np.where(neutral, 0.2 * lev, weights[c.spy_ticker])
+            weights[c.xle_ticker] = np.where(
+                risk_on,
+                0.10 * lev * dd_scale,
+                weights[c.xle_ticker],
+            )
         if c.tlt_ticker in prices.columns:
-            weights[c.tlt_ticker] = np.where(neutral, 0.3 * lev, weights[c.tlt_ticker])
+            weights[c.tlt_ticker] = np.where(risk_on, 0.20 * lev, weights[c.tlt_ticker])
         if c.gld_ticker in prices.columns:
-            weights[c.gld_ticker] = np.where(neutral, 0.2 * lev, weights[c.gld_ticker])
-
-        # Risk-off: TLT 0.4, GLD 0.3, UUP 0.2
-        if c.tlt_ticker in prices.columns:
-            weights[c.tlt_ticker] = np.where(risk_off, 0.4 * lev, weights[c.tlt_ticker])
-        if c.gld_ticker in prices.columns:
-            weights[c.gld_ticker] = np.where(risk_off, 0.3 * lev, weights[c.gld_ticker])
+            weights[c.gld_ticker] = np.where(risk_on, 0.15 * lev, weights[c.gld_ticker])
         if c.uup_ticker in prices.columns:
-            weights[c.uup_ticker] = np.where(risk_off, 0.2 * lev, weights[c.uup_ticker])
+            weights[c.uup_ticker] = np.where(risk_on, 0.05 * lev, weights[c.uup_ticker])
+        if c.ief_ticker in prices.columns:
+            weights[c.ief_ticker] = np.where(risk_on, 0.10 * lev, weights[c.ief_ticker])
+
+        # Neutral: macro-balanced sleeve.
+        if c.spy_ticker in prices.columns:
+            weights[c.spy_ticker] = np.where(neutral, 0.10 * lev, weights[c.spy_ticker])
+        if c.tlt_ticker in prices.columns:
+            weights[c.tlt_ticker] = np.where(neutral, 0.30 * lev, weights[c.tlt_ticker])
+        if c.gld_ticker in prices.columns:
+            weights[c.gld_ticker] = np.where(neutral, 0.25 * lev, weights[c.gld_ticker])
+        if c.uup_ticker in prices.columns:
+            weights[c.uup_ticker] = np.where(neutral, 0.10 * lev, weights[c.uup_ticker])
+        if c.ief_ticker in prices.columns:
+            weights[c.ief_ticker] = np.where(neutral, 0.25 * lev, weights[c.ief_ticker])
+
+        # Risk-off: explicit capital preservation sleeve.
+        if c.tlt_ticker in prices.columns:
+            weights[c.tlt_ticker] = np.where(risk_off, 0.35 * lev, weights[c.tlt_ticker])
+        if c.gld_ticker in prices.columns:
+            weights[c.gld_ticker] = np.where(risk_off, 0.30 * lev, weights[c.gld_ticker])
+        if c.uup_ticker in prices.columns:
+            weights[c.uup_ticker] = np.where(risk_off, 0.20 * lev, weights[c.uup_ticker])
+        if c.ief_ticker in prices.columns:
+            weights[c.ief_ticker] = np.where(risk_off, 0.15 * lev, weights[c.ief_ticker])
+
+        gross = weights.clip(lower=0.0).sum(axis=1).replace(0.0, np.nan)
+        scale = (lev / gross).clip(upper=1.0).fillna(1.0)
+        weights = weights.multiply(scale, axis=0)
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights
