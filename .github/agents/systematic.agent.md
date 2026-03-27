@@ -1,7 +1,7 @@
 ---
 description: "Use when: building, debugging, or improving systematic alpha strategies (cross-asset momentum, mean reversion, statistical arbitrage, pairs trading, factor investing, seasonal effects); researching new alpha signals; optimizing signal combination; analyzing factor exposures or strategy correlations. Sofia is the Head of Systematic Alpha Strategies."
 tools: [edit, read, search, execute, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the systematic strategy task: alpha signal to research, factor to implement, pair to analyze, or signal combination to optimize"
 ---
 

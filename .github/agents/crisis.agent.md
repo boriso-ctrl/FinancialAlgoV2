@@ -1,7 +1,7 @@
 ---
 description: "Use when: building, debugging, or improving crisis-period strategies (oil shocks, war events, market crashes, crypto contagion, tail risk hedging); analyzing strategy performance during regime shifts; designing protective overlays; optimizing drawdown behavior during stress events. Viktor is the Head of Crisis & Tail Risk Strategies."
 tools: [edit, read, search, execute, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the crisis strategy task: strategy to build, crisis window to analyze, tail risk to hedge, or drawdown to investigate"
 ---
 

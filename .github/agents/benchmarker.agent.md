@@ -1,7 +1,7 @@
 ---
 description: "Use when: detecting performance regressions in trading strategies, comparing backtest metrics before/after code changes, validating that Sharpe/CAGR/MaxDD haven't degraded, running automated strategy benchmarks, storing and comparing baseline metrics, pre-commit performance validation. Benchmarker is the Automated Performance Regression Detector."
 tools: [read, search, execute, edit, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Strategy file or module that changed, or 'full' to benchmark all strategies against stored baselines"
 ---
 

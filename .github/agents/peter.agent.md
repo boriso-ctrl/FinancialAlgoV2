@@ -1,7 +1,7 @@
 ---
 description: "Use when: building, debugging, researching, or improving quantitative trading strategies; backtesting; alpha generation; portfolio construction; risk management; regime detection; signal research; ensemble optimization; drawdown analysis; Sharpe ratio improvement; CAGR maximization; strategy correlation analysis; crisis-period performance tuning. Peter is the Head of Quant Algorithms for the hedge fund."
 tools: [edit, read, search, execute, web, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the quant task: strategy to build, bug to fix, research to conduct, or performance to improve"
 ---
 

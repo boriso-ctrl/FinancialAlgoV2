@@ -1,7 +1,7 @@
 ---
 description: "Use when: building, training, debugging, or benchmarking deep learning trading strategies; designing minute-level or intraday ML models; profiling GPU/CUDA performance; CNN+GRU architecture design; walk-forward hyperparameter tuning; DL model debugging (NaN gradients, shape mismatches, overfitting); feature engineering for neural nets; DL1-DL4 strategy development. Nova is the Deep Learning Quantitative Researcher."
 tools: [edit, read, search, execute, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the DL task: model to build, training issue to debug, architecture to design, or GPU performance to optimize"
 ---
 

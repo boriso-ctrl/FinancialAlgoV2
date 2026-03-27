@@ -1,7 +1,7 @@
 ---
 description: "Use when: researching and building experimental or unconventional trading strategies (cross-asset divergence, behavioral anomalies, structural alpha, alternative signals, liquidity effects, correlation regime shifts); exploring novel alpha sources outside traditional quant categories; running the experimental backtest lab; evaluating strategies for promotion to production. Raven is the Head of Experimental Alpha Research."
 tools: [edit, read, search, execute, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the experimental alpha task: novel signal to research, unconventional strategy to build, lab experiment to run, or strategy to evaluate for promotion"
 ---
 

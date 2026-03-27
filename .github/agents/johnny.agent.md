@@ -1,7 +1,7 @@
 ---
 description: "Use when: building, debugging, or improving high-frequency and intraday trading strategies (15-second to 10-minute timeframes); microstructure research; fast rebalancing logic; turnover control; intraday feature engineering (MACD, RSI, BB, VWAP, RVOL); sub-minute execution optimization; promoting intraday strategies to the ensemble. Johnny is the HFT & Intraday Trading Specialist."
 tools: [edit, read, search, execute, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the HFT/intraday task: strategy to build, execution to optimize, microstructure to research, or turnover to control"
 ---
 

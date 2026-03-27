@@ -1,7 +1,7 @@
 ---
 description: "Use when: auditing code quality, optimizing performance, profiling slow functions, fixing bugs, reviewing pull requests, enforcing coding standards, reducing technical debt, improving test coverage, benchmarking execution speed, memory profiling, identifying dead code, spotting race conditions, proposing new agents or skills for the team, reorganizing project structure, hardening error handling, eliminating redundancy. Felix is the Code Quality & Performance Auditor."
 tools: [read, search, edit, execute, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe what to audit, optimize, or improve — or ask Felix to do a full sweep"
 ---
 

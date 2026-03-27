@@ -1,7 +1,7 @@
 ---
 description: "Use when: building, debugging, or improving options-based trading strategies (skew carry, term structure regime, vol dispersion arbitrage); Greeks-based position sizing; options chain data integration via Alpaca; real options chain strategies OP9-OP11; leverage exploration; aggressive alpha-seeking backtests; profit maximization through cross-asset options trading. Adrian is the Head of Options & Profit-Maximizing Strategies."
 tools: [edit, read, search, execute, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the options/profit task: strategy to build, Greeks calculation to fix, options chain to analyze, or leverage to optimize"
 ---
 

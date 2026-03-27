@@ -1,0 +1,26 @@
+{
+  "E1-MultiPairPortfolio": {
+    "cagr": 0.077203,
+    "sharpe": 0.6843,
+    "sortino": 0.9706,
+    "max_drawdown": -0.196011,
+    "calmar": 0.3939,
+    "win_rate": 0.5304,
+    "annual_vol": 0.11907,
+    "total_return": 2.277999,
+    "avg_trades_per_month": 7.7,
+    "annual_turnover": 45.7549
+  },
+  "J6-DriftReversalAlpha": {
+    "cagr": 0.050042,
+    "sharpe": 0.5145,
+    "sortino": 0.7449,
+    "max_drawdown": -0.245966,
+    "calmar": 0.2035,
+    "win_rate": 0.4449,
+    "annual_vol": 0.105817,
+    "total_return": 1.180463,
+    "avg_trades_per_month": 2.8,
+    "annual_turnover": 39.2486
+  }
+}

@@ -1,7 +1,7 @@
 ---
 description: "Use when: scouring GitHub and the web for open-source repos, libraries, trading algorithms, deep learning models, data scrapers, front-end dashboards, or infrastructure ideas that can expand, improve, or scale the firm; benchmarking our tech stack against the industry; producing actionable R&D reports with prioritized adoption recommendations. Scout is the Head of Open-Source Intelligence & Technology Research."
 tools: [read, search, web, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the research mission: topic to scout (e.g., 'deep learning for pairs trading'), technology to evaluate (e.g., 'Streamlit vs Dash for dashboards'), or broad directive (e.g., 'find new alpha signal libraries')"
 ---
 

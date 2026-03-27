@@ -348,7 +348,7 @@ def build_strategy_registry():
             ("F2-CryptoRecoverySurge",   CryptoRecoverySurge(),   True),
             ("F3-CryptoGoldDivergence",  CryptoGoldDivergence(),  True),
             ("F4-CryptoContagionHedge",  CryptoContagionHedge(),  False),
-            ("F2b-CryptoRecoverySurgeATR", CryptoRecoverySurgeATR(), False),
+            ("F2b-CryptoRecoverySurgeATR", CryptoRecoverySurgeATR(), True),
         ],
         "Cat G: Fundamental/Sentiment": [
             ("G1-SentimentCrisisAlpha",   SentimentCrisisAlpha(),   True),
@@ -430,7 +430,7 @@ def build_strategy_registry():
             ("O6-TailHedgeOverlay",       TailHedgeOverlay(),        True),
             ("O7-PreciousMetalsCrisisHedge", PreciousMetalsCrisisHedge(), False),
             ("O8-VolatilityConvexity",    VolatilityConvexity(),     False),
-            ("O9-ATRCrisisAlpha",         ATRCrisisAlpha(),          False),
+            ("O9-ATRCrisisAlpha",         ATRCrisisAlpha(),          True),
         ],
         "Cat P: ML Signal Combo": [
             ("P1-FeatureComboSignal",     FeatureComboSignal(),      False),
@@ -595,6 +595,7 @@ def main() -> None:
         SentimentCrisisAlpha(),  # G1 -- Sharpe 0.79, sentiment crisis
         SeasonalStrategy(),      # N1 -- Sharpe 0.79, seasonality
         SentimentDivergence(),   # G3 -- Sharpe 0.78, sentiment divergence
+        AdaptiveThreshold(),     # P4 -- Sharpe 0.75, walk-forward optimizer
         VolRegimeClustering(),   # L8 -- Sharpe 0.70, vol regime clustering
         YieldCurveRegime(),      # M9 -- Sharpe 0.65, yield curve macro
     ]
@@ -605,7 +606,7 @@ def main() -> None:
         0.86, 0.86, 0.85, 0.85,        # R3, L3, L2, R7
         0.84, 0.84, 0.84, 0.83,        # K1, Q1, L5, Q3
         0.81, 0.79, 0.79, 0.78,        # K4, G1, N1, G3
-        0.70, 0.65,                     # L8, M9
+        0.75, 0.70, 0.65,              # P4, L8, M9
     ]
     prior_weights = [s ** 2 for s in sharpe_scores]
     ensemble_cfg = EnsembleConfig(
@@ -627,14 +628,12 @@ def main() -> None:
         leverage_crisis=1.2,
         # VIX-adaptive prior weights (differential regime tilting)
         vix_prior_scaling=True,
-        vix_prior_k=0.05,
+        vix_prior_k=0.02,              # subtle tilt (was 0.05 -- too aggressive)
         vix_prior_base=20.0,
         vix_prior_lookback=20,
-        # Drift regime filter
-        drift_filter_enabled=True,
-        drift_lookback=63,
-        drift_threshold=0.58,
-        drift_scale_weak=0.50,
+        # Drift regime filter -- DISABLED: threshold 0.58 > SPY avg pos-day
+        # fraction (~0.53), causing chronic position scaling that kills CAGR
+        drift_filter_enabled=False,
     )
 
     total_strategies = sum(len(v) for v in registry.values()) + 2  # +benchmark +ensemble

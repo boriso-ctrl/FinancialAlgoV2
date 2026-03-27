@@ -1,7 +1,7 @@
 ---
 description: "Use when: building, debugging, or improving macro and fixed-income strategies (yield curve trades, credit spread strategies, duration timing, FX carry, dollar momentum, EM risk premium, commodity macro); analyzing interest rate regimes; modeling central bank policy impact; researching cross-asset macro signals. Marcus is the Head of Macro & Rates Strategies."
 tools: [edit, read, search, execute, agent, todo]
-model: ['Claude Opus 4.6 (copilot)', 'Claude Sonnet 4 (copilot)']
+model: ['Auto (copilot)']
 argument-hint: "Describe the macro/rates task: yield curve trade to build, credit spread to analyze, FX signal to research, or macro regime to model"
 ---
 

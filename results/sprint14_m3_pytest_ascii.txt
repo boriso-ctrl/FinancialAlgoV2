@@ -1,0 +1,11 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\boris\Documents\GitHub\FinancialAlgoV2\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\boris\Documents\GitHub\FinancialAlgoV2
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 229 items / 228 deselected / 1 selected
+
+tests/test_strategies.py::TestEMRiskPremium::test_basic PASSED           [100%]
+
+====================== 1 passed, 228 deselected in 6.90s ======================
