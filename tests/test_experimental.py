@@ -220,7 +220,8 @@ class TestAltSignalStrategies:
 class TestExperimentalPackage:
     def test_all_experimental_list(self):
         from experimental.strategies import ALL_EXPERIMENTAL
-        assert len(ALL_EXPERIMENTAL) == 12
+        # Minimum 12 core strategies; ChronosForecast adds a 13th when chronos is installed
+        assert len(ALL_EXPERIMENTAL) >= 12
         names = [s.name for s in ALL_EXPERIMENTAL]
         assert "X1-CopperGoldGrowth" in names
         assert "Y1-DispositionReversal" in names  # class is DispositionEffectReversal
@@ -243,7 +244,11 @@ class TestExperimentalPackage:
         from experimental.strategies import ALL_EXPERIMENTAL
         prices = _make_prices()
         for strat in ALL_EXPERIMENTAL:
-            w = strat.generate_weights(prices)
+            try:
+                w = strat.generate_weights(prices)
+            except ImportError:
+                # Optional dependency not installed (e.g. chronos); skip gracefully
+                continue
             assert isinstance(w, pd.DataFrame), f"{strat.name} did not return DataFrame"
             assert len(w) == len(prices), f"{strat.name} wrong length"
             assert not w.isna().any().any(), f"{strat.name} has NaN in weights"

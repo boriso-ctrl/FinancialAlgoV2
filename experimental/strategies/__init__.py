@@ -29,7 +29,12 @@ from .alt_signals import (
     CorrelationRegimeBreak,
     LiquidityVacuum,
 )
-from .chronos_forecast import ChronosForecast
+try:
+    from .chronos_forecast import ChronosForecast
+    _CHRONOS_AVAILABLE = True
+except ImportError:  # chronos package not installed
+    _CHRONOS_AVAILABLE = False
+    ChronosForecast = None  # type: ignore[assignment,misc]
 
 ALL_EXPERIMENTAL: list[_Strategy] = [
     CopperGoldGrowth(),
@@ -44,8 +49,9 @@ ALL_EXPERIMENTAL: list[_Strategy] = [
     BreadthDivergence(),
     CorrelationRegimeBreak(),
     LiquidityVacuum(),
-    ChronosForecast(),
 ]
+if _CHRONOS_AVAILABLE:
+    ALL_EXPERIMENTAL.append(ChronosForecast())
 
 __all__ = [
     "CopperGoldGrowth",
