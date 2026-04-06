@@ -29,10 +29,11 @@ class DollarCarryConfig:
     # Momentum of UUP as risk-on/off proxy
     momentum_window: int = 63   # 3-month dollar momentum
     ema_span: int = 21
+    score_smooth_span: int = 8
 
     leverage_risk_on: float = 1.5    # long equity when dollar weakening
     leverage_risk_off: float = 0.0   # flat equity when dollar strengthening
-    safe_weight: float = 0.5         # TLT allocation in risk-off
+    safe_weight: float = 0.7         # TLT allocation in risk-off
 
 
 class DollarCarry(Strategy):
@@ -61,6 +62,9 @@ class DollarCarry(Strategy):
         prices: pd.DataFrame,
         regime: pd.Series | None = None,
     ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
         c = self.cfg
         if c.dollar_ticker not in prices.columns:
             return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
@@ -94,7 +98,7 @@ class DollarCarry(Strategy):
 
         # --- Allocation logic with hysteresis ---
         # Avoid extreme whipsaw: use smoothed score via simple lag
-        risk_off_smooth = pd.Series(final_risk_off_score, index=prices.index).ewm(span=5).mean()
+        risk_off_smooth = pd.Series(final_risk_off_score, index=prices.index).ewm(span=c.score_smooth_span).mean()
         
         # Define regime zones
         # full_risk_off_score > 0.5
@@ -108,18 +112,18 @@ class DollarCarry(Strategy):
 
         # Full risk-off: 100% TLT (safe haven)
         if c.safe_ticker in prices.columns:
-            weights[c.safe_ticker] = np.where(full_risk_off, c.leverage_risk_on, 0.0)
+            weights[c.safe_ticker] = np.where(full_risk_off, c.safe_weight, 0.0)
         
         # Full risk-on: 150% long equities (risk-on leverage)
         if c.equity_ticker in prices.columns:
             weights[c.equity_ticker] = np.where(full_risk_on, c.leverage_risk_on, 0.0)
 
         # Partial hedge: blend both (50/50 or adjusted by score)
-        # Use the risk_off_smooth score to weight the blend
-        blend_factor = (risk_off_smooth.clip(-0.5, 0.5) + 0.5) / 1.0  # Map [-0.5, 0.5] to [0, 1]
+        # Use the risk_off_smooth score to weight the blend.
+        blend_factor = ((risk_off_smooth.clip(-0.5, 0.5) + 0.5) / 1.0).fillna(0.5)
         
         if c.equity_ticker in prices.columns:
-            equity_w_partial = (1.0 - blend_factor * 0.7) * c.leverage_risk_on  # 0.7 max hedge intensity
+            equity_w_partial = (1.0 - blend_factor) * c.leverage_risk_on
             weights[c.equity_ticker] = np.where(
                 partial_hedge,
                 equity_w_partial,
@@ -127,7 +131,7 @@ class DollarCarry(Strategy):
             )
         
         if c.safe_ticker in prices.columns:
-            safe_w_partial = blend_factor * 0.7 * c.leverage_risk_on
+            safe_w_partial = blend_factor * c.safe_weight
             weights[c.safe_ticker] = np.where(
                 partial_hedge,
                 safe_w_partial,

@@ -4,7 +4,6 @@ correlation-aware weighting, dynamic hedging, and drawdown controls.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -12,9 +11,10 @@ import numpy as np
 import pandas as pd
 
 from financial_algo.indicators import drawdown as _drawdown, hurst_exponent as _hurst_exp
+from financial_algo.logging_utils import get_logger
 from financial_algo.strategies.base import Strategy
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

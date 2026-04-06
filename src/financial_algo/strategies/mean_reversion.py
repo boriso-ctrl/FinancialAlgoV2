@@ -364,12 +364,15 @@ class GlobalMeanRevConfig:
     zscore_window: int = 130   # ~26 weeks in trading days
     entry_z: float = -1.2
     full_size_z: float = -2.2
+    exit_z: float = -0.2
     trend_window: int = 200
+    confirm_window: int = 5
+    rel_mom_window: int = 20
     vol_window: int = 40
     high_vol_threshold: float = 0.30
     leverage: float = 1.20
-    risk_off_leverage: float = 0.65
-    max_regions: int = 3
+    risk_off_leverage: float = 0.20
+    max_regions: int = 2
     max_weight: float = 0.45
 
     def __post_init__(self) -> None:
@@ -413,12 +416,12 @@ class GlobalMeanReversion(Strategy):
         bench_vol = bench_vol.replace([np.inf, -np.inf], np.nan).fillna(c.high_vol_threshold)
 
         spy_sma = benchmark.rolling(c.trend_window, min_periods=50).mean()
-        market_uptrend = (benchmark > spy_sma).fillna(False)
-        risk_on = market_uptrend & (bench_vol <= c.high_vol_threshold)
+        market_ok = (benchmark / spy_sma.replace(0.0, np.nan) >= 0.95).fillna(False)
+        risk_on = market_ok & (bench_vol <= c.high_vol_threshold)
 
         rel = prices[avail].div(benchmark, axis=0)
         rel = rel.replace([np.inf, -np.inf], np.nan)
-        rel_log = np.log(rel.clip(lower=1e-10))
+        rel_log = rel.clip(lower=1e-10).apply(np.log)
         rel_log = rel_log.replace([np.inf, -np.inf], np.nan)
 
         mu = rel_log.rolling(c.zscore_window, min_periods=20).mean()
@@ -429,7 +432,16 @@ class GlobalMeanReversion(Strategy):
         # Continuous oversold strength in [0, 1] dampens whipsaw around threshold.
         span = max(c.entry_z - c.full_size_z, 1e-8)
         oversold_strength = ((c.entry_z - z_all) / span).clip(lower=0.0, upper=1.0)
-        signal = oversold_strength.where(risk_on, 0.0, axis=0)
+
+        # Confirmation: require local turn in relative performance + non-collapsing medium-term trend.
+        rel_mom_short = rel.pct_change(c.confirm_window).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        rel_mom_medium = rel.pct_change(c.rel_mom_window).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        confirm = (rel_mom_short > 0.0) & (rel_mom_medium > -0.08)
+
+        # Optional exit pressure when z has mostly normalized.
+        active_zone = z_all <= c.exit_z
+        signal = (oversold_strength * confirm.astype(float)).where(active_zone, 0.0)
+        signal = signal.where(risk_on, 0.0, axis=0)
 
         # Keep only the deepest dislocations each day.
         rank = z_all.rank(axis=1, ascending=True, method="average")
@@ -446,11 +458,6 @@ class GlobalMeanReversion(Strategy):
 
         lev_t = pd.Series(np.where(risk_on, c.leverage, c.risk_off_leverage), index=prices.index, dtype=float)
         scaled = norm.mul(lev_t, axis=0).clip(lower=0.0, upper=c.max_weight)
-
-        if "TLT" in prices.columns:
-            tlt_overlay = pd.Series(0.0, index=prices.index)
-            tlt_overlay = tlt_overlay.where(risk_on, c.risk_off_leverage)
-            weights["TLT"] = tlt_overlay
 
         weights.loc[:, avail] = scaled
 
@@ -519,15 +526,15 @@ class FormulaicAlphaMeanRev(Strategy):
         if self._open is not None:
             return self._open.reindex(
                 index=prices.index, columns=prices.columns,
-            ).ffill().bfill()
+            ).ffill().fillna(prices.iloc[0])
         # Proxy: previous close (for daily ETFs, open ~ prev close)
-        return prices.shift(1).bfill()
+        return prices.shift(1).ffill().fillna(prices.iloc[0])
 
     def _get_high(self, prices: pd.DataFrame) -> pd.DataFrame:
         if self._high is not None:
             return self._high.reindex(
                 index=prices.index, columns=prices.columns,
-            ).ffill().bfill()
+            ).ffill().fillna(prices)
         ret_abs = prices.pct_change().fillna(0.0).abs()
         return prices * (1 + ret_abs * 0.5)
 
@@ -535,7 +542,7 @@ class FormulaicAlphaMeanRev(Strategy):
         if self._low is not None:
             return self._low.reindex(
                 index=prices.index, columns=prices.columns,
-            ).ffill().bfill()
+            ).ffill().fillna(prices)
         ret_abs = prices.pct_change().fillna(0.0).abs()
         return prices * (1 - ret_abs * 0.5)
 

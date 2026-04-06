@@ -783,6 +783,7 @@ class ATRCrisisAlphaConfig:
     # Volume filter (activity proxy)
     vol_avg_window: int = 20
     vol_mult_threshold: float = 1.0  # soft gate
+    max_gross: float = 1.20
 
 
 class ATRCrisisAlpha(Strategy):
@@ -853,12 +854,15 @@ class ATRCrisisAlpha(Strategy):
             atr_scale = (atr_pct / atr_pct.rolling(60, min_periods=10).median().replace(0.0, np.nan)).clip(0.5, 1.8)
             atr_scale = atr_scale.replace([np.inf, -np.inf], np.nan).fillna(1.0)
 
-        crisis_scale = (atr_scale * trend_ok.astype(float)).clip(0.0, 1.8)
+        crisis_safe_scale = atr_scale.clip(0.5, 1.8)
+        crisis_short_scale = (atr_scale * trend_ok.astype(float)).clip(0.0, 1.8)
 
-        crisis_map = {
+        crisis_safe_map = {
             c.gold_ticker: c.gold_weight,
             c.bond_ticker: c.bond_weight,
             c.dollar_ticker: c.dollar_weight,
+        }
+        crisis_short_map = {
             c.spy_ticker: c.spy_short,
             c.qqq_ticker: c.qqq_short,
         }
@@ -868,9 +872,13 @@ class ATRCrisisAlpha(Strategy):
             c.dollar_ticker: c.elevated_dollar,
         }
 
-        for ticker, wt in crisis_map.items():
+        for ticker, wt in crisis_safe_map.items():
             if ticker in prices.columns:
-                weights.loc[crisis_active, ticker] = wt * crisis_scale[crisis_active]
+                weights.loc[crisis_active, ticker] = wt * crisis_safe_scale[crisis_active]
+
+        for ticker, wt in crisis_short_map.items():
+            if ticker in prices.columns:
+                weights.loc[crisis_active, ticker] = wt * crisis_short_scale[crisis_active]
 
         for ticker, wt in elevated_map.items():
             if ticker in prices.columns:
@@ -892,6 +900,10 @@ class ATRCrisisAlpha(Strategy):
             weights.loc[is_normal_or_recovery, c.spy_ticker] = c.normal_spy_weight
         if c.qqq_ticker in prices.columns:
             weights.loc[is_normal_or_recovery, c.qqq_ticker] = c.normal_qqq_weight
+
+        gross = weights.abs().sum(axis=1).replace(0.0, np.nan)
+        gross_scale = (c.max_gross / gross).clip(upper=1.0).fillna(1.0)
+        weights = weights.mul(gross_scale, axis=0)
 
         weights = weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         return weights

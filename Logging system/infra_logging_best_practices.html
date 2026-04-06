@@ -1,0 +1,362 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{font-family:var(--font-sans);padding:1.5rem 0}
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.5rem}
+.tab{font-size:12px;padding:5px 12px;border-radius:20px;border:0.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;color:var(--color-text-secondary);transition:all .15s}
+.tab.active{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary)}
+.tab:hover:not(.active){background:var(--color-background-secondary)}
+.section{display:none}
+.section.active{display:block}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:.75rem}
+.card-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px}
+.card-body{font-size:13px;color:var(--color-text-secondary);line-height:1.6}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem;margin-bottom:.75rem}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 8px;border-radius:12px;margin-right:4px;margin-bottom:4px}
+.b-debug{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.b-info{background:var(--color-background-info);color:var(--color-text-info)}
+.b-warn{background:var(--color-background-warning);color:var(--color-text-warning)}
+.b-error{background:var(--color-background-danger);color:var(--color-text-danger)}
+.b-fatal{background:var(--color-text-danger);color:#fff}
+.level-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.level-row:last-child{border-bottom:none}
+.level-meta{min-width:70px}
+.level-desc{font-size:13px;color:var(--color-text-secondary);line-height:1.5}
+.mono{font-family:var(--font-mono);font-size:12px;background:var(--color-background-secondary);padding:10px 14px;border-radius:var(--border-radius-md);overflow-x:auto;color:var(--color-text-primary);border:0.5px solid var(--color-border-tertiary);white-space:pre;margin:8px 0}
+.k{color:var(--color-text-info)}
+.s{color:var(--color-text-success)}
+.n{color:var(--color-text-warning)}
+.pipeline{display:flex;align-items:center;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:1rem 0;margin-bottom:.75rem}
+.pnode{flex:0 0 auto;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 14px;font-size:12px;text-align:center;min-width:90px}
+.pnode .pn-label{font-weight:500;color:var(--color-text-primary);font-size:12px}
+.pnode .pn-sub{color:var(--color-text-secondary);font-size:11px;margin-top:2px}
+.parr{color:var(--color-text-tertiary);font-size:14px;padding:0 6px;flex-shrink:0}
+.pnode.accent{background:var(--color-background-info);border-color:var(--color-border-info)}
+.pnode.accent .pn-label{color:var(--color-text-info)}
+.pnode.accent .pn-sub{color:var(--color-text-info);opacity:.8}
+.check-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary);cursor:pointer}
+.check-item:last-child{border-bottom:none}
+.check-item input[type=checkbox]{margin-top:2px;cursor:pointer;flex-shrink:0}
+.check-label{font-size:13px;color:var(--color-text-secondary);line-height:1.5}
+.check-item.checked .check-label{text-decoration:line-through;opacity:.55}
+.progress-bar{height:4px;background:var(--color-border-tertiary);border-radius:2px;margin-bottom:1rem;overflow:hidden}
+.progress-fill{height:100%;background:var(--color-text-success);border-radius:2px;transition:width .3s}
+.progress-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:.5rem}
+.section-heading{font-size:11px;font-weight:500;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 .5rem}
+.tool-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.tool-row:last-child{border-bottom:none}
+.tool-name{font-size:13px;font-weight:500;min-width:100px;color:var(--color-text-primary)}
+.tool-desc{font-size:12px;color:var(--color-text-secondary)}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);margin-left:4px}
+.tag.oss{border-color:var(--color-border-success);color:var(--color-text-success)}
+.tag.managed{border-color:var(--color-border-info);color:var(--color-text-info)}
+.rule-block{border-left:2px solid var(--color-border-info);padding:6px 12px;margin:6px 0;font-size:13px;color:var(--color-text-secondary);line-height:1.5;border-radius:0}
+.rule-block.warn{border-left-color:var(--color-border-warning)}
+.rule-block.danger{border-left-color:var(--color-border-danger)}
+.rule-block.success{border-left-color:var(--color-border-success)}
+</style>
+<div class="wrap">
+  <div class="nav">
+    <button class="tab active" onclick="show('levels',this)">Log levels</button>
+    <button class="tab" onclick="show('structure',this)">Structured logs</button>
+    <button class="tab" onclick="show('pipeline',this)">Collection pipeline</button>
+    <button class="tab" onclick="show('retention',this)">Retention & cost</button>
+    <button class="tab" onclick="show('alerting',this)">Alerting</button>
+    <button class="tab" onclick="show('security',this)">Security</button>
+    <button class="tab" onclick="show('tools',this)">Tools & stacks</button>
+    <button class="tab" onclick="show('checklist',this)">Readiness checklist</button>
+  </div>
+
+  <!-- LOG LEVELS -->
+  <div id="sec-levels" class="section active">
+    <div class="card">
+      <div class="card-title">Use the right severity — every time</div>
+      <div class="card-body">Misused log levels make noise that drowns out real incidents. Set your default production level to <strong>INFO</strong> and use a dynamic flag to enable DEBUG without redeploying.</div>
+    </div>
+    <div class="card">
+      <div class="level-row"><div class="level-meta"><span class="badge b-debug">DEBUG</span></div><div class="level-desc">Fine-grained diagnostic info for developers. Never ship to production at high volume — use sampling or a feature flag. Good for: SQL queries, cache hit/miss, internal state dumps.</div></div>
+      <div class="level-row"><div class="level-meta"><span class="badge b-info">INFO</span></div><div class="level-desc">Routine operational events: service starts, config loads, request completions, cron job runs. Should read like a narrative of what the system is doing.</div></div>
+      <div class="level-row"><div class="level-meta"><span class="badge b-warn">WARN</span></div><div class="level-desc">Something unexpected happened but the system recovered. Retries succeeded, deprecated API called, rate limit approaching. WARNs should trigger investigation, not pages.</div></div>
+      <div class="level-row"><div class="level-meta"><span class="badge b-error">ERROR</span></div><div class="level-desc">An operation failed. A request returned 5xx, a write to disk failed, an external call timed out. Always include the full exception / stack trace. Errors should page on-call.</div></div>
+      <div class="level-row"><div class="level-meta"><span class="badge b-fatal">FATAL</span></div><div class="level-desc">The process is about to crash. Used for unrecoverable states: out of memory, corrupted config, required service unreachable at startup. Emit, then exit.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Dynamic log level control</div>
+      <div class="card-body">Expose a runtime endpoint to change log level without restart — critical for debugging production issues without redeployment. Common pattern: <span style="font-family:var(--font-mono);font-size:12px">POST /admin/log-level {"level":"DEBUG"}</span> guarded by an internal-only network rule.</div>
+    </div>
+  </div>
+
+  <!-- STRUCTURED LOGS -->
+  <div id="sec-structure" class="section">
+    <div class="card">
+      <div class="card-title">Always emit JSON — never free-form strings</div>
+      <div class="card-body">Structured logs are machine-parseable, filterable, and aggregatable. Every log line should be a valid JSON object with a consistent set of mandatory fields.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Mandatory fields on every log line</div>
+      <div class="mono"><span class="k">"timestamp"</span>:   <span class="s">"2024-03-15T08:34:22.419Z"</span>,   <span style="color:var(--color-text-tertiary)">// ISO 8601 UTC, milliseconds</span>
+<span class="k">"level"</span>:       <span class="s">"INFO"</span>,
+<span class="k">"service"</span>:     <span class="s">"payment-svc"</span>,           <span style="color:var(--color-text-tertiary)">// from env var at startup</span>
+<span class="k">"env"</span>:         <span class="s">"production"</span>,
+<span class="k">"host"</span>:        <span class="s">"ip-10-0-4-22"</span>,
+<span class="k">"trace_id"</span>:    <span class="s">"a1b2c3d4e5f6..."</span>,          <span style="color:var(--color-text-tertiary)">// propagated from upstream</span>
+<span class="k">"span_id"</span>:     <span class="s">"f1e2d3"</span>,
+<span class="k">"message"</span>:     <span class="s">"Payment processed"</span>,
+<span class="k">"duration_ms"</span>: <span class="n">142</span></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Correlation IDs</div>
+        <div class="card-body">Generate a <strong>trace_id</strong> at the edge and propagate it as an HTTP header (<code>X-Trace-Id</code>) through every service call. Log it on every line so you can reconstruct a full request across 10 microservices.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Context enrichment</div>
+        <div class="card-body">Use structured context objects per request (MDC in Java, context vars in Python). Fields like <code>user_id</code>, <code>tenant_id</code>, <code>request_id</code> should be set once and auto-attached to every log line in that request scope.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">What not to log</div>
+      <div class="rule-block danger">Never log passwords, API keys, session tokens, or full credit card numbers — even by accident via object serialisation.</div>
+      <div class="rule-block warn">Avoid logging full request/response bodies in production. Use field-level allow-lists when you need partial bodies.</div>
+      <div class="rule-block warn">Don't log PII (email, name, IP) without explicit legal basis. Pseudonymise or hash where possible.</div>
+    </div>
+  </div>
+
+  <!-- PIPELINE -->
+  <div id="sec-pipeline" class="section">
+    <div class="card">
+      <div class="card-title">The standard cloud log pipeline</div>
+      <div class="pipeline">
+        <div class="pnode"><div class="pn-label">App / host</div><div class="pn-sub">stdout / syslog</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pn-label">Shipper</div><div class="pn-sub">Fluentd / Vector</div></div>
+        <div class="parr">→</div>
+        <div class="pnode accent"><div class="pn-label">Buffer / queue</div><div class="pn-sub">Kafka / Kinesis</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pn-label">Processor</div><div class="pn-sub">Parse & enrich</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pn-label">Storage</div><div class="pn-sub">S3 / GCS cold</div></div>
+        <div class="parr">→</div>
+        <div class="pnode"><div class="pn-label">Index</div><div class="pn-sub">OpenSearch / Loki</div></div>
+        <div class="parr">→</div>
+        <div class="pnode accent"><div class="pn-label">Dashboards</div><div class="pn-sub">Grafana / Kibana</div></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Always write to stdout</div>
+        <div class="card-body">Apps should log to stdout/stderr only — never write to local files. The container runtime or host agent captures it. This keeps your app stateless and lets orchestrators (k8s, ECS) handle log routing.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Use a buffer queue in production</div>
+        <div class="card-body">Insert Kafka or Kinesis between your shipper and storage. This absorbs traffic spikes, lets you replay logs after a sink failure, and decouples producers from consumers.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Parse at collection time, not query time</div>
+        <div class="card-body">Parse and normalise log fields when the shipper ingests them. Late parsing is expensive at query time and brittle when log formats change. Store structured data, not raw strings.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Log sampling for high-cardinality sources</div>
+        <div class="card-body">For services emitting &gt;10k lines/sec, use head-based sampling (log 1 in N) for DEBUG/INFO, but always log 100% of WARNs and ERRORs. Sampling decisions must be propagated via the trace context.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RETENTION -->
+  <div id="sec-retention" class="section">
+    <div class="card">
+      <div class="card-title">Tiered retention cuts cost dramatically</div>
+      <div class="card-body">Log storage is often the largest observability cost. Use a hot/warm/cold model aligned to your incident response and compliance requirements.</div>
+    </div>
+    <div class="card">
+      <div class="section-heading">Retention tiers</div>
+      <div class="level-row"><div class="level-meta"><span class="badge b-error" style="min-width:54px;text-align:center">Hot</span></div><div class="level-desc"><strong>0–7 days.</strong> Full-resolution, indexed, sub-second queries. Stored in your search cluster (OpenSearch, Datadog, Loki). Most expensive tier — only keep what on-call engineers actually query during incidents.</div></div>
+      <div class="level-row"><div class="level-meta"><span class="badge b-warn" style="min-width:54px;text-align:center">Warm</span></div><div class="level-desc"><strong>7–30 days.</strong> Compressed, partially indexed. Queries take seconds to minutes. Good for trend analysis and post-mortems. Use index lifecycle policies (ILM in Elasticsearch) to auto-migrate.</div></div>
+      <div class="level-row"><div class="level-meta"><span class="badge b-debug" style="min-width:54px;text-align:center">Cold</span></div><div class="level-desc"><strong>30 days – N years.</strong> Gzip-compressed raw JSON on object storage (S3 / GCS). Query with Athena or BigQuery when needed. ~$0.023/GB/month. Ideal for compliance archival.</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Compliance-driven minimums</div>
+        <div class="card-body">
+          <div class="rule-block success">SOC 2: 1 year minimum for audit logs</div>
+          <div class="rule-block success">PCI DSS: 1 year, 3 months hot</div>
+          <div class="rule-block success">GDPR: define and document your retention period — then enforce it via auto-delete policies</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cost reduction tactics</div>
+        <div class="card-body">
+          <div class="rule-block info" style="border-left-color:var(--color-border-info)">Drop health-check logs at the shipper level — they're 20–40% of volume in most Kubernetes clusters.</div>
+          <div class="rule-block info" style="border-left-color:var(--color-border-info)">Compress with Zstd (better ratio than gzip) before sending to cold storage.</div>
+          <div class="rule-block info" style="border-left-color:var(--color-border-info)">Route DEBUG logs directly to cold storage, bypassing the hot index entirely.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALERTING -->
+  <div id="sec-alerting" class="section">
+    <div class="card">
+      <div class="card-title">Alert on log patterns, not just metrics</div>
+      <div class="card-body">Good log-based alerting catches issues that metrics miss — unexpected error messages, authentication anomalies, config parse failures. The goal: high signal, low noise.</div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Error rate threshold</div>
+        <div class="card-body">Alert when <code>ERROR</code> log rate exceeds X% of total log volume in a rolling 5-minute window. Use a percentage, not an absolute count, to handle traffic variance.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Absence alerting</div>
+        <div class="card-body">Alert when expected logs stop arriving — e.g., a cron job that should log "completed" every hour. Silence is often more dangerous than errors.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Pattern matching</div>
+        <div class="card-body">Alert on specific strings: <code>"OOM killed"</code>, <code>"disk full"</code>, <code>"certificate expired"</code>. These are precise and actionable — zero false positives.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Anomaly detection</div>
+        <div class="card-body">Use statistical baselines (e.g. WARN volume is 10× the weekly average for this hour). Catches gradual degradation that fixed thresholds miss.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Fighting alert fatigue</div>
+      <div class="rule-block warn">Every alert must have a runbook. If an engineer can't act on it, it's noise — delete it.</div>
+      <div class="rule-block warn">Group related alerts. 20 alerts from the same root cause should be one page with context.</div>
+      <div class="rule-block success">Set different severities: P1 (page immediately) vs P3 (Slack notification, business hours only).</div>
+      <div class="rule-block success">Review and prune alerts monthly. Keep the signal-to-noise ratio above 80%.</div>
+    </div>
+  </div>
+
+  <!-- SECURITY -->
+  <div id="sec-security" class="section">
+    <div class="card">
+      <div class="card-title">Log security is part of your security posture</div>
+      <div class="card-body">Logs are a primary forensic artifact. They need protection, integrity guarantees, and controlled access — especially in regulated environments.</div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Access control</div>
+        <div class="card-body">Apply RBAC to your log platform. Engineers can query logs for their service. Security team can query across all services. No one can delete logs except automated retention policies.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Immutability</div>
+        <div class="card-body">Write logs to an append-only store (S3 Object Lock, Cloudwatch Log Groups with immutability enabled). Prevents log tampering after a breach — a requirement for most compliance frameworks.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Encryption in transit and at rest</div>
+        <div class="card-body">TLS 1.2+ for all log transport. Encrypt cold storage with customer-managed keys (CMK) in KMS. Rotate keys annually at minimum.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Audit logging</div>
+        <div class="card-body">Log all access to your log platform itself. Who queried what, when. Cloud-native audit logs (CloudTrail, GCP Audit Logs) are your first line — enable them everywhere.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">PII and sensitive data</div>
+      <div class="rule-block danger">Implement a log scrubbing layer at the shipper that regex-scans for patterns like credit cards, SSNs, and email addresses and replaces them with <code>[REDACTED]</code>.</div>
+      <div class="rule-block warn">Use a tokenisation service: replace <code>user_id=12345</code> with a pseudonym that can only be reversed by the privacy team with the right key.</div>
+      <div class="rule-block success">Run periodic scans on your log storage to detect PII that slipped through — tools like AWS Macie or open-source presidio work well here.</div>
+    </div>
+  </div>
+
+  <!-- TOOLS -->
+  <div id="sec-tools" class="section">
+    <div class="card">
+      <div class="section-heading">Shippers & collectors</div>
+      <div class="tool-row"><div class="tool-name">Vector<span class="tag oss">OSS</span></div><div class="tool-desc">High-performance Rust-based shipper. Best choice for new setups — lower resource use than Fluentd, rich transforms built-in.</div></div>
+      <div class="tool-row"><div class="tool-name">Fluentd / Fluent Bit<span class="tag oss">OSS</span></div><div class="tool-desc">Battle-tested, huge plugin ecosystem. Fluent Bit is the lightweight sidecar version for Kubernetes pods.</div></div>
+      <div class="tool-row"><div class="tool-name">OpenTelemetry Collector<span class="tag oss">OSS</span></div><div class="tool-desc">Vendor-neutral. Handles logs, metrics, and traces in one agent. Ideal if you want a unified observability pipeline.</div></div>
+    </div>
+    <div class="card">
+      <div class="section-heading">Storage & indexing</div>
+      <div class="tool-row"><div class="tool-name">Grafana Loki<span class="tag oss">OSS</span></div><div class="tool-desc">Index-free log aggregation — only indexes labels, not content. 10× cheaper than Elasticsearch at scale. Integrates natively with Grafana dashboards.</div></div>
+      <div class="tool-row"><div class="tool-name">OpenSearch<span class="tag oss">OSS</span></div><div class="tool-desc">Full-text search on any field. Great for unstructured logs or complex queries. Higher cost per GB than Loki.</div></div>
+      <div class="tool-row"><div class="tool-name">CloudWatch Logs<span class="tag managed">Managed</span></div><div class="tool-desc">Zero-ops on AWS. Use Log Insights for ad-hoc queries, export to S3 for cold storage. Best for AWS-native stacks.</div></div>
+      <div class="tool-row"><div class="tool-name">Datadog<span class="tag managed">Managed</span></div><div class="tool-desc">Full observability platform: logs, APM, metrics unified. Expensive at volume but powerful correlation across signals.</div></div>
+    </div>
+    <div class="card">
+      <div class="section-heading">Queue / buffer</div>
+      <div class="tool-row"><div class="tool-name">Apache Kafka<span class="tag oss">OSS</span></div><div class="tool-desc">Industry standard for high-throughput log pipelines. Run on MSK (AWS) or Confluent Cloud to reduce ops burden.</div></div>
+      <div class="tool-row"><div class="tool-name">Amazon Kinesis<span class="tag managed">Managed</span></div><div class="tool-desc">Managed, AWS-native. Simpler than Kafka for pure AWS environments. Scales automatically.</div></div>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div id="sec-checklist" class="section">
+    <div id="progress-label" class="progress-label">0 of 20 complete</div>
+    <div class="progress-bar"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+    <div class="card">
+      <div class="section-heading">Collection & format</div>
+      <div id="checks"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const tabs = document.querySelectorAll('.tab');
+function show(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  tabs.forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+const items = [
+  {g:'Collection & format', t:'All services write logs to stdout/stderr only'},
+  {g:'Collection & format', t:'Logs are emitted as structured JSON (not free-form strings)'},
+  {g:'Collection & format', t:'Every log line includes: timestamp, level, service, env, host'},
+  {g:'Collection & format', t:'A trace_id/correlation_id is propagated and logged per request'},
+  {g:'Collection & format', t:'Log level can be changed at runtime without redeployment'},
+  {g:'Pipeline & infrastructure', t:'A shipper agent (Vector, Fluent Bit, OTel Collector) is deployed on every host/pod'},
+  {g:'Pipeline & infrastructure', t:'A buffer queue (Kafka or Kinesis) sits between shipper and storage'},
+  {g:'Pipeline & infrastructure', t:'Health-check and noise logs are dropped at the shipper level'},
+  {g:'Pipeline & infrastructure', t:'Log parsing and field extraction happens at collection, not query time'},
+  {g:'Retention & cost', t:'A hot/warm/cold retention policy is defined and enforced'},
+  {g:'Retention & cost', t:'Cold logs are stored compressed on object storage (S3/GCS)'},
+  {g:'Retention & cost', t:'Retention periods meet compliance requirements (SOC2, PCI, GDPR)'},
+  {g:'Alerting', t:'Alerts fire on error rate spikes (% of volume, not absolute count)'},
+  {g:'Alerting', t:'Absence alerting is configured for critical recurring jobs'},
+  {g:'Alerting', t:'Every alert has an attached runbook'},
+  {g:'Alerting', t:'Alert noise is reviewed and pruned on a regular cadence'},
+  {g:'Security', t:'RBAC is applied to the log platform — engineers see only their services'},
+  {g:'Security', t:'Log storage is append-only / immutable (S3 Object Lock or equivalent)'},
+  {g:'Security', t:'A PII/sensitive data scrubbing layer is active in the pipeline'},
+  {g:'Security', t:'Encryption in transit (TLS) and at rest (CMK) is enabled for all log data'},
+];
+
+const container = document.getElementById('checks');
+const groups = [...new Set(items.map(i=>i.g))];
+groups.forEach(g => {
+  const h = document.createElement('div');
+  h.className = 'section-heading';
+  h.textContent = g;
+  container.appendChild(h);
+  items.filter(i=>i.g===g).forEach((item,idx) => {
+    const row = document.createElement('label');
+    row.className = 'check-item';
+    row.style.display = 'flex';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.addEventListener('change', updateProgress);
+    const lbl = document.createElement('span');
+    lbl.className = 'check-label';
+    lbl.textContent = item.t;
+    row.appendChild(cb);
+    row.appendChild(lbl);
+    row.addEventListener('click', ()=>{
+      row.classList.toggle('checked', cb.checked);
+    });
+    container.appendChild(row);
+  });
+});
+
+function updateProgress() {
+  const all = document.querySelectorAll('#checks input[type=checkbox]');
+  const done = [...all].filter(c=>c.checked).length;
+  document.getElementById('prog').style.width = Math.round(done/all.length*100)+'%';
+  document.getElementById('progress-label').textContent = done+' of '+all.length+' complete';
+  document.querySelectorAll('#checks .check-item').forEach(r=>{
+    r.classList.toggle('checked', r.querySelector('input').checked);
+  });
+}
+</script>

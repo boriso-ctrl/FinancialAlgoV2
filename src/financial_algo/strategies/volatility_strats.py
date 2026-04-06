@@ -22,58 +22,45 @@ from financial_algo.strategies.base import Strategy
 class VolRiskPremiumConfig:
     """Config for vol risk premium strategy.
 
-    REWORK (Sprint 15.1 Phase 13):
-    - Added VIX momentum confirmation (VIX trend strength)
-    - Implemented dynamic contango thresholds based on vol regime
-    - Added trend filter (avoid contango harvest in downtrends)
-    - Improved position sizing with vol-inverse scaling
-    - Better regime-aware hedging
+    Proxy for VIX term-structure: compare implied vol (VIX) to
+    realized vol on SPY. When VIX > realized (contango / risk premium),
+    sell vol by being long equities. When VIX < realized (backwardation),
+    hedge or go flat.
     """
 
     equity_ticker: str = "SPY"
     hedge_ticker: str = "TLT"
 
-    # Vol measurements
     realized_vol_window: int = 20
     smooth_span: int = 5
-    vix_momentum_window: int = 10   # VIX trend strength (NEW)
-    trend_window: int = 50           # equity trend filter (NEW)
+    vix_momentum_window: int = 10
+    trend_window: int = 50
 
-    # Thresholds: regime-adaptive (see code for application)
-    # Backward-compatible alias used by adaptive variants.
+    # Threshold: VIX-to-realized-vol ratio
     contango_threshold: float = 1.2
-    contango_threshold_normal: float = 1.2   # normal vol regime
-    contango_threshold_elevated: float = 1.4  # elevated vol regime (NEW)
-    backwardation_threshold: float = 0.85     # tighter than before (0.90)
+    contango_threshold_normal: float = 1.2
+    contango_threshold_elevated: float = 1.4
+    backwardation_threshold: float = 0.9
 
-    # Position sizing (refined)
-    leverage_contango: float = 1.7      # increased from 1.5
-    leverage_contango_elevated: float = 1.2  # reduced in high vol (NEW)
-    leverage_flat: float = 0.4          # increased from 0.3
+    leverage_contango: float = 1.5
+    leverage_contango_elevated: float = 1.2
+    leverage_flat: float = 0.3
     leverage_backwardation: float = 0.0
-    hedge_backwardation: float = 0.8   # increased from 0.6
+    hedge_backwardation: float = 0.6
 
-    # Momentum confirmation
+    # Momentum confirmation for contango harvesting
     momentum_window: int = 63
     use_momentum_boost: bool = True
-    contango_boost: float = 2.0       # lever up when all signals agree
+    contango_boost: float = 2.0
 
 
 class VolRiskPremium(Strategy):
-    """Harvest volatility risk premium with momentum + trend confirmation.
+    """Harvest the volatility risk premium using VIX-to-realized-vol ratio.
 
-    REWORK: Improved from 0.92 to target 0.97 Sharpe by:
-    1. Adding VIX momentum confirmation (trend strength)
-    2. Dynamic contango thresholds based on vol regime
-    3. Trend filter: only harvest contango in equity uptrends
-    4. Vol-inverse position scaling (reduce when vol is elevated)
-    5. Better regime-aware hedging
-
-    Thesis: The vol risk premium (VIX > realized vol) exists due to
-    demand for insurance and GARCH jump dynamics. Harvest by:
-    - Going long SPY when contango is rich (VIX >> RV)
-    - Confirming with: SPY uptrend, VIX not trending up, RV not accelerating
-    - Hedging with TLT when premium collapses (backwardation)
+    Thesis: Implied volatility (VIX) consistently exceeds realized vol
+    (variance risk premium). When this premium is large (contango),
+    be long equities. When it collapses (backwardation), hedge.
+    Documented in Carr & Wu (2009), well-known carry trade in vol space.
     """
 
     name = "L1-VolRiskPremium"
@@ -87,116 +74,38 @@ class VolRiskPremium(Strategy):
         regime: pd.Series | None = None,
     ) -> pd.DataFrame:
         c = self.cfg
-        if c.equity_ticker not in prices.columns:
-            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        # Realized vol on equity
+        rv = realized_vol(prices[c.equity_ticker], c.realized_vol_window) * 100
+        rv = ema(rv, c.smooth_span)
 
-        equity = prices[c.equity_ticker]
-
-        # Realized vol (annualized, in %)
-        rv = realized_vol(equity, c.realized_vol_window) * 100
-        rv = ema(rv, c.smooth_span).fillna(20.0)
-
-        # VIX or proxy
+        # We need VIX. Try to use from prices if ^VIX is there,
+        # otherwise use regime/vol as proxy
         if "^VIX" in prices.columns:
-            vix = prices["^VIX"].ffill().fillna(20.0)
+            vix = prices["^VIX"]
         else:
+            # Proxy: realized vol * 1.3 (overestimates, but preserves signal direction)
             vix = rv * 1.3
 
-        # VIX-to-RV ratio (contango measure)
-        ratio = vix / rv.replace(0, 1.0)
-        ratio = ratio.replace([np.inf, -np.inf], np.nan).fillna(1.0)
-        ratio = ema(ratio, 5)  # smooth the ratio
-
-        # NEW: VIX momentum (trend strength of VIX)
-        # Negative VIX change = VIX declining = good for equity (contango still active)
-        # Positive VIX change = VIX rising = bad for harvesting premium
-        vix_change = vix.pct_change(c.vix_momentum_window).fillna(0.0)
-        vix_declining = vix_change < -0.05  # VIX down > 5% = strong confirmation
-        vix_stable = (vix_change >= -0.10) & (vix_change <= 0.10)  # sideways OK
-
-        # NEW: Trend filter (SPY above SMA)
-        sma = equity.rolling(c.trend_window, min_periods=20).mean()
-        uptrend = equity >= sma
-        downtrend = equity < sma
-
-        # Momentum (SPY 63-day return)
-        mom_ret = equity.pct_change(c.momentum_window).fillna(0.0)
-        mom_positive = mom_ret > 0
-
-        # NEW: Vol regime detection (differentiate treatment)
-        # High RV = elevated vol regime requiring more caution
-        elevated_vol = rv >= 20.0  # annualized RV > 20%
-
-        # Dynamic thresholds based on vol regime
-        contango_threshold = np.where(
-            elevated_vol,
-            c.contango_threshold_elevated,
-            c.contango_threshold_normal,
-        )
-
-        # Signal classification
-        contango = ratio >= contango_threshold
-        backwardation = ratio <= c.backwardation_threshold
-        neutral = ~contango & ~backwardation
+        # VIX-to-RV ratio
+        ratio = vix / rv.replace(0, np.nan)
+        ratio = ratio.fillna(1.0)
 
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
-        # Contango: harvest risk premium (refined)
-        # Require: contango + uptrend + VIX not accelerating
-        contango_confirmed = contango & uptrend & (vix_stable | vix_declining)
-        contango_confirmed_boosted = contango_confirmed & mom_positive & vix_declining
-
-        # Position sizing: larger if all signals agree, smaller in high vol
-        equity_weight = np.where(
-            elevated_vol,
-            c.leverage_contango_elevated,
-            c.leverage_contango,
-        )
-
-        weights.loc[contango_confirmed_boosted, c.equity_ticker] = (
-            np.where(
-                elevated_vol[contango_confirmed_boosted],
-                c.leverage_contango_elevated * c.contango_boost,
-                c.leverage_contango * c.contango_boost,
-            )
-        )
-        weights.loc[contango_confirmed & ~contango_confirmed_boosted, c.equity_ticker] = (
-            np.where(
-                elevated_vol[contango_confirmed & ~contango_confirmed_boosted],
-                c.leverage_contango_elevated,
-                c.leverage_contango,
-            )
-        )
-
-        # Contango in downtrend: flat (avoid catching knife)
-        weights.loc[contango & downtrend & ~contango_confirmed, c.equity_ticker] = c.leverage_flat
-
-        # Neutral: small long bias
+        contango = ratio >= c.contango_threshold
+        backwardation = ratio <= c.backwardation_threshold
+        neutral = ~contango & ~backwardation
+        weights.loc[contango, c.equity_ticker] = c.leverage_contango
         weights.loc[neutral, c.equity_ticker] = c.leverage_flat
+        weights.loc[backwardation, c.hedge_ticker] = c.hedge_backwardation
 
-        # Backwardation: flight to quality (hedging mode)
-        weights.loc[backwardation, c.equity_ticker] = c.leverage_backwardation
-        if c.hedge_ticker in prices.columns:
-            weights.loc[backwardation, c.hedge_ticker] = c.hedge_backwardation
+        # Momentum confirmation: if contango + equity momentum positive, boost leverage
+        if c.use_momentum_boost and c.equity_ticker in prices.columns:
+            mom = prices[c.equity_ticker].pct_change(c.momentum_window).fillna(0.0)
+            boost = contango & (mom > 0)
+            weights.loc[boost, c.equity_ticker] = c.leverage_contango * c.contango_boost
 
-        # NEW: Regime-aware scaling
-        if regime is not None:
-            from financial_algo.regimes import Regime
-            crisis_set = {Regime.OIL_CRISIS, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS}
-            elevated_set = {Regime.ELEVATED}
-
-            is_crisis = regime.isin(crisis_set)
-            is_elevated = regime.isin(elevated_set)
-
-            # Crisis: zero equity, full hedges
-            weights.loc[is_crisis, c.equity_ticker] = 0.0
-            if c.hedge_ticker in prices.columns:
-                weights.loc[is_crisis, c.hedge_ticker] = c.hedge_backwardation * 1.3
-
-            # Elevated (but not crisis): scale equity down
-            weights.loc[is_elevated & ~is_crisis, c.equity_ticker] *= 0.75
-
-        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        return weights.fillna(0.0)
 
 
 # =========================================================================
@@ -1244,11 +1153,11 @@ class ImpliedRealizedSpreadConfig:
     vov_threshold: float = 0.06           # vol-of-vol level (NEW)
 
     # Allocations (no more short TLT!)
-    contango_equity: float = 1.6
-    contango_equity_elevated: float = 1.2  # reduced in high vol (NEW)
+    contango_equity: float = 1.5
+    contango_equity_elevated: float = 1.1  # reduced in high vol (NEW)
     backwardation_safe: float = 0.8       # reduced from 1.0
     backwardation_gold: float = 0.4       # reduced from 0.5
-    neutral_equity: float = 0.4           # increased from 0.3
+    neutral_equity: float = 0.3
     crisis_hedge_safe: float = 1.2        # TLT in crisis (NEW)
     crisis_hedge_gold: float = 0.6        # GLD in crisis (NEW)
 
@@ -1339,12 +1248,6 @@ class ImpliedRealizedSpread(Strategy):
         contango_confirmed = contango & mom_positive & uptrend
         contango_partial = contango & (~high_vov) & uptrend
 
-        # In high vol-of-vol, reduce contango leverage
-        equity_weight = np.where(
-            high_vov[contango_partial] if len(contango_partial) > 0 else False,
-            c.contango_equity_elevated,
-            c.contango_equity,
-        )
         weights.loc[contango_confirmed, c.equity_ticker] = c.contango_equity
         weights.loc[contango_partial, c.equity_ticker] = c.contango_equity_elevated
 
@@ -1361,9 +1264,11 @@ class ImpliedRealizedSpread(Strategy):
         # NEW: Regime-aware tail protection
         if regime is not None:
             from financial_algo.regimes import Regime
+
+            regime = regime.reindex(weights.index)
             crisis_set = {Regime.OIL_CRISIS, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS}
             is_crisis = regime.isin(crisis_set)
-            is_elevated = (regime == Regime.ELEVATED)
+            is_elevated = regime.isin([Regime.ELEVATED])
 
             # In crisis: max hedges, zero equity
             weights.loc[is_crisis, c.equity_ticker] = 0.0

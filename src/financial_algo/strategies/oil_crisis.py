@@ -133,6 +133,11 @@ class OilShockHedgeConfig:
 
     vol_window: int = 20
     target_vol: float = 0.15
+    market_fast_ema: int = 50
+    market_slow_ema: int = 200
+    risk_off_energy_scale: float = 0.60
+    risk_off_gold_scale: float = 1.15
+    max_gross: float = 1.60
 
 
 class OilShockHedge(Strategy):
@@ -190,12 +195,27 @@ class OilShockHedge(Strategy):
         xle_w = xle_w + (oil_strong & xle_trend).astype(float) * c.shock_tilt * oil_shock_intensity * xle_vs
         gld_w = gld_w + (oil_weak & gld_trend).astype(float) * c.shock_tilt * oil_shock_intensity * gld_vs
 
+        # Reduce energy beta when broad market is risk-off; preserve hedge convexity.
+        market_col = "SPY" if "SPY" in prices.columns else c.energy_ticker
+        m_fast = ema(prices[market_col], c.market_fast_ema)
+        m_slow = ema(prices[market_col], c.market_slow_ema)
+        risk_off = pd.notna(m_fast) & pd.notna(m_slow) & (m_fast < m_slow)
+        xle_w = np.where(risk_off, xle_w * c.risk_off_energy_scale, xle_w)
+        gld_w = np.where(risk_off, gld_w * c.risk_off_gold_scale, gld_w)
+        xle_w = pd.Series(xle_w, index=prices.index)
+        gld_w = pd.Series(gld_w, index=prices.index)
+
         if regime is not None:
             regime_mult = pd.Series(1.0, index=prices.index)
             regime_mult[regime.isin({Regime.OIL_CRISIS})] = c.crisis_regime_boost
             regime_mult[regime.isin({Regime.ELEVATED, Regime.WAR_CRISIS, Regime.GENERAL_CRISIS})] = c.elevated_regime_boost
             xle_w = xle_w * regime_mult
             gld_w = gld_w * regime_mult
+
+        gross = (xle_w.abs() + gld_w.abs()).replace(0.0, np.nan)
+        gross_scale = (c.max_gross / gross).clip(upper=1.0).fillna(1.0)
+        xle_w = xle_w * gross_scale
+        gld_w = gld_w * gross_scale
 
         xle_w = xle_w.clip(0.0, 2.5)
         gld_w = gld_w.clip(0.0, 2.5)

@@ -100,6 +100,8 @@ class MultiPairPortfolio(Strategy):
             return pd.DataFrame()
 
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        pair_scores = pd.DataFrame(0.0, index=prices.index, columns=range(len(self.pairs)))
+        pair_payload: list[tuple[str, str, pd.Series, pd.Series, float]] = []
 
         # Market trend + volatility throttle to reduce crisis drawdowns.
         if "SPY" in prices.columns:
@@ -118,9 +120,10 @@ class MultiPairPortfolio(Strategy):
 
         per_pair = 1.0 / max(len(self.pairs), 1)
 
-        for pair in self.pairs:
+        for idx, pair in enumerate(self.pairs):
             lt, st = pair.long_ticker, pair.short_ticker
             if lt not in prices.columns or st not in prices.columns:
+                pair_payload.append((lt, st, pd.Series(0.0, index=prices.index), pd.Series(0.0, index=prices.index), pair.leverage))
                 continue
 
             sig = pair_zscore_signal(
@@ -132,15 +135,39 @@ class MultiPairPortfolio(Strategy):
 
             # Pair-level vol scaling
             ratio = prices[lt] / prices[st].replace(0.0, np.nan)
-            ratio = ratio.replace([np.inf, -np.inf], np.nan).ffill().bfill()
+            # Forward-only imputation avoids leaking future observations.
+            ratio = ratio.replace([np.inf, -np.inf], np.nan).ffill().fillna(1.0)
             pair_vol = ratio.pct_change().fillna(0.0).rolling(20, min_periods=10).std()
             pair_vol = (pair_vol * np.sqrt(252)).replace([np.inf, -np.inf], np.nan)
             pair_scale = (0.18 / pair_vol.replace(0.0, np.nan)).clip(lower=0.4, upper=1.2).fillna(0.4)
 
+            # Signal confidence and short-horizon reversal confirmation.
+            z_raw = ((ratio - ratio.rolling(pair.zscore_window, min_periods=10).mean()) /
+                     ratio.rolling(pair.zscore_window, min_periods=10).std().replace(0.0, np.nan))
+            z_abs = z_raw.abs().replace([np.inf, -np.inf], np.nan).fillna(0.0)
+            confidence = ((z_abs - pair.entry_z) / max(pair.entry_z, 1e-8)).clip(lower=0.0, upper=1.0)
+
+            ratio_mom = ratio.pct_change(3).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+            confirm_a = (sig == 1) & (ratio_mom > 0.0)
+            confirm_b = (sig == -1) & (ratio_mom < 0.0)
+            confirm = (confirm_a | confirm_b).astype(float)
+
+            pair_scores[idx] = confidence * confirm
+            pair_payload.append((lt, st, sig, pair_scale, pair.leverage))
+
+        rank = pair_scores.rank(axis=1, ascending=False, method="first")
+        active_pairs = rank <= 3
+
+        for idx, (lt, st, sig, pair_scale, pair_lev) in enumerate(pair_payload):
+            if lt not in prices.columns or st not in prices.columns:
+                continue
+
+            active = active_pairs[idx]
+
             # Long-only: go long the relatively cheap leg
-            w = pair.leverage * per_pair * pair_scale * risk_gate
-            long_a = sig == 1
-            long_b = sig == -1
+            w = pair_lev * per_pair * pair_scale * risk_gate
+            long_a = (sig == 1) & active
+            long_b = (sig == -1) & active
 
             weights[lt] = weights[lt] + np.where(long_a, w, 0.0)
             weights[st] = weights[st] + np.where(long_b, w, 0.0)

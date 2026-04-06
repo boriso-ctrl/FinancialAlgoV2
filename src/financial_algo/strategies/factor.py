@@ -27,6 +27,8 @@ class LowVolConfig:
     rebalance_freq: int = 21   # monthly rebalance
     top_n: int = 4             # long top-N lowest vol
     trend_window: int = 200    # SMA trend filter window
+    trend_floor: float = 0.97  # soft trend gate: allow mild dips vs SMA
+    min_inv_vol: float = 0.05
     leverage: float = 1.5
 
     def __post_init__(self) -> None:
@@ -57,41 +59,43 @@ class LowVolFactor(Strategy):
         prices: pd.DataFrame,
         regime: pd.Series | None = None,
     ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
         c = self.cfg
         avail = [t for t in c.tickers if t in prices.columns]
         if len(avail) < c.top_n:
             return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
 
-        # Compute rolling vol for each sector
-        vols = pd.DataFrame(index=prices.index)
-        for t in avail:
-            vols[t] = realized_vol(prices[t], c.vol_window)
+        px = prices[avail]
 
-        # Rank by vol (lowest vol = rank 1) and select top-N lowest
-        vol_rank = vols.rank(axis=1, method='first')
-        selected = vol_rank <= c.top_n
+        # Vol score: lower realised vol ranks higher.
+        vols = px.apply(lambda s: realized_vol(s, c.vol_window))
+        vol_rank = 1.0 - vols.rank(axis=1, pct=True)
 
-        # Trend filter: only hold if sector above 200d SMA
-        trends = pd.DataFrame(index=prices.index)
-        for t in avail:
-            sma = prices[t].rolling(c.trend_window).mean()
-            trends[t] = (prices[t] > sma).fillna(False)
+        # Soft trend score avoids all-or-nothing exposure around SMA.
+        sma = px.rolling(c.trend_window, min_periods=50).mean()
+        rel_to_sma = px.div(sma.replace(0.0, np.nan))
+        trend_score = ((rel_to_sma - c.trend_floor) / (1.03 - c.trend_floor)).clip(lower=0.0, upper=1.0)
+        trend_score = trend_score.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-        # Rebalance at fixed intervals — hold selections between rebalances
+        composite = (0.80 * vol_rank + 0.20 * trend_score).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        rank = composite.rank(axis=1, ascending=False, method="first")
+        selected = rank <= c.top_n
+
+        # Rebalance at fixed intervals and hold between rebalances.
         rebal_mask = pd.Series(False, index=prices.index)
         rebal_mask.iloc[::c.rebalance_freq] = True
         selected_held = selected.where(rebal_mask).ffill().fillna(False)
 
-        # Apply trend filter: reduce position sizes in downtrends
-        selected_held = selected_held & trends
-
-        # Assign equal weight to selected sectors
-        per_weight = c.leverage / c.top_n
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-        for t in avail:
-            weights[t] = selected_held[t].astype(float) * per_weight
+        inv_vol = (1.0 / vols.clip(lower=c.min_inv_vol)).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        raw = selected_held.astype(float) * inv_vol * trend_score
+        gross = raw.sum(axis=1).replace(0.0, np.nan)
+        alloc = raw.div(gross, axis=0).fillna(0.0) * c.leverage
+        weights.loc[:, avail] = alloc
 
-        return weights.fillna(0.0)
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
 
 # =========================================================================
@@ -504,7 +508,7 @@ class FormulaicAlphaMomentum(Strategy):
         if self._low is not None:
             return self._low.reindex(
                 index=prices.index, columns=prices.columns,
-            ).ffill().bfill()
+            ).ffill().fillna(prices)
         # Proxy: close minus half the absolute daily range
         ret_abs = prices.pct_change().fillna(0.0).abs()
         return prices * (1 - ret_abs * 0.5).clip(lower=0.5)

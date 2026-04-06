@@ -1,0 +1,14 @@
+Z-SCORE (mean-reversion)     ──► Pairs, Sector Rev, Credit, Oil, Yield Curve, Regime flags
+MOMENTUM (price return)      ──► Trend-following, Dual/Cross-sect, Oil surge, Arms race, FX
+REALIZED VOL (threshold/scale)──► All regime gates, position sizing, crash hedge, tail risk
+RSI                          ──► J3 RSI mean reversion only
+EMA / CROSSOVER              ──► Trend confirm (B1, C4, H3), signal smoothing
+REGIME LABEL                 ──► War/Crisis/Recovery strategy gates
+VIX/RV RATIO                 ──► L1 vol risk premium
+VOL-OF-VOL                   ──► L4 regime detection
+CROSS-SECTIONAL RANK         ──► Momentum long/short, factor selection
+CALENDAR                     ──► N1–N3 seasonal strategies
+CREDIT PROXY (HYG/LQD)       ──► Regime, EM risk, factor, fixed income
+BREADTH (% above SMA)        ──► Regime crisis confirmation
+ADAPTIVE CORRELATION WEIGHT  ──► P1 feature combo
+```Provided a comprehensive explanation of all signal types and triggers across the codebase, including z-scores, momentum, realized volatility, RSI, EMA crossovers, regime labels, cross-sectional ranking, vol-of-vol, credit spreads, breadth, adaptive weighting, and the ensemble drawdown circuit-breaker. 

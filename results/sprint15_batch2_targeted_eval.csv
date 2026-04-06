@@ -1,0 +1,4 @@
+strategy,current_csv_sharpe,patched_sharpe,delta_vs_current
+K1-LowVolFactor,0.69,0.9871,0.2971
+N1-SeasonalStrategy,0.66,1.0074,0.3474
+M1-DollarCarry,0.6,0.9356,0.3356

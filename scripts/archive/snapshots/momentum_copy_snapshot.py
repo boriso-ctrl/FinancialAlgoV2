@@ -1,0 +1,826 @@
+"""Category I: Cross-Asset Momentum strategies.
+
+Long-biased momentum across ETFs with trend filters and vol scaling.
+Academic basis: Moskowitz, Ooi, Pedersen 2012; Asness et al. 2013.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+import numpy as np
+import pandas as pd
+
+from financial_algo.indicators import ema, kst, realized_vol, tsi
+from financial_algo.strategies.base import Strategy
+
+
+# =========================================================================
+# I1 — Time-Series Momentum (TSMOM) — Long-only with trend filter
+# =========================================================================
+
+@dataclass
+class TSMOMConfig:
+    """Config for time-series momentum strategy."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "GLD", "TLT", "XLE", "UUP", "HYG",
+    ])
+    lookback: int = 252      # ~12 months
+    skip: int = 21           # skip most recent month
+    trend_window: int = 200  # SMA trend filter
+    vol_window: int = 60
+    target_vol: float = 0.15
+    max_weight: float = 0.30
+    leverage: float = 1.5
+
+
+class TimeSeriesMomentum(Strategy):
+    """Long assets with positive 12-1 month momentum AND above trend.
+
+    Thesis: Assets with positive past returns above their long-term
+    trend tend to continue rising. Long-only removes the short-side
+    drag that kills classic TSMOM in persistent bull markets.
+    """
+
+    name = "I1-TimeSeriesMomentum"
+
+    def __init__(self, config: TSMOMConfig | None = None) -> None:
+        self.cfg = config or TSMOMConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        p = prices[avail]
+
+        # 12-1 month momentum signal
+        ret = p.pct_change(c.lookback).shift(c.skip)
+
+        # Long-only: positive momentum only
+        signal = (ret > 0).astype(float)
+
+        # Trend filter: TSI > 0 (double-EWM momentum, less whipsaw than SMA)
+        tsi_val = pd.DataFrame(np.nan, index=p.index, columns=avail)
+        for t in avail:
+            tsi_val[t] = tsi(p[t])
+        trend_up = (tsi_val > 0).astype(float).fillna(0.0)
+        signal = signal * trend_up
+
+        # Vol-scale each position
+        rvol = p.pct_change().fillna(0.0).rolling(c.vol_window).std() * np.sqrt(252)
+        rvol = rvol.clip(lower=0.05)
+        vol_scale = (c.target_vol / rvol).clip(upper=3.0).fillna(0.0)
+
+        # Normalize by number of active positions
+        n_active = signal.sum(axis=1).clip(lower=1)
+        weights = signal * vol_scale * c.leverage
+        weights = weights.div(n_active, axis=0)
+        weights = weights.clip(0, c.max_weight)
+
+        return weights.reindex(columns=prices.columns, fill_value=0.0).replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(0.0)
+
+
+# =========================================================================
+# I2 — Cross-Sectional Momentum — Long-only sector rotation
+# =========================================================================
+
+@dataclass
+class XSMOMConfig:
+    """Config for cross-sectional momentum strategy."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "XLK", "XLF", "XLI", "XLB", "XLP",
+        "XLU", "XLY", "XLV", "XLE", "GLD",
+    ])
+    lookback: int = 63        # 3-month returns
+    skip: int = 21            # skip last month (reversal avoidance)
+    top_n: int = 5            # long top N
+    bottom_n: int = 0         # no shorts
+    trend_window: int = 200   # SMA trend filter
+    leverage: float = 1.5
+
+
+class CrossSectionalMomentum(Strategy):
+    """Long top-N momentum sectors with trend filter.
+
+    Thesis: Relative winners among sector ETFs continue to outperform.
+    Long-only with trend filter avoids shorting into secular trends.
+    """
+
+    name = "I2-CrossSectionalMomentum"
+
+    def __init__(self, config: XSMOMConfig | None = None) -> None:
+        self.cfg = config or XSMOMConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        p = prices[avail]
+
+        # Momentum signal (skip last month to avoid reversal)
+        ret = p.pct_change(c.lookback).shift(c.skip)
+
+        # Trend filter: TSI > 0 per asset (faster and smoother than SMA)
+        tsi_val = pd.DataFrame(np.nan, index=p.index, columns=avail)
+        for t in avail:
+            tsi_val[t] = tsi(p[t])
+        trend_up = tsi_val > 0
+
+        # Mask out assets not in uptrend
+        filtered_ret = ret.where(trend_up, np.nan)
+
+        # Rank and select top N
+        ranks = filtered_ret.rank(axis=1, ascending=False)
+        long_mask = ranks <= c.top_n
+
+        # Only allocate to assets with valid (non-NaN) momentum
+        long_mask = long_mask & pd.notna(filtered_ret)
+
+        n_long = long_mask.sum(axis=1).clip(lower=1)
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=avail)
+        weights[long_mask] = 1.0
+        weights = weights.div(n_long, axis=0) * c.leverage
+
+        return weights.reindex(columns=prices.columns, fill_value=0.0).replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(0.0)
+
+
+# =========================================================================
+# I3 — Dual Momentum (Absolute + Relative) — Vectorized
+# =========================================================================
+
+@dataclass
+class DualMomentumConfig:
+    """Config for dual momentum strategy."""
+
+    risk_on: list[str] = field(default_factory=lambda: ["SPY", "QQQ", "EFA", "EEM"])
+    safe_assets: list[str] = field(default_factory=lambda: ["TLT", "GLD"])
+    abs_lookback: int = 252     # absolute momentum window
+    rel_lookback: int = 126     # relative momentum window
+    vol_window: int = 20
+    vol_threshold: float = 0.22  # crash filter
+    leverage: float = 1.5
+
+    @property
+    def safe_asset(self) -> str:
+        """Primary safe asset for backwards compatibility."""
+        return self.safe_assets[0] if self.safe_assets else "TLT"
+
+
+class DualMomentum(Strategy):
+    """Dual momentum: best risk-on asset if momentum > 0, else safe havens.
+
+    Thesis: Combine absolute momentum (trend filter) with relative
+    momentum (best asset selection). Switch to TLT+GLD during
+    downtrends or high vol. Vectorized implementation.
+    """
+
+    name = "I3-DualMomentum"
+
+    def __init__(self, config: DualMomentumConfig | None = None) -> None:
+        self.cfg = config or DualMomentumConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        avail_risk = [t for t in c.risk_on if t in prices.columns]
+        safe_avail = [t for t in c.safe_assets if t in prices.columns]
+
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if not avail_risk:
+            return weights
+
+        p = prices[avail_risk]
+
+        # Composite momentum: average of 3m, 6m, 12m for stability
+        ret_3m = p.pct_change(63).fillna(0.0)
+        ret_6m = p.pct_change(c.rel_lookback).fillna(0.0)
+        ret_12m = p.pct_change(c.abs_lookback).fillna(0.0)
+        composite_ret = (ret_3m + ret_6m + ret_12m) / 3.0
+
+        # Best risk-on asset by composite momentum (vectorized)
+        best_asset = composite_ret.idxmax(axis=1)
+        all_nan = composite_ret.isna().all(axis=1)
+        best_asset[all_nan] = np.nan
+
+        # Composite momentum of best asset
+        best_abs = pd.Series(np.nan, index=prices.index)
+        for t in avail_risk:
+            mask = best_asset == t
+            best_abs = best_abs.where(~mask, composite_ret[t])
+
+        # Crash filter
+        spy_col = "SPY" if "SPY" in prices.columns else avail_risk[0]
+        spy_vol = realized_vol(prices[spy_col], c.vol_window)
+        crash = spy_vol > c.vol_threshold
+
+        # Trend filter: SPY TSI > 0 replaces SMA(200) for faster trend detection
+        trend_ok = (tsi(prices[spy_col]) > 0).fillna(False)
+
+        # Risk-on: best asset with positive momentum, no crash, trend OK
+        risk_on_ok = (best_abs > 0) & ~crash & trend_ok
+
+        for t in avail_risk:
+            is_best = best_asset == t
+            weights[t] = np.where(risk_on_ok & is_best, c.leverage, 0.0)
+
+        # Safe haven: split across available safe assets
+        safe_mode = ~risk_on_ok
+        if safe_avail:
+            per_safe = c.leverage / len(safe_avail)
+            for t in safe_avail:
+                weights[t] = np.where(safe_mode, per_safe, weights[t])
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# I4 — Momentum with Volatility Scaling — Long-only
+# =========================================================================
+
+@dataclass
+class MomVolScaledConfig:
+    """Momentum strategy with per-asset volatility scaling."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "GLD", "TLT", "XLE", "HYG", "UUP",
+        "XLK", "XLF",
+    ])
+    lookback: int = 126        # 6-month momentum
+    skip: int = 21             # skip last month
+    trend_window: int = 200    # SMA trend filter
+    vol_window: int = 40
+    target_vol: float = 0.12
+    max_weight: float = 0.25
+    leverage: float = 1.5
+
+
+class MomentumVolScaled(Strategy):
+    """Long-only momentum with inverse-vol position sizing.
+
+    Thesis: Long assets with positive momentum, sized inversely to
+    their volatility. Long-only avoids the catastrophic short-side
+    drag seen in long-short momentum. Vol scaling equalizes risk
+    contribution across positions.
+    """
+
+    name = "I4-MomentumVolScaled"
+
+    def __init__(self, config: MomVolScaledConfig | None = None) -> None:
+        self.cfg = config or MomVolScaledConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        if len(avail) < 3:
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        p = prices[avail]
+        ret = p.pct_change(c.lookback).shift(c.skip)
+
+        # Long-only: positive momentum only
+        signal = (ret > 0).astype(float)
+
+        # Trend filter: TSI > 0 per asset
+        tsi_val = pd.DataFrame(np.nan, index=p.index, columns=avail)
+        for t in avail:
+            tsi_val[t] = tsi(p[t])
+        trend_up = (tsi_val > 0).astype(float).fillna(0.0)
+        signal = signal * trend_up
+
+        # Vol scaling per asset
+        daily_ret = p.pct_change().fillna(0.0)
+        rvol = daily_ret.rolling(c.vol_window).std() * np.sqrt(252)
+        rvol = rvol.clip(lower=0.05)
+        inv_vol = (c.target_vol / rvol).clip(upper=3.0).fillna(0.0)
+
+        # Normalize by number of active positions
+        n_active = signal.sum(axis=1).clip(lower=1)
+        raw = signal * inv_vol * c.leverage
+        raw = raw.div(n_active, axis=0)
+        raw = raw.clip(0, c.max_weight)
+
+        return raw.reindex(columns=prices.columns, fill_value=0.0).replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(0.0)
+
+
+# =========================================================================
+# I5 — Global Momentum Rotation — Long-only, vol-scaled, top-5
+# =========================================================================
+
+@dataclass
+class GlobalMomRotConfig:
+    """Config for global momentum rotation strategy."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "FXI", "VGK", "EWJ", "INDA",
+        "GLD", "SLV", "TLT", "DBC", "VNQ", "XBI",
+    ])
+    lookback: int = 252       # ~12 months
+    skip: int = 21            # skip most recent month
+    trend_window: int = 200   # 200-day SMA filter
+    vol_window: int = 60
+    target_vol: float = 0.15
+    top_n: int = 5
+    max_weight: float = 0.30
+    leverage: float = 1.5
+
+
+class GlobalMomentumRotation(Strategy):
+    """Top-5 global momentum rotation with trend filter and vol scaling.
+
+    Thesis: Time-series momentum across a broad global universe
+    captures persistent trends in equities, commodities, bonds, and
+    real estate. Selecting the top-5 by 12-1 month return concentrates
+    exposure on the strongest trends. The 200-day SMA filter avoids
+    catching falling knives, and vol-scaling equalizes risk contribution.
+    Long-only avoids short-side drag.
+    """
+
+    name = "I5-GlobalMomentumRotation"
+
+    def __init__(self, config: GlobalMomRotConfig | None = None) -> None:
+        self.cfg = config or GlobalMomRotConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        if len(avail) < c.top_n:
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
+        p = prices[avail]
+
+        # 12-1 month momentum signal (skip last month to avoid reversal)
+        mom = p.pct_change(c.lookback).shift(c.skip).fillna(0.0)
+
+        # Trend filter: TSI > 0 per asset (more responsive than SMA)
+        tsi_val = pd.DataFrame(np.nan, index=p.index, columns=avail)
+        for t in avail:
+            tsi_val[t] = tsi(p[t])
+        trend_up = tsi_val > 0
+
+        # Mask out assets not in uptrend
+        filtered_mom = mom.where(trend_up, np.nan)
+
+        # Rank and select top N by momentum
+        ranks = filtered_mom.rank(axis=1, ascending=False)
+        selected = (ranks <= c.top_n) & pd.notna(filtered_mom)
+
+        # Vol-scale each position
+        rvol = p.pct_change().fillna(0.0).rolling(c.vol_window).std() * np.sqrt(252)
+        rvol = rvol.clip(lower=0.05)
+        inv_vol = (c.target_vol / rvol).clip(upper=3.0).fillna(0.0)
+
+        # Weight = selected * inverse vol
+        raw = selected.astype(float) * inv_vol
+
+        # Normalize: sum to leverage
+        total = raw.sum(axis=1).clip(lower=1e-8)
+        raw = raw.div(total, axis=0) * c.leverage
+        raw = raw.clip(0, c.max_weight)
+
+        return raw.reindex(columns=prices.columns, fill_value=0.0).replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(0.0)
+
+
+# =========================================================================
+# I6 — KST Momentum (Know Sure Thing multi-horizon)
+# =========================================================================
+
+@dataclass
+class KSTMomentumConfig:
+    """Config for KST momentum strategy."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "GLD", "TLT", "XLE", "UUP", "HYG",
+        "XLK", "XLF",
+    ])
+    r1: int = 10
+    r2: int = 15
+    r3: int = 20
+    r4: int = 30
+    signal_period: int = 9
+    trend_window: int = 150     # price > SMA filter
+    top_n: int = 5              # number of assets to hold
+    vol_window: int = 60
+    target_vol: float = 0.15
+    leverage: float = 1.5
+    max_weight: float = 0.30
+
+
+class KSTMomentum(Strategy):
+    """Multi-horizon momentum strategy using the Know Sure Thing (KST) indicator.
+
+    Thesis: KST combines four ROC horizons into one smooth momentum oscillator.
+    A KST crossover above its signal line is a reliable trend-entry trigger
+    (Pring 1992). Multi-asset: hold the top N assets with positive crossover.
+    """
+
+    name = "I6-KSTMomentum"
+
+    def __init__(self, config: KSTMomentumConfig | None = None) -> None:
+        self.cfg = config or KSTMomentumConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        weight_df = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if len(avail) < 2:
+            return weight_df
+
+        # Compute KST for each asset (ticker loop, not row loop)
+        kst_val = pd.DataFrame(np.nan, index=prices.index, columns=avail)
+        kst_sig = pd.DataFrame(np.nan, index=prices.index, columns=avail)
+        for t in avail:
+            k = kst(prices[t], r1=c.r1, r2=c.r2, r3=c.r3, r4=c.r4,
+                    signal_period=c.signal_period)
+            kst_val[t] = k["kst"]
+            kst_sig[t] = k["kst_signal"]
+
+        # Bullish: KST above signal AND KST rising
+        kst_above = kst_val > kst_sig
+        kst_rising = kst_val > kst_val.shift(1)
+
+        # Trend filter: price above SMA
+        sma = prices[avail].rolling(c.trend_window).mean()
+        trend_up = prices[avail] > sma
+
+        bullish = kst_above & kst_rising & trend_up
+
+        # Select top N assets ranked by KST strength
+        kst_strength = kst_val.where(bullish, np.nan)
+        ranks = kst_strength.rank(axis=1, ascending=False)
+        selected = (ranks <= c.top_n) & pd.notna(kst_strength)
+
+        # Vol-scale each position
+        rvol = prices[avail].pct_change().fillna(0.0).rolling(c.vol_window).std() * np.sqrt(252)
+        rvol = rvol.clip(lower=0.05)
+        vol_scale = (c.target_vol / rvol).clip(upper=3.0).fillna(0.0)
+
+        raw = selected.astype(float) * vol_scale
+        total = raw.sum(axis=1).clip(lower=1e-8)
+        raw = (raw.div(total, axis=0) * c.leverage).clip(0, c.max_weight)
+
+        for t in avail:
+            weight_df[t] = raw[t]
+
+        return weight_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# I10 -- Adaptive Trend Filter
+# =========================================================================
+
+@dataclass
+class AdaptiveTrendFilterConfig:
+    """Config for adaptive multi-timeframe trend-following strategy."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM", "GLD", "TLT", "IEF", "UUP",
+        "XLE", "XLK", "XLF", "XLI", "XLB", "XLP", "XLU", "XLY", "XLV",
+        "HYG", "LQD", "SLV", "SHY", "DBC", "DBA", "TIP", "AGG", "EMB",
+        "FXI", "VGK", "EWJ", "INDA", "VNQ", "XBI",
+    ])
+    mom_windows: list[int] = field(default_factory=lambda: [21, 63, 126, 252])
+    vol_window: int = 20
+    low_vol_threshold: float = 0.15
+    high_vol_threshold: float = 0.25
+    low_vol_weights: list[float] = field(
+        default_factory=lambda: [0.4, 0.3, 0.2, 0.1],
+    )
+    high_vol_weights: list[float] = field(
+        default_factory=lambda: [0.1, 0.2, 0.3, 0.4],
+    )
+    long_n: int = 5
+    short_n: int = 3
+    target_vol: float = 0.20
+    pos_vol_window: int = 60
+
+
+class AdaptiveTrendFilter(Strategy):
+    """Multi-timeframe momentum with adaptive vol-based weighting.
+
+    By weighting shorter lookbacks in low-vol trending environments and
+    longer lookbacks in high-vol noisy environments, the composite
+    momentum signal captures trends without whipsaw.
+    """
+
+    name = "I10-AdaptiveTrendFilter"
+
+    def __init__(self, config=None):
+        super().__init__()
+        self.cfg = config or AdaptiveTrendFilterConfig()
+
+    def generate_weights(self, prices, regime=None):
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if len(avail) < c.long_n + c.short_n:
+            return weights
+
+        p = prices[avail]
+
+        # Compute 4 momentum signals
+        mom_signals = []
+        for w in c.mom_windows:
+            mom = p.pct_change(w).fillna(0.0)
+            mom_signals.append(mom)
+
+        # Compute SPY realized vol for adaptive weighting
+        spy_col = "SPY" if "SPY" in prices.columns else avail[0]
+        spy_ret = prices[spy_col].pct_change().fillna(0.0)
+        spy_vol = spy_ret.rolling(c.vol_window, min_periods=5).std() * np.sqrt(252)
+        spy_vol = spy_vol.fillna(c.low_vol_threshold)
+
+        # Adaptive weight interpolation: alpha=0 => low-vol, alpha=1 => high-vol
+        alpha = (spy_vol - c.low_vol_threshold) / max(
+            c.high_vol_threshold - c.low_vol_threshold, 1e-8
+        )
+        alpha = alpha.clip(0.0, 1.0)
+
+        low_w = np.array(c.low_vol_weights)
+        high_w = np.array(c.high_vol_weights)
+
+        # Broadcast: (T,) x (4,) -> (T, 4)
+        adaptive_w = (
+            (1.0 - alpha.values[:, np.newaxis]) * low_w[np.newaxis, :]
+            + alpha.values[:, np.newaxis] * high_w[np.newaxis, :]
+        )
+
+        # Weighted composite momentum score per asset
+        mom_stack = np.stack([m.values for m in mom_signals], axis=2)
+        combo = np.sum(mom_stack * adaptive_w[:, np.newaxis, :], axis=2)
+        combo_df = pd.DataFrame(combo, index=p.index, columns=p.columns)
+        combo_df = combo_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+        # Cross-sectional rank each day
+        cs_rank = combo_df.rank(axis=1, method="average", ascending=True)
+        n_assets = cs_rank.count(axis=1)
+
+        long_thresh = n_assets - c.long_n + 0.5
+        short_thresh = c.short_n + 0.5
+
+        is_long = cs_rank.gt(long_thresh, axis=0)
+        is_short = cs_rank.lt(short_thresh, axis=0)
+
+        # Vol-scaling per position
+        ret = p.pct_change().fillna(0.0)
+        rvol = ret.rolling(c.pos_vol_window, min_periods=10).std() * np.sqrt(252)
+        rvol = rvol.replace(0.0, np.nan).fillna(c.target_vol)
+
+        vol_scale = (c.target_vol / rvol).clip(0.1, 5.0)
+
+        # Build raw weights
+        n_long = is_long.sum(axis=1).clip(lower=1)
+        n_short = is_short.sum(axis=1).clip(lower=1)
+
+        long_w = is_long.astype(float).div(n_long, axis=0) * vol_scale
+        short_w = is_short.astype(float).div(n_short, axis=0) * vol_scale * -1.0
+
+        raw = long_w + short_w
+
+        # Normalize gross leverage to ~1.5
+        gross = raw.abs().sum(axis=1).clip(lower=1e-8)
+        target_gross = 1.5
+        scaled = raw.div(gross, axis=0) * target_gross
+
+        weights.loc[:, avail] = scaled
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# I7 — Drift Regime Momentum (arXiv:2511.12490 inspired)
+# =========================================================================
+
+@dataclass
+class DriftRegimeMomConfig:
+    """Config for drift-regime-gated cross-asset momentum."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "XLE", "XLK", "GLD", "TLT",
+    ])
+    mom_lookback: int = 252       # 12-month return window
+    mom_skip: int = 21            # skip most recent month
+    drift_window: int = 63        # trailing days for positive-day fraction
+    drift_threshold: float = 0.58 # fraction above which drift regime is ON
+    top_n_long: int = 3
+    top_n_short: int = 2
+    long_leverage: float = 1.0
+    short_leverage: float = 0.5
+    max_weight: float = 0.40
+
+
+class DriftRegimeMomentum(Strategy):
+    """Momentum gated by drift regime filter from arXiv:2511.12490.
+
+    Thesis: Momentum signals are strongest when markets have persistent
+    positive drift. When >58% of trailing 63 days have positive returns,
+    trends are self-reinforcing through institutional flow and retail
+    sentiment. Gating momentum on the drift regime avoids whipsaws
+    during directionless or mean-reverting periods.
+
+    Signal:
+    - 12-1 month momentum per asset.
+    - Drift ratio = rolling 63-day fraction of positive return days.
+    - Only take positions in assets with drift_ratio > 0.58.
+    - Long top-3, short bottom-2 among drift-eligible assets.
+    """
+
+    name = "I7-DriftRegimeMomentum"
+
+    def __init__(self, config: DriftRegimeMomConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or DriftRegimeMomConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+        if len(avail) < c.top_n_long + c.top_n_short:
+            return weights
+
+        p = prices[avail]
+
+        # 12-1 month momentum signal
+        mom = p.pct_change(c.mom_lookback).shift(c.mom_skip).fillna(0.0)
+
+        # Drift regime: fraction of positive return days over trailing window
+        daily_ret = p.pct_change().fillna(0.0)
+        pos_day = (daily_ret > 0).astype(float)
+        drift_ratio = pos_day.rolling(c.drift_window, min_periods=21).mean()
+        drift_ratio = drift_ratio.fillna(0.0)
+
+        # Gate: only consider assets where drift regime is ON
+        drift_on = pd.notna(drift_ratio) & (drift_ratio > c.drift_threshold)
+
+        # Mask momentum scores -- NaN for assets not in drift regime
+        mom_gated = mom.where(drift_on, np.nan)
+
+        # Count eligible assets per day
+        n_eligible = drift_on.sum(axis=1)
+
+        # Rank among eligible: highest mom = rank 1 (for longs)
+        ranks_desc = mom_gated.rank(axis=1, ascending=False, method="average")
+        # Rank among eligible: lowest mom = rank 1 (for shorts)
+        ranks_asc = mom_gated.rank(axis=1, ascending=True, method="average")
+
+        # Long: top-N by momentum among drift-eligible
+        long_mask = (ranks_desc <= c.top_n_long) & pd.notna(mom_gated)
+        # Short: bottom-N by momentum among drift-eligible
+        short_mask = (ranks_asc <= c.top_n_short) & pd.notna(mom_gated)
+
+        # Avoid longing and shorting the same asset if few are eligible
+        short_mask = short_mask & ~long_mask
+
+        # Equal weight within long/short buckets
+        n_long = long_mask.sum(axis=1).clip(lower=1)
+        n_short = short_mask.sum(axis=1).clip(lower=1)
+
+        long_w = long_mask.astype(float).div(n_long, axis=0) * c.long_leverage
+        short_w = short_mask.astype(float).div(n_short, axis=0) * c.short_leverage * -1.0
+
+        raw = long_w + short_w
+        raw = raw.clip(lower=-c.max_weight, upper=c.max_weight)
+
+        # Zero out when insufficient eligible assets
+        insufficient = n_eligible < (c.top_n_long + c.top_n_short)
+        raw[insufficient] = 0.0
+
+        weights.loc[:, avail] = raw
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+
+# =========================================================================
+# I1b -- Time-Series Momentum with Drift Gate
+# =========================================================================
+
+@dataclass
+class TSMOMDriftConfig:
+    """Config for drift-gated time-series momentum."""
+
+    tickers: list[str] = field(default_factory=lambda: [
+        "SPY", "QQQ", "IWM", "EFA", "EEM",
+        "GLD", "TLT", "XLE", "UUP", "HYG",
+    ])
+    lookback: int = 252      # ~12 months
+    skip: int = 21           # skip most recent month
+    vol_window: int = 60
+    target_vol: float = 0.15
+    max_weight: float = 0.30
+    leverage: float = 1.5
+    drift_window: int = 63
+    drift_threshold: float = 0.55
+    drift_off_scale: float = 0.30   # keep 30% when drift is OFF
+
+
+class TimeSeriesMomentumDrift(Strategy):
+    """I1 Time-Series Momentum enhanced with drift regime gate.
+
+    Thesis: Standard TSMOM suffers whipsaws during directionless markets.
+    By scaling down positions when the 63-day positive-day fraction is
+    below 0.55 (i.e. the asset lacks persistent drift), we filter out
+    noise-driven entries while keeping partial exposure to avoid missing
+    regime transitions entirely.
+
+    Signal: Same as I1 (12-1 momentum + TSI trend filter + vol scaling).
+    Gate: drift_ratio > 0.55 -> full weight; drift_ratio <= 0.55 -> 30%.
+    """
+
+    name = "I1b-TSMomDrift"
+
+    def __init__(self, config: TSMOMDriftConfig | None = None) -> None:
+        super().__init__()
+        self.cfg = config or TSMOMDriftConfig()
+
+    def generate_weights(
+        self,
+        prices: pd.DataFrame,
+        regime: pd.Series | None = None,
+    ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
+        c = self.cfg
+        avail = [t for t in c.tickers if t in prices.columns]
+        p = prices[avail]
+
+        # 12-1 month momentum signal (same as I1)
+        ret = p.pct_change(c.lookback).shift(c.skip)
+        signal = (ret > 0).astype(float)
+
+        # Trend filter: TSI > 0 per asset
+        tsi_val = pd.DataFrame(np.nan, index=p.index, columns=avail)
+        for t in avail:
+            tsi_val[t] = tsi(p[t])
+        trend_up = (tsi_val > 0).astype(float).fillna(0.0)
+        signal = signal * trend_up
+
+        # Vol-scale each position
+        rvol = p.pct_change().fillna(0.0).rolling(c.vol_window).std() * np.sqrt(252)
+        rvol = rvol.clip(lower=0.05)
+        vol_scale = (c.target_vol / rvol).clip(upper=3.0).fillna(0.0)
+
+        # Normalize by number of active positions
+        n_active = signal.sum(axis=1).clip(lower=1)
+        weights = signal * vol_scale * c.leverage
+        weights = weights.div(n_active, axis=0)
+        weights = weights.clip(0, c.max_weight)
+
+        # Drift regime gate
+        daily_ret = p.pct_change().fillna(0.0)
+        pos_day = (daily_ret > 0).astype(float)
+        drift_ratio = pos_day.rolling(c.drift_window, min_periods=21).mean()
+        drift_ratio = drift_ratio.fillna(0.0)
+
+        # Scale: full weight when drift ON, reduced when drift OFF
+        drift_on = pd.notna(drift_ratio) & (drift_ratio > c.drift_threshold)
+        drift_scale = np.where(drift_on, 1.0, c.drift_off_scale)
+        weights = weights * drift_scale
+
+        return weights.reindex(columns=prices.columns, fill_value=0.0).replace(
+            [np.inf, -np.inf], np.nan
+        ).fillna(0.0)

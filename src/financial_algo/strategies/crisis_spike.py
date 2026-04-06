@@ -49,31 +49,23 @@ class CommodityShockConfig:
 
     # Breakout: z-score threshold for detecting upward spike
     zscore_window: int = 60
-    # REWORK: Lowered standard spike z-score from 1.5 to 1.2
-    # Catches breakouts earlier before they become extreme
-    spike_z: float = 1.2
+    spike_z: float = 1.4
 
     # Fast breakout: shorter z-score for catching fast-developing spikes
     fast_zscore_window: int = 20
-    # REWORK: Lowered fast spike z-score from 2.0 to 1.8
-    # More sensitive to rapidly developing spikes
-    fast_spike_z: float = 1.8
-    # REWORK: Increased fast momentum threshold from 0.05 to 0.06 for better specificity
+    fast_spike_z: float = 2.1
     fast_momentum_threshold: float = 0.06
 
     # Trend filter: momentum over lookback
     momentum_window: int = 10
-    # REWORK: Slightly lowered momentum threshold from 0.03 to 0.025
-    momentum_threshold: float = 0.025
+    momentum_threshold: float = 0.03
 
     # Leverage
-    leverage_energy: float = 2.0
-    leverage_gold: float = 1.0
+    leverage_energy: float = 1.3
+    leverage_gold: float = 0.6
 
     # Trail stop: exit when momentum fades
-    # REWORK: Less aggressive exit threshold from -0.02 to -0.015
-    # Reduces whipsaw exits on minor momentum reversals
-    exit_momentum_threshold: float = -0.015
+    exit_momentum_threshold: float = -0.02
 
 
 class CommodityShockRider(Strategy):
@@ -95,6 +87,10 @@ class CommodityShockRider(Strategy):
         regime: pd.Series | None = None,
     ) -> pd.DataFrame:
         c = self.cfg
+        required = [c.oil_ticker, c.energy_ticker, c.gold_ticker]
+        if not all(t in prices.columns for t in required):
+            return pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
+
         oil = prices[c.oil_ticker]
 
         # Upward spike detection: oil z-score high AND momentum positive
@@ -102,13 +98,21 @@ class CommodityShockRider(Strategy):
         oil_mom = oil.pct_change(c.momentum_window)
 
         # Standard entry: 60-day z-score ≥ 1.5 + 3% momentum
-        spike_standard = (oil_z >= c.spike_z) & (oil_mom >= c.momentum_threshold)
+        spike_standard = (
+            pd.notna(oil_z)
+            & pd.notna(oil_mom)
+            & (oil_z >= c.spike_z)
+            & (oil_mom >= c.momentum_threshold)
+        )
 
         # Fast entry: 20-day z-score ≥ 2.0 + 5% momentum
         # Catches fast-developing spikes that haven't built 60 days of context
         oil_z_fast = zscore(oil, c.fast_zscore_window)
-        spike_fast = (oil_z_fast >= c.fast_spike_z) & (
-            oil_mom >= c.fast_momentum_threshold
+        spike_fast = (
+            pd.notna(oil_z_fast)
+            & pd.notna(oil_mom)
+            & (oil_z_fast >= c.fast_spike_z)
+            & (oil_mom >= c.fast_momentum_threshold)
         )
 
         # Either trigger fires entry
@@ -117,11 +121,11 @@ class CommodityShockRider(Strategy):
         # Exit condition: momentum reversal
         momentum_fading = oil_mom <= c.exit_momentum_threshold
 
-        # State machine: stay in trade until momentum fades
-        in_trade = pd.Series(
-            _latch(spike_up.values, momentum_fading.values),
-            index=prices.index,
-        )
+        # Vectorized state machine: carry entry forward until explicit exit.
+        raw_state = pd.Series(np.nan, index=prices.index)
+        raw_state[momentum_fading] = 0.0
+        raw_state[spike_up] = 1.0
+        in_trade = raw_state.ffill().fillna(0.0) > 0.5
 
         # Regime filter: more aggressive during crisis regimes
         regime_mult = pd.Series(1.0, index=prices.index)
@@ -142,7 +146,7 @@ class CommodityShockRider(Strategy):
         w[c.energy_ticker] *= regime_mult
         w[c.gold_ticker] *= regime_mult
 
-        return w
+        return w.reindex(columns=prices.columns, fill_value=0.0).replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
 
 # =========================================================================

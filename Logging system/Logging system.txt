@@ -1,0 +1,21 @@
+Perfect! Let me build you an interactive best practices guide for cloud/DevOps infrastructure logging.Here's a full interactive guide covering everything you need to know. Eight tabs to explore:
+
+**Log levels** — how to use DEBUG through FATAL correctly (and how to change levels at runtime without redeploying).
+
+**Structured logs** — the mandatory JSON fields every line should have, how to use trace/correlation IDs, and what never to log (PII, secrets, full request bodies).
+
+**Collection pipeline** — the standard cloud log pipeline from stdout → shipper → buffer queue → index → dashboard, with the key design decisions at each stage.
+
+**Retention & cost** — hot/warm/cold tiering, compliance minimums (SOC2, PCI, GDPR), and practical tricks that typically cut log storage cost by 30–50%.
+
+**Alerting** — log-based alert patterns, absence alerting, and how to fight alert fatigue.
+
+**Security** — RBAC, immutability, encryption, PII scrubbing.
+
+**Tools & stacks** — a curated comparison of shippers (Vector, Fluent Bit, OTel Collector), storage backends (Loki vs OpenSearch vs CloudWatch), and queuing layers.
+
+**Readiness checklist** — 20 interactive checkboxes covering all six areas, with a progress bar. Useful for auditing an existing system or planning a new one.
+
+If you want to go deeper on any area — like a specific stack (AWS vs GCP, Loki vs Elasticsearch) or a particular topic like Kubernetes log collection — just let me know.
+
+

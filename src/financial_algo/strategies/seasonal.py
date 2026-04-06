@@ -30,6 +30,7 @@ class SeasonalConfig:
     leverage_strong: float = 1.5   # leveraged long in strong months
     leverage_weak: float = 0.0     # flat or safe in weak months
     safe_weight_weak: float = 0.5  # TLT in weak months
+    safe_weight_strong_off: float = 0.3
 
     # New regime filters
     vol_window: int = 20           # volatility window
@@ -56,6 +57,9 @@ class SeasonalStrategy(Strategy):
         prices: pd.DataFrame,
         regime: pd.Series | None = None,
     ) -> pd.DataFrame:
+        if prices.empty:
+            return pd.DataFrame()
+
         c = self.cfg
         months = prices.index.month
 
@@ -75,16 +79,27 @@ class SeasonalStrategy(Strategy):
             sma = equity.rolling(c.trend_window).mean()
             uptrend = (equity > sma).fillna(False)
             
-            # Only trade seasonal in normal vol + uptrend
-            season_ok = vol_ok & uptrend
+            # Build continuous confidence so we do not flip between full-risk and zero.
+            trend_conf = (equity / sma - 1.0).clip(lower=-0.05, upper=0.05)
+            trend_conf = ((trend_conf + 0.05) / 0.10).fillna(0.5)
+            vol_conf = (1.0 - (vol / c.vol_threshold)).clip(lower=0.0, upper=1.0).fillna(0.5)
+            season_conf = (0.6 * trend_conf + 0.4 * vol_conf).clip(lower=0.0, upper=1.0)
         else:
-            season_ok = pd.Series(True, index=prices.index)
+            season_conf = pd.Series(0.7, index=prices.index)
 
         weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-        weights.loc[strong & season_ok, c.equity_ticker] = c.leverage_strong
-        weights.loc[~strong & season_ok, c.safe_ticker] = c.safe_weight_weak
+        if c.equity_ticker in prices.columns:
+            eq_w = pd.Series(0.0, index=prices.index)
+            eq_w.loc[strong] = c.leverage_strong * season_conf.loc[strong]
+            weights[c.equity_ticker] = eq_w
 
-        return weights.fillna(0.0)
+        if c.safe_ticker in prices.columns:
+            safe_w = pd.Series(0.0, index=prices.index)
+            safe_w.loc[~strong] = c.safe_weight_weak
+            safe_w.loc[strong] = c.safe_weight_strong_off * (1.0 - season_conf.loc[strong])
+            weights[c.safe_ticker] = safe_w
+
+        return weights.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
 
 # =========================================================================

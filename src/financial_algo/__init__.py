@@ -47,6 +47,7 @@ from financial_algo.regimes import Regime, RegimeConfig, detect_regime, is_crisi
 
 # --- Backtest engine (shared) ---------------------------------------------
 from financial_algo.backtest import BacktestConfig, backtest, compute_metrics
+from financial_algo.logging_utils import get_logger, set_trace_id, setup_logging, trace_context
 
 # --- Data pipeline (shared) -----------------------------------------------
 from financial_algo.data import load_prices
@@ -85,6 +86,8 @@ __all__ = [
     "Regime", "RegimeConfig", "detect_regime", "is_crisis",
     # Backtest
     "BacktestConfig", "backtest", "compute_metrics",
+    # Logging
+    "setup_logging", "get_logger", "set_trace_id", "trace_context",
     # Data
     "load_prices",
     # Technical strategies

@@ -21,19 +21,24 @@ Usage:
 
 from __future__ import annotations
 
+import csv
 import sys
+import uuid
 import warnings
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
 
-# Ensure src/ is importable when running as a script
-_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_root / "src"))
+# Ensure the repository src/ is importable when running as a script.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from financial_algo.backtest import BacktestConfig, backtest, compute_metrics
 from financial_algo.data.loader import load_prices
+from financial_algo.logging_utils import get_logger, setup_logging, trace_context
 from financial_algo.regimes import Regime, RegimeConfig, detect_regime
 
 # --- Strategy imports ---
@@ -70,6 +75,7 @@ from financial_algo.strategies.crisis_spike import (
     MultiAssetCrisisLong,
 )
 from financial_algo.strategies.ensemble import EnsembleStrategy, EnsembleConfig
+from financial_algo.strategies.base import Strategy
 
 # --- New strategy imports (Categories I-P) ---
 from financial_algo.strategies.momentum import (
@@ -186,6 +192,8 @@ from financial_algo.fundamental.strategies import (
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+logger = get_logger(__name__)
+
 # =========================================================================
 # Configuration
 # =========================================================================
@@ -261,6 +269,27 @@ TICKERS = sorted(set([
 ]))
 
 VIX_TICKER = "^VIX"
+DECISION_STATE_CSV = REPO_ROOT / "results" / "sprint15_go_no_go.csv"
+
+# Alpha-chasing policy guards for decision-state driven membership.
+MIN_KEEP_SHARPE = 0.35
+MIN_PROMOTE_SHARPE = 0.60
+MAX_PROMOTIONS = 6
+MAX_ENSEMBLE_MEMBERS = 32
+
+# Keep this sprint's policy non-ML while we optimize core signal sleeves.
+BLOCK_ML_PROMOTIONS = True
+BLOCK_DL_PROMOTIONS = True
+
+# Prevent over-concentration from too many promotions in one sleeve.
+PROMOTION_PREFIX_CAPS = {
+    "O": 1,   # tail-risk sleeve
+    "L": 2,   # volatility sleeve
+    "H": 1,   # crisis spike sleeve
+    "B": 1,   # oil crisis sleeve
+    "R": 2,   # regime sleeve
+    "G": 2,   # sentiment sleeve
+}
 
 
 # =========================================================================
@@ -290,7 +319,7 @@ def run_strategy_backtest(
         result = backtest(prices, weights, config)
         return result["metrics"]
     except Exception as e:
-        print(f"  [WARN] {name}: {e}")
+        logger.warning("Strategy backtest failed for %s: %s", name, e, exc_info=True)
         return None
 
 
@@ -313,6 +342,195 @@ def metrics_row(metrics: dict | None) -> dict:
         "TotRet": f"{metrics['total_return']:.2%}",
         "Trades/Mo": f"{metrics.get('avg_trades_per_month', 0):.1f}",
     }
+
+
+def load_decision_state(path: Path) -> dict[str, dict[str, str | float]]:
+    """Load strategy decisions keyed by strategy name.
+
+    Returns an empty dict when the decision file is not present so the runner
+    can still execute with static defaults.
+    """
+    if not path.exists():
+        return {}
+
+    out: dict[str, dict[str, str | float]] = {}
+    with path.open("r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            name = (row.get("strategy") or "").strip()
+            if not name:
+                continue
+            try:
+                curr_sharpe = float((row.get("current_sharpe") or "0").strip())
+            except ValueError:
+                curr_sharpe = 0.0
+            out[name] = {
+                "decision": (row.get("decision") or "").strip(),
+                "current_sharpe": curr_sharpe,
+            }
+    return out
+
+
+def apply_decision_filters(
+    registry: dict[str, list[tuple[str, object, bool]]],
+    decisions: dict[str, dict[str, str | float]],
+) -> dict[str, list[tuple[str, object, bool]]]:
+    """Apply rollback decisions to the per-strategy registry.
+
+    Current policy:
+      - rollback_required: remove from active run registry
+      - all other decisions: keep in registry
+    """
+    if not decisions:
+        return registry
+
+    filtered: dict[str, list[tuple[str, object, bool]]] = {}
+    for cat_name, strats in registry.items():
+        kept: list[tuple[str, object, bool]] = []
+        for strat_name, strat, needs_regime in strats:
+            decision = str(decisions.get(strat_name, {}).get("decision", ""))
+            if decision == "rollback_required":
+                continue
+            kept.append((strat_name, strat, needs_regime))
+        filtered[cat_name] = kept
+    return filtered
+
+
+def build_strategy_lookup(
+    registry: dict[str, list[tuple[str, object, bool]]],
+) -> dict[str, tuple[object, bool]]:
+    """Build {strategy_name: (strategy_instance, needs_regime)} lookup."""
+    lookup: dict[str, tuple[object, bool]] = {}
+    for strats in registry.values():
+        for strat_name, strat, needs_regime in strats:
+            lookup[strat_name] = (strat, needs_regime)
+    return lookup
+
+
+def build_ensemble_from_decisions(
+    lookup: dict[str, tuple[object, bool]],
+    decisions: dict[str, dict[str, str | float]],
+) -> tuple[list[object], list[float], list[str]]:
+    """Build ensemble members and prior scores from decision-state policy.
+
+    Policy:
+      - Start from the previous curated baseline list
+      - Remove `rollback_required` and `rework_priority`
+      - Add all `promote` strategies present in the active lookup
+    """
+    base_names = [
+        "MF2-MonthlyMacroRegime",
+        "R9-MultiAssetCTATrend",
+        "R6-BondEquityHedge",
+        "R4-AdaptiveRiskBudget",
+        "L6-CrossAssetVolSignal",
+        "P1-FeatureComboSignal",
+        "D2-CrashHedgeQQQ",
+        "F2-CryptoRecoverySurge",
+        "L1-VolRiskPremium",
+        "L4-VolOfVolRegime",
+        "O7-PreciousMetalsCrisisHedge",
+        "O1-TailRiskParity",
+        "F3-CryptoGoldDivergence",
+        "G2-FearGreedContrarian",
+        "D3-VolCarry",
+        "R3-DefensiveRotation",
+        "L3-VolTermStructure",
+        "L2-VolSpreadHarvest",
+        "R7-VolExplosionAlpha",
+        "K1-LowVolFactor",
+        "Q1-QualityTrend",
+        "L5-VolSpikeRecovery",
+        "Q3-MomentumCrashFilter",
+        "K4-ValueFactor",
+        "G1-SentimentCrisisAlpha",
+        "N1-SeasonalStrategy",
+        "G3-SentimentDivergence",
+        "P4-AdaptiveThreshold",
+        "L8-VolRegimeClustering",
+        "M9-YieldCurveRegime",
+    ]
+
+    def _safe_sharpe(name: str, default: float = 0.5) -> float:
+        raw = decisions.get(name, {}).get("current_sharpe", default)
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return default
+
+    def _family(name: str) -> str:
+        token = name.split("-", 1)[0]
+        letters = "".join(ch for ch in token if ch.isalpha())
+        if letters:
+            return letters
+        return token[:1]
+
+    selected = [n for n in base_names if n in lookup]
+    if decisions:
+        selected = [
+            n
+            for n in selected
+            if str(decisions.get(n, {}).get("decision", "")) not in {"rollback_required", "rework_priority"}
+        ]
+
+        # Remove weak strategies from the active set when decision-state metrics are available.
+        selected = [
+            n
+            for n in selected
+            if _safe_sharpe(n) >= MIN_KEEP_SHARPE
+        ]
+
+        promoted_ranked = [
+            (n, _safe_sharpe(n))
+            for n, meta in decisions.items()
+            if str(meta.get("decision", "")) == "promote" and n in lookup
+        ]
+
+        if BLOCK_ML_PROMOTIONS or BLOCK_DL_PROMOTIONS:
+            filtered_promotions: list[tuple[str, float]] = []
+            for n, s in promoted_ranked:
+                fam = _family(n)
+                is_dl = fam == "DL"
+                is_ml = fam == "P"
+                if BLOCK_DL_PROMOTIONS and is_dl:
+                    continue
+                if BLOCK_ML_PROMOTIONS and is_ml:
+                    continue
+                filtered_promotions.append((n, s))
+            promoted_ranked = filtered_promotions
+
+        promoted_ranked = [
+            (n, s)
+            for n, s in promoted_ranked
+            if s >= MIN_PROMOTE_SHARPE
+        ]
+        promoted_ranked.sort(key=lambda x: x[1], reverse=True)
+
+        added = 0
+        added_by_prefix: dict[str, int] = {}
+        for name, _ in promoted_ranked:
+            if name in selected:
+                continue
+            fam = _family(name)
+            cap = PROMOTION_PREFIX_CAPS.get(fam)
+            if cap is not None and added_by_prefix.get(fam, 0) >= cap:
+                continue
+            if added >= MAX_PROMOTIONS or len(selected) >= MAX_ENSEMBLE_MEMBERS:
+                break
+            selected.append(name)
+            added += 1
+            added_by_prefix[fam] = added_by_prefix.get(fam, 0) + 1
+
+    # Hard cap as final guard against decision-state expansion.
+    selected = selected[:MAX_ENSEMBLE_MEMBERS]
+
+    members = [lookup[n][0] for n in selected]
+    sharpe_scores: list[float] = []
+    for name in selected:
+        s = _safe_sharpe(name)
+        sharpe_scores.append(max(s, 0.10))
+
+    return members, sharpe_scores, selected
 
 
 # =========================================================================
@@ -482,7 +700,7 @@ def spy_benchmark(prices: pd.DataFrame, config: BacktestConfig) -> dict | None:
         result = backtest(prices, w.shift(1).fillna(0), config)
         return result["metrics"]
     except Exception as e:
-        print(f"  [WARN] Benchmark: {e}")
+        logger.warning("Benchmark backtest failed: %s", e, exc_info=True)
         return None
 
 
@@ -498,6 +716,15 @@ def _inject_features(strategies, features: "pd.DataFrame") -> None:
 # =========================================================================
 
 def main() -> None:
+    setup_logging(service="crisis_backtest", environment="production")
+    run_trace_id = f"run-{uuid.uuid4().hex[:12]}"
+    logger.info("Starting run_crisis_backtest", extra={"run_id": run_trace_id})
+
+    with trace_context(run_trace_id):
+        _main_impl()
+
+
+def _main_impl() -> None:
     print("=" * 80)
     print("CRISIS-THRIVING STRATEGY BACKTEST - UNBIASED HISTORICAL ANALYSIS")
     print("=" * 80)
@@ -520,6 +747,7 @@ def main() -> None:
         vix = vix_df[VIX_TICKER]
     except Exception:
         print("       [WARN] VIX download failed, using vol proxy")
+        logger.warning("VIX download failed; using realized-vol proxy", exc_info=True)
         vix = None
     print()
 
@@ -532,7 +760,8 @@ def main() -> None:
     print("       Regime distribution (full period):")
     for r, count in regime_counts.items():
         pct = count / len(regime) * 100
-        print(f"         {r.value:20s}: {count:5d} days ({pct:5.1f}%)")
+        regime_name = r.value if isinstance(r, Regime) else str(r)
+        print(f"         {regime_name:20s}: {count:5d} days ({pct:5.1f}%)")
     print()
 
     # ------------------------------------------------------------------
@@ -556,65 +785,68 @@ def main() -> None:
             print()
     except Exception as e:
         print(f"       [WARN] Intraday feature load failed (skipping): {e}")
+        logger.warning("Intraday feature load failed (skipping): %s", e, exc_info=True)
         intraday_features = None
 
     # ------------------------------------------------------------------
     # 4. Build strategy registry
     # ------------------------------------------------------------------
     registry = build_strategy_registry()
+    decision_state = load_decision_state(DECISION_STATE_CSV)
+    registry = apply_decision_filters(registry, decision_state)
+    strategy_lookup = build_strategy_lookup(registry)
 
-    # Ensemble v10.1: Fixed from v10 backtest results
-    # Removed: L7 (Sharpe -0.17), O8 (dead, 0 trades)
-    # Re-added: G1 (Sharpe 0.79), G3 (Sharpe 0.78) - were wrongly cut in v10
-    # Kept from v10: L8 (0.70), M9 (0.65) - positive Sharpe, adds diversification
-    ensemble_members = [
-        MonthlyMacroRegime(),    # MF2 -- Sharpe 1.24, monthly macro
-        MultiAssetCTATrend(),    # R9 -- Sharpe 1.13, CTA trend
-        BondEquityHedge(),       # R6 -- Sharpe 1.07, bond/equity hedge
-        AdaptiveRiskBudget(),    # R4 -- Sharpe 1.02, adaptive risk budget
-        CrossAssetVolSignal(),   # L6 -- Sharpe 1.01, cross-asset vol
-        FeatureComboSignal(),    # P1 -- Sharpe 0.83, multi-signal composite
-        CrashHedgeQQQ(),         # D2 -- Sharpe 0.94, trend/vol on QQQ
-        CryptoRecoverySurge(),   # F2 -- Sharpe 0.93, crypto regime
-        VolRiskPremium(),        # L1 -- Sharpe 0.92, pure VRP
-        VolOfVolRegime(),        # L4 -- Sharpe 0.92, vol-of-vol dynamic sizing
-        PreciousMetalsCrisisHedge(),  # O7 -- Sharpe 0.92, metals crisis
-        TailRiskParity(),        # O1 -- Sharpe 0.90, risk-parity
-        CryptoGoldDivergence(),  # F3 -- Sharpe 0.89, crypto/gold signal
-        FearGreedContrarian(),   # G2 -- Sharpe 0.90, contrarian sentiment
-        VolCarry(),              # D3 -- Sharpe 0.89, vol carry
-        DefensiveRotationR3(),   # R3 -- Sharpe 0.86, defensive rotation
-        VolTermStructure(),      # L3 -- Sharpe 0.86, term structure carry
-        VolSpreadHarvest(),      # L2 -- Sharpe 0.85, vol spread
-        VolExplosionAlpha(),     # R7 -- Sharpe 0.85, vol explosion
-        LowVolFactor(),          # K1 -- Sharpe 0.84, low-vol factor
-        QualityTrend(),          # Q1 -- Sharpe 0.84, trend + quality filter
-        VolSpikeRecovery(),      # L5 -- Sharpe 0.84, low-DD vol timing
-        MomentumCrashFilter(),   # Q3 -- Sharpe 0.83, momentum + crash hedge
-        ValueFactor(),           # K4 -- Sharpe 0.81, value factor
-        SentimentCrisisAlpha(),  # G1 -- Sharpe 0.79, sentiment crisis
-        SeasonalStrategy(),      # N1 -- Sharpe 0.79, seasonality
-        SentimentDivergence(),   # G3 -- Sharpe 0.78, sentiment divergence
-        AdaptiveThreshold(),     # P4 -- Sharpe 0.75, walk-forward optimizer
-        VolRegimeClustering(),   # L8 -- Sharpe 0.70, vol regime clustering
-        YieldCurveRegime(),      # M9 -- Sharpe 0.65, yield curve macro
-    ]
-    sharpe_scores = [
-        1.24, 1.13, 1.07, 1.02, 1.01,  # MF2, R9, R6, R4, L6
-        0.83, 0.94, 0.93, 0.92, 0.92,  # P1, D2, F2, L1, L4
-        0.92, 0.90, 0.89, 0.90, 0.89,  # O7, O1, F3, G2, D3
-        0.86, 0.86, 0.85, 0.85,        # R3, L3, L2, R7
-        0.84, 0.84, 0.84, 0.83,        # K1, Q1, L5, Q3
-        0.81, 0.79, 0.79, 0.78,        # K4, G1, N1, G3
-        0.75, 0.70, 0.65,              # P4, L8, M9
-    ]
-    prior_weights = [s ** 2 for s in sharpe_scores]
+    if decision_state:
+        counts = {
+            "promote": 0,
+            "hold_watch": 0,
+            "rework_priority": 0,
+            "rollback_required": 0,
+        }
+        for meta in decision_state.values():
+            d = str(meta.get("decision", ""))
+            if d in counts:
+                counts[d] += 1
+        print(
+            "[3/4] Loaded decision state "
+            f"({counts['promote']} promote, {counts['hold_watch']} hold, "
+            f"{counts['rework_priority']} rework, {counts['rollback_required']} rollback)"
+        )
+    else:
+        print("[3/4] No decision-state CSV found; using static strategy set")
+    print()
+
+    ensemble_members, sharpe_scores, ensemble_names = build_ensemble_from_decisions(
+        strategy_lookup,
+        decision_state,
+    )
+    print(f"       Ensemble member count: {len(ensemble_members)}")
+    print(
+        "       Alpha policy "
+        f"(keep>={MIN_KEEP_SHARPE:.2f}, promote>={MIN_PROMOTE_SHARPE:.2f}, "
+        f"max_promotions={MAX_PROMOTIONS}, max_members={MAX_ENSEMBLE_MEMBERS})"
+    )
+    if decision_state:
+        print("       Ensemble built from decision-state policy")
+        promoted_in_set = [
+            n for n in ensemble_names
+            if str(decision_state.get(n, {}).get("decision", "")) == "promote"
+        ]
+        print(f"       Promotions retained: {len(promoted_in_set)}")
+        if promoted_in_set:
+            print("       " + ", ".join(promoted_in_set))
+    else:
+        print("       Ensemble built from static baseline policy")
+    print()
+    # Use Sharpe^2.5 for balanced concentration (between Sharpe^2 and Sharpe^3)
+    # This tilts capital to high-Sharpe strategies without over-concentrating.
+    prior_weights = [max(s, 0.15) ** 2.5 for s in sharpe_scores]
     ensemble_cfg = EnsembleConfig(
         use_inverse_vol=False,        # fixed Sharpe-proportional (less turnover)
         max_gross_leverage=2.5,
-        max_single_weight=0.15,       # tighter cap with 30 members
-        dd_scale_start=-0.12,         # start scaling down at -12% DD
-        dd_scale_end=-0.22,           # fully flat at -22% DD
+        max_single_weight=0.14,       # balanced concentration
+        dd_scale_start=-0.11,         # start scaling down at -11% DD (was -12%)
+        dd_scale_end=-0.21,           # fully flat at -21% DD (was -22%)
         prior_weights=prior_weights,
         # 1a: Correlation hedging
         correlation_hedge_enabled=True,
@@ -628,7 +860,7 @@ def main() -> None:
         leverage_crisis=1.2,
         # VIX-adaptive prior weights (differential regime tilting)
         vix_prior_scaling=True,
-        vix_prior_k=0.02,              # subtle tilt (was 0.05 -- too aggressive)
+        vix_prior_k=0.02,
         vix_prior_base=20.0,
         vix_prior_lookback=20,
         # Drift regime filter -- DISABLED: threshold 0.58 > SPY avg pos-day
@@ -688,6 +920,7 @@ def main() -> None:
             sent_df = build_synthetic_sentiment(p_win, vix=vix_win)
         except Exception as e:
             print(f"  [WARN] Synthetic sentiment build failed: {e}")
+            logger.warning("Synthetic sentiment build failed in %s: %s", window_name, e, exc_info=True)
             sent_df = None
 
         rows = []
@@ -707,14 +940,16 @@ def main() -> None:
                 rows.append({"Category": cat_name, "Strategy": strat_name, **metrics_row(m)})
 
         # Ensemble
+        ens_result: dict | None = None
         try:
-            ens = EnsembleStrategy(ensemble_members, ensemble_cfg)
+            ens = EnsembleStrategy(cast(list[Strategy], ensemble_members), ensemble_cfg)
             # Ensemble needs regime for FourStateTactical
             ens_w = ens.backtest_weights(p_win, r_win)
             ens_result = backtest(p_win, ens_w, BT_CONFIG_ENSEMBLE)
             ens_m = ens_result["metrics"]
         except Exception as e:
             print(f"  [WARN] Ensemble: {e}")
+            logger.warning("Ensemble backtest failed in %s: %s", window_name, e, exc_info=True)
             ens_m = None
         rows.append({"Category": "Ensemble", "Strategy": "Ensemble-BestOfEach", **metrics_row(ens_m)})
 
@@ -734,6 +969,7 @@ def main() -> None:
                 pass  # quantstats not installed — skip tearsheet
             except Exception as e:
                 print(f"  [WARN] Tearsheet generation failed: {e}")
+                logger.warning("Tearsheet generation failed for %s: %s", window_name, e, exc_info=True)
 
         # Display results table
         df = pd.DataFrame(rows)
@@ -778,13 +1014,14 @@ def main() -> None:
     """)
 
     # Save results to CSV
-    out_dir = _root / "results"
+    out_dir = SCRIPTS_ROOT / "results"
     out_dir.mkdir(exist_ok=True)
     for window_name, df in all_results.items():
         safe_name = window_name.replace(" ", "_").replace("(", "").replace(")", "").replace("/", "-")
         df.to_csv(out_dir / f"backtest_{safe_name}.csv", index=False)
     print(f"  Results saved to: {out_dir}")
     print()
+    logger.info("Backtest run complete. Results saved to %s", out_dir)
 
 
 if __name__ == "__main__":
