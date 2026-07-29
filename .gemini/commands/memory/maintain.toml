@@ -1,0 +1,12 @@
+description = "Run the safe shared agent memory maintainer."
+prompt = """
+Run the repository shared memory maintainer from the project root.
+
+Use this exact command:
+
+python3 memory_maintainer.py --config .agent-memory/memory-maintainer.json --apply --json
+
+Do not manually edit memory files. If the command fails, report stdout, stderr, and the failing condition.
+
+Summarize the report path, applied edits, rejected proposals, deferred work, generated policy patches, warnings, and errors.
+"""

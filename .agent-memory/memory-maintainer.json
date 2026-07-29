@@ -1,0 +1,54 @@
+{
+  "audit_dir": ".agent-memory/audit",
+  "auto_apply_globs": [
+    ".agent-memory/roles/**",
+    ".agent-memory/proposals/**"
+  ],
+  "review_only_globs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".claude/rules/**",
+    ".claude/agents/**",
+    ".claude/skills/**",
+    ".agents/skills/**",
+    ".codex/**",
+    ".gemini/**"
+  ],
+  "proposal_dir": ".agent-memory/proposals",
+  "agent_memory_dir": ".agent-memory/roles",
+  "memory_index_max_lines": 200,
+  "max_diff_lines_per_file": 120,
+  "max_total_diff_lines": 500,
+  "timezone": "Europe/Amsterdam",
+  "allowed_roles": [
+    "architect",
+    "explorer",
+    "researcher",
+    "implementer",
+    "reviewer",
+    "auditor",
+    "memory-curator"
+  ],
+  "allowed_scopes": [
+    "project",
+    "user",
+    "local"
+  ],
+  "allowed_types": [
+    "convention",
+    "invariant",
+    "workflow",
+    "pitfall",
+    "source",
+    "eval",
+    "risk"
+  ],
+  "allowed_confidence": [
+    "observed_once",
+    "repeated",
+    "verified"
+  ],
+  "url_evidence_timeout_seconds": 5,
+  "audit_runs_retained": 30
+}
